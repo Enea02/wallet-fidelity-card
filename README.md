@@ -1,87 +1,111 @@
 # Loyalty Wallet
 
-Carta fedeltà a timbri (es. "10 tagli = 1 gratis") su **Google Wallet**, con **Apple Wallet** predisposto.
-Multi-tenant: un deploy serve più negozi.
+Carta fedeltà a timbri (es. "10 tagli = 1 gratis") su **Google Wallet** e **Apple Wallet** per piccoli negozi.
+Multi-tenant, venduta in abbonamento. Requisiti e fasi di sviluppo: [`docs/brief-claude-code.md`](docs/brief-claude-code.md).
 
-Stack: Next.js 16 (App Router) · Supabase (Postgres + Auth) · Google Wallet API · deploy su Vercel.
+## Avvio locale (meno di 10 minuti)
 
-## Come funziona
+Prerequisiti, una volta sola:
+
+| Strumento      | Versione | Installazione                                                                                        |
+| -------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| Node.js        | 24       | `nvm install` (legge `.nvmrc`) o [nodejs.org](https://nodejs.org)                                    |
+| pnpm           | 11       | `corepack enable pnpm` (se chiede permessi: `corepack enable --install-directory ~/.local/bin pnpm`) |
+| Docker Desktop | recente  | [docker.com](https://www.docker.com/products/docker-desktop/), deve essere **avviato**               |
+| Supabase CLI   | ≥ 2.98   | `brew install supabase/tap/supabase`                                                                 |
+
+Poi:
+
+```bash
+pnpm i
+pnpm dev
+```
+
+`pnpm dev` avvia Supabase in locale (migrazioni e dati di prova inclusi), crea `apps/web/.env.local` al primo avvio
+e lancia il web su <http://localhost:3000>. All'avvio il server scrive una riga che riepiloga ambiente, versione e
+servizi attivi (`server.startup.ok`); se manca una variabile il server non parte e dice quale.
+
+Dati di prova (`supabase/seed.sql`, **solo locale**):
+
+| Cosa                 | Valore                                               |
+| -------------------- | ---------------------------------------------------- |
+| Negozio              | `salone-demo` → <http://localhost:3000/salone-demo>  |
+| Utente staff         | `staff@salone-demo.test` / `password-demo-locale`    |
+| Cliente con QR fisso | contenuto del QR: `0123456789abcdef0123456789abcdef` |
+| Supabase Studio      | <http://127.0.0.1:54323>                             |
+
+Google Wallet è disattivato finché non si compilano `GOOGLE_WALLET_*` in `apps/web/.env.local`: iscrizioni e timbri
+funzionano lo stesso, senza il pulsante "Aggiungi a Google Wallet".
+
+## Comandi
+
+| Comando                        | Cosa fa                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------ |
+| `pnpm dev`                     | Supabase locale + web in sviluppo                                        |
+| `pnpm build`                   | build di produzione di tutte le app                                      |
+| `pnpm typecheck`               | TypeScript strict su tutto il monorepo                                   |
+| `pnpm lint`                    | ESLint                                                                   |
+| `pnpm format` / `format:check` | Prettier (scrive / verifica)                                             |
+| `pnpm test`                    | test unitari (Vitest) di `packages/shared` e `apps/web`                  |
+| `pnpm test:smoke`              | iscrizione + timbro contro il Supabase locale (richiede `pnpm db:start`) |
+| `pnpm db:start` / `db:stop`    | avvia / ferma Supabase locale                                            |
+| `pnpm db:reset`                | ricrea il DB locale da migrazioni + seed (**cancella i dati locali**)    |
+| `pnpm db:new <nome>`           | crea una nuova migrazione in `supabase/migrations/`                      |
+| `pnpm db:migrate`              | applica le migrazioni non ancora applicate al DB locale                  |
+
+La CI (GitHub Actions) esegue su ogni push e pull request: format, typecheck, lint, test, build, gitleaks su tutta la
+storia e uno Supabase locale con migrazioni, seed e smoke test.
+
+## Struttura
 
 ```
-Cliente: QR al bancone → /<negozio> → form + consensi → "Aggiungi a Google Wallet"
-Staff:   /staff (PWA) → login → scansiona QR della carta → +1 timbro / riscatta premio
-Backend: timbro atomico in Postgres → PATCH carta Google (+ notifica al premio sbloccato)
+apps/
+  web/            Next.js 16: API, pagine pubbliche di iscrizione, (poi) pannello interno
+  merchant/       app esercente Expo (iOS, Android, Web): dalla Fase 6
+packages/
+  shared/         codice condiviso: catalogo eventi di log, catalogo errori, validazione env, logger
+supabase/
+  migrations/     schema del database, una migrazione per modifica
+  seed.sql        dati di prova per lo sviluppo locale
+scripts/          script di supporto (avvio DB locale)
+docs/             brief, design, runbook dell'assistenza
 ```
 
-| Percorso | Cosa fa |
-| --- | --- |
-| `/<slug>` | Iscrizione cliente |
-| `/<slug>/qr` | Cartello con QR da stampare per il bancone |
-| `/staff` | App staff: login, scanner, timbri, riscatti |
-| `POST /api/enroll` | Crea cliente + carta Google, ritorna il link Salva |
-| `POST /api/staff/lookup` · `stamp` · `redeem` | Operazioni staff (bearer token Supabase) |
-| `POST /api/admin/setup-class` | Crea/aggiorna il template Google del negozio |
+Dentro `apps/web`:
 
-Struttura del codice:
-
-- `supabase/schema.sql` — tabelle, RLS, funzioni atomiche `add_stamp` / `redeem_reward`
 - `src/lib/loyalty.ts` — dominio (iscrizione, timbri, riscatti)
 - `src/lib/wallet/notifier.ts` — unico punto di contatto dominio → wallet
 - `src/lib/wallet/google.ts` — LoyaltyClass, LoyaltyObject, JWT "Salva", notifiche
-- `src/lib/wallet/apple.ts` — `pass.json` pronto, firma e web service da completare
+- `src/lib/wallet/apple.ts` — `pass.json` pronto, firma e web service in Fase 12
+- `src/lib/server-env.ts` — variabili d'ambiente validate all'avvio (documentate in `apps/web/.env.example`)
 
-## Setup (tutto gratuito)
+| Percorso                                      | Cosa fa                                            |
+| --------------------------------------------- | -------------------------------------------------- |
+| `/<slug>`                                     | iscrizione cliente                                 |
+| `/<slug>/qr`                                  | cartello con QR da stampare per il bancone         |
+| `/staff`                                      | prototipo PWA staff (rimosso in Fase 3)            |
+| `POST /api/enroll`                            | crea cliente + carta Google, ritorna il link Salva |
+| `POST /api/staff/lookup` · `stamp` · `redeem` | operazioni staff (bearer token Supabase)           |
+| `POST /api/admin/setup-class`                 | crea/aggiorna il template Google del negozio       |
 
-### 1. Supabase
-1. Crea un progetto su supabase.com.
-2. SQL editor → esegui `supabase/schema.sql`.
-3. Inserisci un negozio (esempio in fondo allo schema). `logo_url` deve essere un PNG pubblico quadrato.
-4. Authentication → crea l'utente staff (email + password), poi inseriscilo in `staff` col suo `user_id`.
+## Google Wallet (Demo mode)
 
-### 2. Google Wallet (Demo mode)
 1. Google Cloud Console → nuovo progetto → abilita **Google Wallet API**.
 2. IAM → Service account → crea → Chiavi → aggiungi chiave JSON.
-3. [Google Pay & Wallet Console](https://pay.google.com/business/console) → Google Wallet API → crea l'account emittente, annota l'**Issuer ID**.
+3. [Google Pay & Wallet Console](https://pay.google.com/business/console) → Google Wallet API → crea l'account
+   emittente, annota l'**Issuer ID**.
 4. Nella console Wallet → Users: aggiungi l'email del service account (ruolo Developer).
 5. Sempre lì, aggiungi come **test user** l'account Google del telefono Android su cui provi.
+6. In `apps/web/.env.local`: `GOOGLE_WALLET_ISSUER_ID=<issuer id>` e
+   `GOOGLE_WALLET_SA_KEY_B64=$(base64 -i service-account.json | tr -d '\n')`. Non committare mai la chiave.
+7. Crea il template del negozio (una volta, e a ogni cambio di nome/logo/colore):
 
-In Demo mode le carte funzionano davvero ma mostrano "TEST ONLY" e solo i test user possono salvarle.
-Per andare in produzione: richiesta di "publishing access" dalla console.
-
-### 3. Variabili d'ambiente
 ```bash
-cp .env.example .env.local
-base64 -w0 service-account.json   # → GOOGLE_WALLET_SA_KEY_B64
-```
-Compila tutte le voci tranne quelle Apple.
-
-### 4. Avvio e primo test
-```bash
-npm install
-npm run dev
-# crea il template Google del negozio (una volta, e a ogni cambio nome/logo/colore)
 curl -X POST localhost:3000/api/admin/setup-class \
   -H "x-admin-token: $ADMIN_SETUP_TOKEN" -H "content-type: application/json" \
-  -d '{"shopSlug":"salone-mario"}'
+  -d '{"shopSlug":"salone-demo"}'
 ```
-Poi da Android (stessa rete o deploy Vercel): apri `/<slug>`, iscriviti, salva la carta.
-Da un altro telefono apri `/staff`, scansiona il QR della carta e aggiungi un timbro: la carta si aggiorna da sola.
 
-> La fotocamera dello scanner richiede HTTPS: in locale usa `next dev --experimental-https` o fai subito il deploy su Vercel.
+In Demo mode le carte funzionano davvero ma mostrano "TEST ONLY" e solo i test user possono salvarle.
 
-## Attivare Apple Wallet (quando avrete l'account da 99 €)
-1. Apple Developer → Identifiers → **Pass Type ID** → certificato → esporta `.p12` + scarica il certificato WWDR.
-2. `npm i passkit-generator` e un client APNs (HTTP/2 con il certificato del pass).
-3. In `src/lib/wallet/apple.ts`: genera il `.pkpass` da `passJson()`, implementa `notifyApple()`.
-4. Aggiungi le route del web service Apple sotto `/api/apple/v1/...` (registrazione dispositivi in `apple_registrations`).
-5. Nella pagina di iscrizione mostra "Aggiungi ad Apple Wallet" su iPhone.
-
-Dominio, timbri e app staff non cambiano.
-
-## Da fare prima di vendere
-- **Verifica del telefono** (OTP via SMS) all'iscrizione: oggi chi conosce il numero di un cliente può riottenerne la carta.
-- **Rate limit** su `/api/enroll` (es. Vercel Firewall o Upstash).
-- **Informativa privacy** reale per negozio (`/privacy`) e accordo di responsabile del trattamento con il negozio.
-- **Cooldown timbri** (es. max 1 timbro ogni X ore per cliente) contro timbri doppi involontari.
-- Dashboard negozio (clienti, timbri, riscatti) a partire da `stamp_events`.
-- Icone PWA in `src/app/manifest.ts`.
+> La fotocamera dello scanner `/staff` richiede HTTPS: in locale usa `pnpm --filter @loyalty/web dev --experimental-https`.
