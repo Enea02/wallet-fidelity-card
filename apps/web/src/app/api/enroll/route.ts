@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { enroll } from "@/lib/loyalty";
-import { errorResponse, HttpError } from "@/lib/auth";
+import { parseJsonBody } from "@/lib/observability/validation";
+import { withApi } from "@/lib/observability/with-api";
 
 export const runtime = "nodejs";
 
@@ -16,13 +17,7 @@ const Body = z.object({
   consentMarketing: z.boolean().default(false),
 });
 
-export async function POST(req: Request) {
-  try {
-    const parsed = Body.safeParse(await req.json());
-    if (!parsed.success) throw new HttpError(400, parsed.error.issues[0]?.message ?? "Dati non validi");
-    const result = await enroll(parsed.data);
-    return Response.json(result);
-  } catch (e) {
-    return errorResponse(e);
-  }
-}
+export const POST = withApi(async (req) => {
+  const body = await parseJsonBody(req, Body);
+  return Response.json(await enroll(body));
+});

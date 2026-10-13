@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, type Session } from "@supabase/supabase-js";
+import { apiErrorMessage } from "@/lib/client/api-error";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://localhost",
@@ -94,7 +95,7 @@ function Stamper({ session }: { session: Session }) {
         ...(body !== undefined && { body: JSON.stringify(body) }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Errore");
+      if (!res.ok) throw new Error(apiErrorMessage(json));
       return json;
     },
     [session.access_token],

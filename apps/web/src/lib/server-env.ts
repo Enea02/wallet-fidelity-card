@@ -25,6 +25,18 @@ export const serverEnvSchema = z
       .default("development")
       .describe("ambiente: development, test o production"),
     LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error"]).default("info").describe("livello minimo dei log"),
+    LOG_FORMAT: z
+      .enum(["json", "pretty"])
+      .optional()
+      .describe("formato dei log: json (default in produzione) o pretty (default in sviluppo)"),
+    LOG_TRANSPORT: z
+      .enum(["stdout", "none"])
+      .default("stdout")
+      .describe("destinazione dei log: stdout (inoltrato dal Log Drain di Vercel) o none"),
+    IP_HASH_SALT: z
+      .string()
+      .min(16, { message: "troppo corto: usare almeno 16 caratteri casuali (openssl rand -hex 16)" })
+      .describe("salt segreto per salvare gli IP solo come hash, almeno 16 caratteri casuali"),
     APP_BASE_URL: z.url().describe("URL pubblico del sito, es. http://localhost:3000"),
     NEXT_PUBLIC_SUPABASE_URL: z.url().describe("URL del progetto Supabase (in locale: pnpm db:start lo stampa)"),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().describe("chiave pubblica (anon) di Supabase, usata dal login staff"),

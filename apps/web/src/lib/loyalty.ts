@@ -1,6 +1,7 @@
 import "server-only";
 import { supabaseAdmin } from "./supabase";
-import { HttpError } from "./auth";
+import { AppError } from "@loyalty/shared/errors";
+import { setContext } from "./observability/context";
 import type { Customer, Shop } from "./types";
 import { googleEnabled, upsertLoyaltyObject, saveUrl } from "./wallet/google";
 import { notifyCardChanged } from "./wallet/notifier";
@@ -29,7 +30,12 @@ export async function getCustomerByQr(shopId: string, qrToken: string): Promise<
     .eq("qr_token", qrToken)
     .maybeSingle();
   if (error) throw error;
-  if (!data) throw new HttpError(404, "Carta non trovata per questo negozio");
+  if (!data) {
+    throw new AppError("E_CARD_NOT_FOUND", `nessuna carta del negozio ${shopId} con il QR scansionato`, {
+      shop_id: shopId,
+    });
+  }
+  setContext({ customer_ref: data.id });
   return data as Customer;
 }
 
@@ -47,8 +53,11 @@ export interface EnrollInput {
  */
 export async function enroll(input: EnrollInput) {
   const shop = await getShopBySlug(input.shopSlug);
-  if (!shop) throw new HttpError(404, "Negozio non trovato");
-  if (!input.consentPrivacy) throw new HttpError(400, "Consenso privacy obbligatorio");
+  if (!shop) throw new AppError("E_SHOP_NOT_FOUND", `nessun negozio con slug "${input.shopSlug}"`);
+  setContext({ shop_id: shop.id });
+  if (!input.consentPrivacy) {
+    throw new AppError("E_PRIVACY_CONSENT_REQUIRED", "iscrizione senza consenso privacy");
+  }
 
   const db = supabaseAdmin();
   const { data: existing } = await db
@@ -74,6 +83,7 @@ export async function enroll(input: EnrollInput) {
     if (error) throw error;
     customer = data as Customer;
   }
+  setContext({ customer_ref: customer.id });
 
   if (!googleEnabled()) return { googleSaveUrl: null };
   await upsertLoyaltyObject({ shop, customer });
@@ -100,7 +110,9 @@ export async function redeem(shopId: string, qrToken: string, staffUserId: strin
     .rpc("redeem_reward", { p_customer_id: customer.id, p_staff_user_id: staffUserId })
     .single<{ stamps: number; rewards_available: number }>();
   if (error) {
-    if (error.message.includes("no_reward_available")) throw new HttpError(409, "Nessun premio da riscattare");
+    if (error.message.includes("no_reward_available")) {
+      throw new AppError("E_NO_REWARD", `la carta ${customer.id} non ha premi da riscattare`);
+    }
     throw error;
   }
 

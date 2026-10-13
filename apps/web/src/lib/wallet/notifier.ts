@@ -1,4 +1,5 @@
 import "server-only";
+import { log } from "../observability/logger";
 import type { CardState } from "../types";
 import { googleEnabled, notifyLoyaltyObject, patchLoyaltyObject } from "./google";
 import { notifyApple } from "./apple";
@@ -11,13 +12,16 @@ export interface CardChange {
 /**
  * Unico punto in cui il dominio parla con i wallet.
  * Aggiungere un wallet = aggiungere un ramo qui, il resto non cambia.
- * Gli errori dei wallet non annullano il timbro: vengono solo loggati.
+ * Gli errori dei wallet non annullano il timbro: vengono loggati (wallet.update.failed).
  */
 export async function notifyCardChanged(state: CardState, change: CardChange) {
-  const jobs: Array<Promise<unknown>> = [notifyApple(state)];
+  const jobs: Array<{ provider: "google" | "apple"; run: Promise<unknown> }> = [
+    { provider: "apple", run: notifyApple(state) },
+  ];
   if (googleEnabled()) {
-    jobs.push(
-      patchLoyaltyObject(state).then(() =>
+    jobs.push({
+      provider: "google",
+      run: patchLoyaltyObject(state).then(() =>
         change.rewardUnlocked
           ? notifyLoyaltyObject(
               state.customer.id,
@@ -26,12 +30,18 @@ export async function notifyCardChanged(state: CardState, change: CardChange) {
             )
           : undefined,
       ),
-    );
+    });
   }
 
-  const results = await Promise.allSettled(jobs);
-  for (const r of results) {
-    // eslint-disable-next-line no-console -- sostituito dal logger del catalogo in Fase 1
-    if (r.status === "rejected") console.error("[wallet] aggiornamento fallito:", r.reason);
-  }
+  await Promise.all(
+    jobs.map(({ provider, run }) =>
+      run.catch((e: unknown) =>
+        log.event(
+          "wallet.update.failed",
+          { provider, customer_ref: state.customer.id, error_message: e instanceof Error ? e.message : String(e) },
+          { error: e },
+        ),
+      ),
+    ),
+  );
 }

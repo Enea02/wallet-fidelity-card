@@ -1,12 +1,7 @@
-import { errorResponse, staffShops } from "@/lib/auth";
+import { staffShops } from "@/lib/auth";
+import { withApi } from "@/lib/observability/with-api";
 
 export const runtime = "nodejs";
 
 /** Negozi su cui l'utente loggato può timbrare. */
-export async function GET(req: Request) {
-  try {
-    return Response.json({ shops: await staffShops(req) });
-  } catch (e) {
-    return errorResponse(e);
-  }
-}
+export const GET = withApi(async (req) => Response.json({ shops: await staffShops(req) }));
