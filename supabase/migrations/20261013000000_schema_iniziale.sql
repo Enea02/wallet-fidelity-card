@@ -1,6 +1,7 @@
 -- =============================================================
 -- Loyalty Wallet — schema multi-tenant (Supabase / Postgres)
--- Eseguire nell'SQL editor di Supabase.
+-- Prima migrazione: è lo schema.sql dello scheletro, invariato.
+-- Si applica con `pnpm db:reset` (locale) o `supabase db push` (remoto).
 -- Tutte le tabelle hanno RLS attiva SENZA policy: vi accede solo
 -- il backend con la service role key. Il client non legge mai il DB.
 -- =============================================================
@@ -151,14 +152,3 @@ $$;
 
 revoke all on function add_stamp(uuid, uuid)     from public, anon, authenticated;
 revoke all on function redeem_reward(uuid, uuid) from public, anon, authenticated;
-
--- -------------------------------------------------------------
--- Dati di esempio (decommentare e adattare)
--- -------------------------------------------------------------
--- insert into shops (slug, name, stamps_required, reward_label, logo_url, hex_color)
--- values ('salone-mario', 'Salone Mario', 10, 'Taglio gratis',
---         'https://esempio.it/logo.png', '#7c3aed');
---
--- Dopo aver creato l'utente staff da Supabase > Authentication:
--- insert into staff (user_id, shop_id)
--- select '<uuid-utente-auth>', id from shops where slug = 'salone-mario';

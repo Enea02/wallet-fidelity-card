@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@loyalty/shared"],
   // versione e commit finiscono nel log di avvio e (dalla Fase 1) in ogni riga
   env: { APP_VERSION: pkg.version, APP_COMMIT_SHA: gitCommit() },
+  // le istruzioni per gli agenti stanno in CLAUDE.md alla radice
+  agentRules: false,
 };
 
 export default nextConfig;

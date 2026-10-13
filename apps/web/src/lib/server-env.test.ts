@@ -7,7 +7,7 @@ const base = {
   NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
   SUPABASE_SERVICE_ROLE_KEY: "service-role-key-segretissima",
-  ADMIN_SETUP_TOKEN: "0123456789abcdef0123456789abcdef",
+  ADMIN_SETUP_TOKEN: "a".repeat(32),
 };
 const saKey = Buffer.from(JSON.stringify({ client_email: "sa@x.iam", private_key: "-----BEGIN…" })).toString("base64");
 
