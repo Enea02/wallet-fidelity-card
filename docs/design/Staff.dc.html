@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&amp;display=swap" rel="stylesheet">
+<script src="lw-core.js"></script>
+<style>
+:root{--lw-bg:#F6F2EC;--lw-surface:#FEFCF9;--lw-surface-2:#EDE7DF;--lw-line:#DDD4CA;--lw-ink:#2A211C;--lw-ink-2:#5E534B;--lw-ink-3:#968B81;--lw-accent:#5B1F2E;--lw-on-accent:#FFFFFF;--lw-accent-edge:#5B1F2E;--lw-accent-text:#5B1F2E;--lw-accent-soft:#F7EBEC;--lw-accent-line:#E3CBCE;--lw-success:#2E6B3F;--lw-success-soft:#E5F3E7;--lw-danger:#B42C25;--lw-danger-soft:#FBE8E5;--lw-warning:#74561A;--lw-warning-soft:#FBF0D9;--lw-card-bg:#5B1F2E;--lw-card-fg:#FFFFFF;--lw-card-label:#E2C9CE;--lw-card-ring:#B48F97}
+html,body{margin:0;background:#E9E2D8}
+body{font-family:'Bricolage Grotesque',system-ui,sans-serif;color:#2A211C;-webkit-font-smoothing:antialiased}
+a{color:var(--lw-accent-text)}a:hover{color:var(--lw-ink)}
+button{font-family:'Bricolage Grotesque',system-ui,sans-serif}
+</style>
+</helmet>
+<sc-if value="{{ ready }}" hint-placeholder-val="{{ false }}">
+<div style="padding:64px;display:flex;flex-direction:column;gap:72px;width:max-content">
+<header style="display:flex;flex-direction:column;gap:10px;max-width:900px">
+<div style="font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#5E534B">Consegna 2 · Staff · PWA</div>
+<h1 style="margin:0;font-size:56px;line-height:1;letter-spacing:-.03em">Scansiona, timbra, avanti il prossimo</h1>
+<p style="margin:0;font-size:18px;line-height:1.5;color:#5E534B">Tasti da 72–88 px nella metà bassa dello schermo, un'azione principale per volta, conferme leggibili a un metro di distanza. <a href="Cliente.dc.html">← Cliente</a> · <a href="Titolare.dc.html">Titolare →</a></p>
+</header>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<h2 style="margin:0;font-size:32px;letter-spacing:-.02em">P · Prototipo interattivo</h2>
+<div style="display:flex;gap:40px;align-items:flex-start">
+<div id="p1" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">P1</span>+1 · secondo +1 = cooldown · “Cliente successivo” apre lo scanner</div>
+<div style="{{ vars }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;position:relative;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+
+<sc-if value="{{ isScan }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 40%,#3A332D,#14110F);color:#fff;display:flex;flex-direction:column">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;padding:0 20px"><span>9:41</span><span>{{ shop }}</span></div>
+<div style="padding:12px 20px;font-size:22px;font-weight:700;text-align:center;line-height:1.2">Inquadra il QR<br>della carta del cliente</div>
+<div style="margin:24px auto 0;width:240px;height:240px;position:relative">
+<div style="position:absolute;left:0;top:0;width:44px;height:44px;border-left:5px solid #fff;border-top:5px solid #fff;border-radius:16px 0 0 0"></div>
+<div style="position:absolute;right:0;top:0;width:44px;height:44px;border-right:5px solid #fff;border-top:5px solid #fff;border-radius:0 16px 0 0"></div>
+<div style="position:absolute;left:0;bottom:0;width:44px;height:44px;border-left:5px solid #fff;border-bottom:5px solid #fff;border-radius:0 0 0 16px"></div>
+<div style="position:absolute;right:0;bottom:0;width:44px;height:44px;border-right:5px solid #fff;border-bottom:5px solid #fff;border-radius:0 0 16px 0"></div>
+</div>
+<sc-if value="{{ scanError }}" hint-placeholder-val="{{ false }}">
+<div style="margin:20px 20px 0;padding:14px 16px;border-radius:16px;background:#FBE8E5;color:#2A211C;display:flex;flex-direction:column;gap:2px"><strong style="font-size:17px">QR non valido</strong><span style="font-size:14px;color:#5E534B">Non è una carta di {{ shop }}. Chiedi al cliente di aprire quella giusta.</span></div>
+</sc-if>
+<div style="margin-top:auto;padding:20px;display:flex;flex-direction:column;gap:10px">
+<button onClick="{{ simScan }}" style="height:64px;border-radius:16px;border:0;background:#fff;color:#14110F;font-size:18px;font-weight:700;cursor:pointer">Simula scansione</button>
+<div style="display:flex;gap:10px"><button onClick="{{ simBad }}" style="flex:1;height:52px;border-radius:14px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;font-size:15px;font-weight:600;cursor:pointer">Simula QR errato</button><button style="flex:1;height:52px;border-radius:14px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;font-size:15px;font-weight:600">Cerca per telefono</button></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isCard }}" hint-placeholder-val="{{ true }}">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;padding:0 20px;flex:none"><span>9:41</span><span style="color:var(--lw-ink-2)">{{ shop }} · Sara</span></div>
+<div style="padding:4px 16px 16px;display:flex;flex-direction:column;gap:14px;flex:1">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="width:52px;height:52px;border-radius:50%;background:var(--lw-accent-soft);color:var(--lw-accent-text);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700">GR</div>
+<div style="display:flex;flex-direction:column;flex:1"><strong style="font-size:22px;letter-spacing:-.01em">Giulia Rossi</strong><span style="font-size:14px;color:var(--lw-ink-2)">Cliente da marzo · {{ visits }} visite</span></div>
+</div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:15px;font-weight:600;color:var(--lw-ink-2)">Timbri</span><span style="font-size:34px;line-height:1;font-weight:700;font-variant-numeric:tabular-nums;color:var(--lw-accent-text)">{{ f }}<span style="font-size:20px;color:var(--lw-ink-3)">/{{ n }}</span></span></div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<sc-for list="{{ rows }}" as="row" hint-placeholder-count="0">
+<div style="display:flex;justify-content:center;gap:10px"><sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="0"><lw-img src="{{ c.src }}" ref="{{ c.ref }}" alt="" style="width:52px;height:52px;display:block"></lw-img></sc-for></div>
+</sc-for>
+</div>
+<sc-if value="{{ hasReward }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--lw-accent-soft)"><lw-img src="{{ giftIcon }}" alt="" style="width:28px;height:28px;display:block"></lw-img><span style="font-size:15px;font-weight:600;color:var(--lw-accent-text)">{{ rewardLabel }}</span></div>
+</sc-if>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto">
+<button onClick="{{ add }}" style="height:96px;border-radius:20px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer"><span style="font-size:34px;font-weight:700;line-height:1">+1</span><span style="font-size:15px;font-weight:600">timbro</span></button>
+<button onClick="{{ redeem }}" style="{{ redeemStyle }}">Riscatta<br>premio</button>
+</div>
+<sc-if value="{{ canUndo }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ undo }}" style="height:48px;border-radius:14px;border:1px dashed var(--lw-line);background:transparent;color:var(--lw-ink);font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">Annulla ultimo timbro <span style="color:var(--lw-ink-2);font-variant-numeric:tabular-nums">{{ undoLeft }}</span></button>
+</sc-if>
+<button onClick="{{ next }}" style="height:56px;border-radius:16px;border:1px solid var(--lw-line);background:var(--lw-surface);color:var(--lw-ink);font-size:17px;font-weight:600;cursor:pointer">Cliente successivo</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ toastShow }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:12px;right:12px;top:44px;z-index:3"><div style="{{ toastStyle }}"><div style="{{ toastDot }}"></div><div style="display:flex;flex-direction:column"><strong style="font-size:17px">{{ toastTitle }}</strong><span style="font-size:14px;opacity:.85">{{ toastBody }}</span></div></div></div>
+</sc-if>
+
+<sc-if value="{{ isCooldown }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:rgba(30,25,21,.55);display:flex;flex-direction:column;justify-content:flex-end;z-index:4">
+<div style="background:var(--lw-surface);border-radius:28px 28px 0 0;padding:22px 20px 24px;display:flex;flex-direction:column;gap:12px">
+<div style="width:48px;height:48px;border-radius:50%;background:var(--lw-warning-soft);color:var(--lw-warning);display:flex;align-items:center;justify-content:center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></div>
+<h3 style="margin:0;font-size:24px;letter-spacing:-.01em">Timbro già dato da poco</h3>
+<p style="margin:0;font-size:16px;line-height:1.45;color:var(--lw-ink-2)">Giulia ha ricevuto un timbro <strong style="color:var(--lw-ink)">alle 10:12</strong> da Sara. La regola è uno ogni 4 ore.</p>
+<button onClick="{{ closeCooldown }}" style="height:60px;border-radius:16px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font-size:17px;font-weight:600;cursor:pointer">Ok, niente timbro</button>
+<button onClick="{{ forceAdd }}" style="height:48px;border-radius:14px;border:0;background:transparent;color:var(--lw-ink);font-size:15px;font-weight:600;cursor:pointer;text-decoration:underline">Aggiungi comunque (resta nel registro)</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isCelebrate }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:var(--lw-card-bg);color:var(--lw-card-fg);display:flex;flex-direction:column;align-items:center;text-align:center;padding:72px 24px 24px;z-index:5">
+<lw-img src="{{ bigRosette }}" ref="{{ rosetteRef }}" alt="" style="width:168px;height:168px;display:block"></lw-img>
+<div style="margin-top:28px;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--lw-card-label)">{{ n }} timbri su {{ n }}</div>
+<div style="margin-top:8px;font-size:40px;line-height:1;font-weight:700;letter-spacing:-.03em">Premio sbloccato!</div>
+<p style="margin:14px 0 0;font-size:17px;line-height:1.45;max-width:280px">Giulia ha diritto a: <strong>{{ reward }}</strong>. Puoi riscattarlo subito o alla prossima visita.</p>
+<div style="margin-top:auto;width:100%;display:flex;flex-direction:column;gap:10px">
+<button onClick="{{ redeemNow }}" style="height:64px;border-radius:18px;border:0;background:var(--lw-card-fg);color:var(--lw-card-bg);font-size:18px;font-weight:700;cursor:pointer">Riscatta ora</button>
+<button onClick="{{ later }}" style="height:56px;border-radius:16px;border:1px solid var(--lw-card-ring);background:transparent;color:var(--lw-card-fg);font-size:16px;font-weight:600;cursor:pointer">Alla prossima visita</button>
+<button onClick="{{ undo }}" style="height:40px;border:0;background:transparent;color:var(--lw-card-label);font-size:14px;font-weight:600;cursor:pointer">Annulla ultimo timbro</button>
+</div>
+</div>
+</sc-if>
+<div ref="{{ fxRef }}" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:6"></div>
+</div></div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:16px;width:380px;font-size:14px;line-height:1.5;color:#5E534B">
+<div style="background:#FEFCF9;border:1px solid #DDD4CA;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:10px">
+<strong style="color:#2A211C;font-size:16px">Stati e regole</strong>
+<div><strong style="color:#2A211C">+1 timbro</strong> → toast verde 2,5 s, vibrazione 20 ms, timbro animato al suo posto. Compare “Annulla ultimo timbro” con conto alla rovescia di 5:00; dopo sparisce.</div>
+<div><strong style="color:#2A211C">Cooldown</strong> → secondo +1 sullo stesso cliente entro 4 h: foglio di avviso, nessun timbro. “Aggiungi comunque” registra l'operatore e il motivo.</div>
+<div><strong style="color:#2A211C">N-esimo timbro</strong> → schermata intera nel colore della carta, rosetta che entra ruotando, 18 coriandoli, vibrazione 30-60-30. Il titolare vede l'evento nella dashboard.</div>
+<div><strong style="color:#2A211C">Riscatta premio</strong> → disattivato se Premi = 0. Azzerando, la carta riparte da 0 e il wallet si aggiorna (push).</div>
+<div><strong style="color:#2A211C">Offline</strong> → azioni in coda con badge “In attesa di rete”; mai doppio timbro per lo stesso tocco (id idempotente).</div>
+</div>
+</div>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<h2 style="margin:0;font-size:32px;letter-spacing:-.02em">S · Schermate</h2>
+<div style="display:flex;gap:40px;align-items:flex-start">
+
+<div id="s1" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">S1</span>Login</div>
+<div style="{{ vars }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;flex:none"></div>
+<div style="padding:40px 20px 24px;display:flex;flex-direction:column;gap:18px;flex:1">
+<lw-img src="{{ stampHero }}" alt="" style="width:64px;height:64px;display:block"></lw-img>
+<div style="display:flex;flex-direction:column;gap:6px"><h2 style="margin:0;font-size:30px;letter-spacing:-.02em">Accesso staff</h2><p style="margin:0;font-size:16px;color:var(--lw-ink-2);line-height:1.45">Usa l'email con cui il titolare ti ha invitato. Ti mandiamo un link di accesso.</p></div>
+<div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:14px;font-weight:600">Email</label><div style="height:56px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;padding:0 12px;font-size:17px">sara@salonenora.it</div></div>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:10px"><button style="height:60px;border-radius:16px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font-size:17px;font-weight:600">Inviami il link</button><span style="font-size:13px;color:var(--lw-ink-2);text-align:center">Resti connessa su questo dispositivo per 30 giorni.</span></div>
+</div>
+</div></div>
+</div>
+
+<div id="s2" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">S2</span>Scelta negozio (se più di uno)</div>
+<div style="{{ varsN }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;flex:none"></div>
+<div style="padding:24px 16px;display:flex;flex-direction:column;gap:14px">
+<h2 style="margin:0 4px 6px;font-size:28px;letter-spacing:-.02em">Dove lavori oggi?</h2>
+<sc-for list="{{ shops }}" as="s" hint-placeholder-count="0">
+<div style="display:flex;align-items:center;gap:14px;padding:16px;border-radius:20px;background:var(--lw-surface);border:1px solid var(--lw-line);min-height:76px;box-sizing:border-box"><lw-img src="{{ s.logo }}" alt="" style="width:48px;height:48px;border-radius:50%;display:block"></lw-img><div style="display:flex;flex-direction:column;flex:1"><strong style="font-size:18px">{{ s.name }}</strong><span style="font-size:14px;color:var(--lw-ink-2)">{{ s.addr }}</span></div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"></path></svg></div>
+</sc-for>
+<span style="font-size:13px;color:var(--lw-ink-2);padding:4px">L'ultima scelta viene ricordata. Si cambia dal menu.</span>
+</div>
+</div></div>
+</div>
+
+<div id="s3" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">S3</span>Scheda cliente · timbro aggiunto</div>
+<div style="{{ vars }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;position:relative;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;flex:none"></div>
+<div style="position:absolute;left:12px;right:12px;top:44px;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--lw-success-soft);box-shadow:0 10px 24px -12px rgba(0,0,0,.3)"><div style="width:30px;height:30px;border-radius:50%;background:var(--lw-success);flex:none;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></div><div style="display:flex;flex-direction:column"><strong style="font-size:17px">Timbro aggiunto</strong><span style="font-size:14px;color:var(--lw-ink-2)">Giulia ha 7 timbri su 10</span></div></div>
+<div style="padding:72px 16px 16px;display:flex;flex-direction:column;gap:14px;flex:1">
+<div style="display:flex;align-items:center;gap:12px"><div style="width:52px;height:52px;border-radius:50%;background:var(--lw-accent-soft);color:var(--lw-accent-text);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700">GR</div><div style="display:flex;flex-direction:column"><strong style="font-size:22px">Giulia Rossi</strong><span style="font-size:14px;color:var(--lw-ink-2)">Cliente da marzo · 17 visite</span></div></div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:14px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:15px;font-weight:600;color:var(--lw-ink-2)">Timbri</span><span style="font-size:34px;line-height:1;font-weight:700;color:var(--lw-accent-text)">7<span style="font-size:20px;color:var(--lw-ink-3)">/10</span></span></div><lw-img src="{{ grid7 }}" alt="" style="width:100%;display:block"></lw-img></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto">
+<div style="height:96px;border-radius:20px;background:var(--lw-accent);color:var(--lw-on-accent);display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font-size:34px;font-weight:700;line-height:1">+1</span><span style="font-size:15px;font-weight:600">timbro</span></div>
+<div style="height:96px;border-radius:20px;background:var(--lw-surface-2);color:var(--lw-ink-3);display:flex;align-items:center;justify-content:center;text-align:center;font-size:17px;font-weight:700;line-height:1.2">Riscatta<br>premio</div>
+</div>
+<div style="height:48px;border-radius:14px;border:1px dashed var(--lw-line);display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:600">Annulla ultimo timbro <span style="color:var(--lw-ink-2)">4:52</span></div>
+<div style="height:56px;border-radius:16px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">Cliente successivo</div>
+</div>
+</div></div>
+</div>
+
+<div id="s4" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">S4</span>Premio sbloccato · tema bar</div>
+<div style="{{ varsB }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-card-bg);color:var(--lw-card-fg);display:flex;flex-direction:column;align-items:center;text-align:center;padding:72px 24px 24px;box-sizing:border-box;position:relative;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<sc-for list="{{ confettiStatic }}" as="c" hint-placeholder-count="0"><div style="{{ c }}"></div></sc-for>
+<lw-img src="{{ rosetteB }}" alt="" style="width:168px;height:168px;display:block;position:relative"></lw-img>
+<div style="margin-top:28px;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--lw-card-label)">8 timbri su 8</div>
+<div style="margin-top:8px;font-size:40px;line-height:1;font-weight:700;letter-spacing:-.03em">Premio sbloccato!</div>
+<p style="margin:14px 0 0;font-size:17px;line-height:1.45;max-width:280px">Marco ha diritto a: <strong>Colazione gratis</strong>. Puoi riscattarla subito o alla prossima visita.</p>
+<div style="margin-top:auto;width:100%;display:flex;flex-direction:column;gap:10px">
+<div style="height:64px;border-radius:18px;background:var(--lw-card-fg);color:var(--lw-card-bg);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700">Riscatta ora</div>
+<div style="height:56px;border-radius:16px;border:1px solid var(--lw-card-ring);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600">Alla prossima visita</div>
+</div>
+</div></div>
+</div>
+
+<div id="s5" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">S5</span>Riscatta · conferma</div>
+<div style="{{ vars }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:#3A302A;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="background:var(--lw-surface);color:var(--lw-ink);border-radius:28px 28px 0 0;padding:22px 20px 24px;display:flex;flex-direction:column;gap:12px">
+<lw-img src="{{ giftBig }}" alt="" style="width:56px;height:56px;display:block"></lw-img>
+<h3 style="margin:0;font-size:24px">Riscattare il taglio gratis?</h3>
+<p style="margin:0;font-size:16px;line-height:1.45;color:var(--lw-ink-2)">Per <strong style="color:var(--lw-ink)">Giulia Rossi</strong>. Dopo il riscatto la carta riparte da 0 timbri.</p>
+<div style="height:60px;border-radius:16px;background:var(--lw-accent);color:var(--lw-on-accent);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">Sì, riscatta</div>
+<div style="height:48px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600">Annulla</div>
+</div>
+</div></div>
+</div>
+</div>
+</section>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;preset&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;salone&quot;,&quot;bar&quot;,&quot;pizzeria&quot;,&quot;estetica&quot;],&quot;default&quot;:&quot;salone&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;dark&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;numbers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { view: 'card', f: 6, r: 0, toast: null, undoUntil: 0, lastAdd: 0, now: Date.now(), visits: 16, scanError: false, prevR: 0 };
+  cells = []; refFns = [];
+  componentDidMount() {
+    if (!window.LW) this.t = setInterval(() => { if (window.LW) { clearInterval(this.t); this.forceUpdate(); } }, 30);
+    this.tick = setInterval(() => { if (this.state.undoUntil > Date.now() || this.state.toast) this.setState({ now: Date.now() }); }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this.t); clearInterval(this.tick); clearTimeout(this.tt); }
+  reduced() { return window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  toast(kind, title, body) { clearTimeout(this.tt); this.setState({ toast: { kind, title, body } }); this.tt = setTimeout(() => this.setState({ toast: null }), 2500); }
+  pop(i) { requestAnimationFrame(() => { const el = this.cells[i]; if (!el || !el.animate) return; if (this.reduced()) el.animate([{ opacity: 0 }, { opacity: 1 }], 150); else el.animate([{ transform: 'scale(1.6) rotate(-10deg)', opacity: 0 }, { transform: 'scale(.92)', opacity: 1, offset: .7 }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.2,.9,.3,1.2)' }); }); }
+  celebrate() {
+    navigator.vibrate && navigator.vibrate([30, 60, 30]);
+    setTimeout(() => {
+      const ro = this.rosette, fx = this.fx, t = this.th; if (this.reduced()) return;
+      ro && ro.animate([{ transform: 'scale(.3) rotate(-60deg)', opacity: 0 }, { transform: 'scale(1.12) rotate(12deg)', opacity: 1, offset: .6 }, { transform: 'scale(1) rotate(0)' }], { duration: 700, easing: 'cubic-bezier(.2,.9,.3,1.2)' });
+      ro && ro.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }], { duration: 450, delay: 750, iterations: 2 });
+      if (!fx) return; const cols = [t.cardFg, t.cardRing, t.cardLabel];
+      for (let k = 0; k < 18; k++) {
+        const d = document.createElement('div'), s = 8 + (k % 4) * 2, a = (k / 18) * Math.PI * 2 + (k % 3) * .2, R = 130 + (k * 23) % 90;
+        Object.assign(d.style, { position: 'absolute', left: '50%', top: '22%', width: s + 'px', height: s + 'px', marginLeft: -s / 2 + 'px', background: cols[k % 3], borderRadius: k % 2 ? '50%' : '2px' });
+        fx.appendChild(d);
+        d.animate([{ transform: 'translate(0,60px) scale(.4)', opacity: 1 }, { transform: `translate(${Math.cos(a) * R}px,${60 + Math.sin(a) * R + 80}px) rotate(${k * 47}deg) scale(1)`, opacity: 0 }], { duration: 1100 + (k % 5) * 90, easing: 'cubic-bezier(.15,.7,.3,1)', delay: 250 }).onfinish = () => d.remove();
+      }
+    }, 30);
+  }
+  renderVals() { if (!window.LW) return { ready: false }; return { ready: true, ...this._rv() }; }
+  _rv() {
+    const LW = window.LW; if (!LW) return {};
+    const p = LW.presets[this.props.preset ?? 'salone'] || LW.presets.salone, n = p.n, num = this.props.numbers ?? true;
+    const t = LW.theme(p.brand, this.props.dark ? 'dark' : 'light'); this.th = t;
+    const bL = LW.theme(LW.presets.bar.brand, 'light'), nL = LW.theme('#2A211C', 'light');
+    const s = this.state, now = Date.now();
+    const ui = (st, i, icon, sz) => LW.stampURL(st, sz || 52, { fg: t.accent, bg: t.onAccent, ring: t.ink3, icon: icon || p.icon, i, numbers: num });
+    const g = LW.gridLayout(n); let i = 0;
+    const rows = g.perRow.map(cnt => ({ cells: Array.from({ length: cnt }, () => { const k = i++; const last = k === n - 1; const st = last ? (s.f >= n ? 'reward-filled' : 'reward-empty') : (k < s.f ? 'filled' : 'empty'); this.refFns[k] = this.refFns[k] || (el => { this.cells[k] = el; }); return { src: ui(st, k), ref: this.refFns[k] }; }) }));
+    const left = Math.max(0, s.undoUntil - now), mm = Math.floor(left / 60000), ss = Math.floor(left / 1000) % 60;
+    const tk = s.toast && { success: [t.successSoft, t.ink, t.success], reward: [t.accent, t.onAccent, t.onAccent], info: [t.surface2, t.ink, t.ink2] }[s.toast.kind];
+    const add = (force) => {
+      if (!force && s.lastAdd && now - s.lastAdd < 4 * 3600e3) { this.setState({ view: 'cooldown' }); return; }
+      const nf = s.f + 1; navigator.vibrate && navigator.vibrate(20);
+      if (nf >= n) { this.setState({ f: n, r: s.r + 1, prevR: s.r, view: 'celebrate', lastAdd: now, undoUntil: now + 300e3, visits: s.visits + 1, toast: null }); this.celebrate(); }
+      else { this.setState({ f: nf, view: 'card', lastAdd: now, undoUntil: now + 300e3, visits: s.visits + 1 }); this.toast('success', 'Timbro aggiunto', `Giulia ha ${nf} timbri su ${n}`); this.pop(nf - 1); }
+    };
+    const redeemNow = () => { this.setState({ r: Math.max(0, s.r - 1), f: s.f >= n ? 0 : s.f, view: 'card', undoUntil: 0 }); this.toast('reward', 'Premio riscattato', `${p.reward} · la carta riparte da 0`); };
+    return {
+      vars: LW.vars(t), varsB: LW.vars(bL), varsN: LW.vars(nL), shop: p.shop, reward: p.reward, n, f: s.f, visits: s.visits, rows,
+      isCard: s.view !== 'scan', isScan: s.view === 'scan', isCelebrate: s.view === 'celebrate', isCooldown: s.view === 'cooldown', scanError: s.scanError,
+      hasReward: s.r > 0, rewardLabel: `${s.r} ${s.r === 1 ? 'premio disponibile' : 'premi disponibili'}: ${p.reward}`, giftIcon: ui('reward-filled', 0, 'gift', 28),
+      canUndo: left > 0 && s.view === 'card', undoLeft: `${mm}:${String(ss).padStart(2, '0')}`,
+      toastShow: !!s.toast, toastTitle: s.toast && s.toast.title, toastBody: s.toast && s.toast.body,
+      toastStyle: tk ? { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 16, background: tk[0], color: tk[1], boxShadow: '0 10px 24px -12px rgba(0,0,0,.35)' } : {},
+      toastDot: tk ? { width: 30, height: 30, borderRadius: '50%', background: tk[2], flex: 'none' } : {},
+      redeemStyle: { height: 96, borderRadius: 20, border: s.r > 0 ? '2px solid ' + t.accentEdge : '1px solid ' + t.line, background: s.r > 0 ? t.accentSoft : t.surface2, color: s.r > 0 ? t.accentText : t.ink3, fontSize: 17, fontWeight: 700, lineHeight: 1.2, cursor: s.r > 0 ? 'pointer' : 'not-allowed' },
+      add: () => add(false), forceAdd: () => add(true), closeCooldown: () => this.setState({ view: 'card' }),
+      redeem: () => { if (s.r > 0) redeemNow(); }, redeemNow, later: () => { this.setState({ view: 'card' }); this.toast('reward', 'Premio salvato', 'Lo trova sulla carta alla prossima visita'); },
+      undo: () => { if (s.f <= 0) return; const fromFull = s.view === 'celebrate'; this.setState({ f: s.f - 1, r: fromFull ? s.prevR : s.r, view: 'card', undoUntil: 0, lastAdd: 0, visits: s.visits - 1 }); this.toast('info', 'Timbro annullato', `Giulia torna a ${s.f - 1} su ${n}`); },
+      next: () => this.setState({ view: 'scan', scanError: false, toast: null, undoUntil: 0 }),
+      simScan: () => { const f = 1 + Math.floor(Math.random() * (n - 2)); this.setState({ view: 'card', f, r: 0, lastAdd: 0, undoUntil: 0, scanError: false }); this.toast('info', 'Carta trovata', 'Giulia Rossi'); },
+      simBad: () => this.setState({ scanError: true }),
+      rosetteRef: el => { this.rosette = el; }, fxRef: el => { this.fx = el; },
+      bigRosette: LW.stampURL('reward-filled', 168, { fg: t.cardFg, bg: t.cardBg, ring: t.cardRing, icon: 'gift' }),
+      rosetteB: LW.stampURL('reward-filled', 168, { fg: bL.cardFg, bg: bL.cardBg, ring: bL.cardRing, icon: 'gift' }),
+      confettiStatic: Array.from({ length: 16 }, (_, k) => { const a = k / 16 * Math.PI * 2, R = 120 + (k * 29) % 70, sz = 8 + (k % 4) * 2; return { position: 'absolute', left: 180 + Math.cos(a) * R - sz / 2, top: 156 + Math.sin(a) * R * 0.9, width: sz, height: sz, borderRadius: k % 2 ? '50%' : 2, background: [bL.cardFg, bL.cardRing, bL.cardLabel][k % 3], transform: `rotate(${k * 37}deg)` }; }),
+      stampHero: ui('filled', 1, p.icon, 64), giftBig: ui('reward-filled', 0, 'gift', 56),
+      grid7: LW.url(LW.strip({ n: 10, filled: 7, w: 640, h: 250, padX: 4, padY: 8, transparent: true, fg: t.accent, bg: t.onAccent, ring: t.ink3, icon: p.icon, numbers: num })),
+      shops: [{ name: 'Salone Nora', addr: 'Via Roma 12, Bologna', logo: LW.monogram('Salone Nora', LW.cardColors('#5B1F2E').bg, '#fff', 96) }, { name: 'Salone Nora Due', addr: 'Piazza Aldrovandi 3, Bologna', logo: LW.monogram('Nora Due', '#1F3B34', '#fff', 96) }]
+    };
+  }
+}
+</script>
+</body>
+</html>

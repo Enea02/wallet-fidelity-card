@@ -1,0 +1,32 @@
+# dipendenze e build
+node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# ambiente: solo i .env.example vanno nel repo
+.env
+.env.*
+!.env.example
+
+# Supabase locale
+supabase/.branches/
+supabase/.temp/
+
+# sistema/editor
+.DS_Store
+*.log
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# chiavi e certificati
+*.pem
+*.p12
+*.key
+service-account*.json

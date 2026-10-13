@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&amp;display=swap" rel="stylesheet">
+<script src="lw-core.js"></script>
+<style>
+:root{--lw-bg:#F6F2EC;--lw-surface:#FEFCF9;--lw-surface-2:#EDE7DF;--lw-line:#DDD4CA;--lw-ink:#2A211C;--lw-ink-2:#5E534B;--lw-ink-3:#968B81;--lw-accent:#5B1F2E;--lw-on-accent:#FFFFFF;--lw-accent-edge:#5B1F2E;--lw-accent-text:#5B1F2E;--lw-accent-soft:#F7EBEC;--lw-accent-line:#E3CBCE;--lw-success:#2E6B3F;--lw-success-soft:#E5F3E7;--lw-danger:#B42C25;--lw-danger-soft:#FBE8E5;--lw-warning:#74561A;--lw-warning-soft:#FBF0D9;--lw-card-bg:#5B1F2E;--lw-card-fg:#FFFFFF;--lw-card-label:#E2C9CE;--lw-card-ring:#B48F97}
+html,body{margin:0;background:#E9E2D8}
+body{font-family:'Bricolage Grotesque',system-ui,sans-serif;color:#2A211C;-webkit-font-smoothing:antialiased}
+a{color:var(--lw-accent-text)}a:hover{color:var(--lw-ink)}
+@keyframes lwpulse{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+</helmet>
+<sc-if value="{{ ready }}" hint-placeholder-val="{{ false }}">
+<div style="padding:64px;display:flex;flex-direction:column;gap:72px;width:max-content">
+<header style="display:flex;flex-direction:column;gap:10px;max-width:900px">
+<div style="font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#5E534B">Consegna 2 · Cliente · mobile 360</div>
+<h1 style="margin:0;font-size:56px;line-height:1;letter-spacing:-.03em">Iscrizione e area personale</h1>
+<p style="margin:0;font-size:18px;line-height:1.5;color:#5E534B">Obiettivo: carta nel wallet in 30 secondi. Una decisione per schermata, pulsante principale sempre in basso a portata di pollice. <a href="Design System.dc.html">← Design system</a> · <a href="Staff.dc.html">Staff →</a></p>
+</header>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<h2 style="margin:0;font-size:32px;letter-spacing:-.02em">A · Iscrizione</h2>
+<div style="display:flex;gap:40px;align-items:flex-start">
+
+<div id="a1" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">A1</span>/salone-nora · Iscrizione</div>
+<div style="{{ vS }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="background:var(--lw-card-bg);color:var(--lw-card-fg);padding:0 20px 28px;display:flex;flex-direction:column;gap:18px">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600"><span>9:41</span><span style="width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px"></span></div>
+<div style="display:flex;align-items:center;gap:12px"><lw-img src="{{ logoS }}" alt="" style="width:52px;height:52px;border-radius:50%;display:block"></lw-img><div style="display:flex;flex-direction:column"><strong style="font-size:18px">Salone Nora</strong><span style="font-size:14px;color:var(--lw-card-label)">Carta Amica</span></div></div>
+<div style="font-size:30px;line-height:1.08;font-weight:700;letter-spacing:-.02em;text-wrap:balance">Ogni 10 tagli, uno è gratis.</div>
+<lw-img src="{{ stripS0 }}" alt="" style="width:100%;display:block;margin:0 -4px"></lw-img></div>
+<div style="padding:22px 20px 20px;display:flex;flex-direction:column;gap:14px;flex:1">
+<div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:14px;font-weight:600">Nome</label><div style="height:52px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;padding:0 12px;font-size:17px">Giulia</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:14px;font-weight:600">Telefono</label><div style="height:52px;border-radius:10px;border:2px solid var(--lw-accent-edge);box-shadow:0 0 0 3px var(--lw-accent-line);background:var(--lw-surface);display:flex;align-items:center;font-size:17px"><span style="padding:0 10px 0 12px;color:var(--lw-ink-2);border-right:1px solid var(--lw-line);height:100%;display:flex;align-items:center">+39</span><span style="padding:0 10px">333 123 45</span><span style="width:2px;height:22px;background:var(--lw-ink)"></span></div></div>
+<div style="display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4;margin-top:4px"><div style="width:24px;height:24px;border-radius:6px;background:var(--lw-accent);flex:none;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--lw-on-accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></div><span>Accetto l'<a href="#">informativa privacy</a> <span style="color:var(--lw-ink-2)">(obbligatorio)</span></span></div>
+<div style="display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4"><div style="width:24px;height:24px;border-radius:6px;border:2px solid var(--lw-ink-3);box-sizing:border-box;flex:none;background:var(--lw-surface)"></div><span>Avvisami di offerte e novità di Salone Nora <span style="color:var(--lw-ink-2)">(facoltativo)</span></span></div>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;align-items:center">
+<button style="width:100%;height:56px;border-radius:14px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font:600 17px 'Bricolage Grotesque',sans-serif">Crea la mia carta</button>
+<span style="font-size:13px;color:var(--lw-ink-2)">Niente app da scaricare. Gratis, per sempre.</span>
+</div>
+</div>
+</div></div>
+</div>
+
+<div id="a2" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">A2</span>Iscrizione · errori · tema bar</div>
+<div style="{{ vB }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="background:var(--lw-card-bg);color:var(--lw-card-fg);padding:0 20px 28px;display:flex;flex-direction:column;gap:18px">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600"><span>9:41</span><span style="width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px"></span></div>
+<div style="display:flex;align-items:center;gap:12px"><lw-img src="{{ logoB }}" alt="" style="width:52px;height:52px;border-radius:50%;display:block"></lw-img><div style="display:flex;flex-direction:column"><strong style="font-size:18px">Bar Girasole</strong><span style="font-size:14px;color:var(--lw-card-label)">Colazione Club</span></div></div>
+<div style="font-size:30px;line-height:1.08;font-weight:700;letter-spacing:-.02em;text-wrap:balance">L'ottava colazione la offriamo noi.</div>
+</div>
+<div style="padding:22px 20px 20px;display:flex;flex-direction:column;gap:14px;flex:1">
+<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:14px;background:var(--lw-danger-soft);font-size:14px;line-height:1.4"><div style="width:20px;height:20px;border-radius:50%;background:var(--lw-danger);color:#fff;flex:none;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">!</div><span>Controlla i 2 campi evidenziati.</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:14px;font-weight:600">Nome</label><div style="height:52px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;padding:0 12px;font-size:17px">Marco</div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:14px;font-weight:600">Telefono</label><div style="height:52px;border-radius:10px;border:2px solid var(--lw-danger);background:var(--lw-surface);display:flex;align-items:center;font-size:17px"><span style="padding:0 10px 0 12px;color:var(--lw-ink-2);border-right:1px solid var(--lw-line);height:100%;display:flex;align-items:center">+39</span><span style="padding:0 10px">347 12</span></div><span style="font-size:14px;color:var(--lw-danger);font-weight:500">Numero incompleto: servono 9 o 10 cifre.</span></div>
+<div style="display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4;margin-top:4px"><div style="width:24px;height:24px;border-radius:6px;border:2px solid var(--lw-danger);box-sizing:border-box;flex:none;background:var(--lw-surface)"></div><div style="display:flex;flex-direction:column;gap:4px"><span>Accetto l'<a href="#">informativa privacy</a> <span style="color:var(--lw-ink-2)">(obbligatorio)</span></span><span style="color:var(--lw-danger);font-weight:500">Senza consenso non possiamo creare la carta.</span></div></div>
+<div style="display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4"><div style="width:24px;height:24px;border-radius:6px;border:2px solid var(--lw-ink-3);box-sizing:border-box;flex:none;background:var(--lw-surface)"></div><span>Avvisami di offerte e novità <span style="color:var(--lw-ink-2)">(facoltativo)</span></span></div>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;align-items:center">
+<button style="width:100%;height:56px;border-radius:14px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font:600 17px 'Bricolage Grotesque',sans-serif">Crea la mia carta</button>
+<span style="font-size:13px;color:var(--lw-ink-2)">Niente app da scaricare. Gratis, per sempre.</span>
+</div>
+</div>
+</div></div>
+</div>
+
+<div id="a3" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">A3</span>Verifica telefono · attesa reinvio</div>
+<div style="{{ vS }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;padding:0 20px;flex:none"><span>9:41</span><span style="width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px"></span></div>
+<div style="padding:8px 20px 20px;display:flex;flex-direction:column;gap:20px;flex:1">
+<div style="width:44px;height:44px;border-radius:50%;background:var(--lw-surface-2);display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"></path></svg></div>
+<div style="display:flex;flex-direction:column;gap:8px"><h2 style="margin:0;font-size:28px;line-height:32px;letter-spacing:-.02em">Controlla gli SMS</h2><p style="margin:0;font-size:16px;line-height:1.45;color:var(--lw-ink-2)">Abbiamo mandato un codice di 6 cifre al <strong style="color:var(--lw-ink)">+39 333 123 4567</strong>. <a href="#">Cambia numero</a></p></div>
+<div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px">
+<div style="height:60px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">4</div>
+<div style="height:60px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">8</div>
+<div style="height:60px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">1</div>
+<div style="height:60px;border-radius:10px;border:2px solid var(--lw-accent-edge);box-shadow:0 0 0 3px var(--lw-accent-line);background:var(--lw-surface);display:flex;align-items:center;justify-content:center"><div style="width:2px;height:28px;background:var(--lw-ink)"></div></div>
+<div style="height:60px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface-2)"></div>
+<div style="height:60px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface-2)"></div>
+</div>
+<span style="font-size:15px;color:var(--lw-ink-2)">Non è arrivato? Nuovo codice tra <strong style="color:var(--lw-ink);font-variant-numeric:tabular-nums">0:42</strong></span>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;color:var(--lw-ink-2);text-align:center">Il codice si verifica da solo alla sesta cifra. Lo puoi anche incollare.</span></div>
+</div>
+</div></div>
+</div>
+
+<div id="a4" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">A4</span>Codice sbagliato · reinvio disponibile</div>
+<div style="{{ vS }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;padding:0 20px;flex:none"><span>9:41</span><span style="width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px"></span></div>
+<div style="padding:8px 20px 20px;display:flex;flex-direction:column;gap:20px;flex:1">
+<div style="width:44px;height:44px;border-radius:50%;background:var(--lw-surface-2);display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"></path></svg></div>
+<div style="display:flex;flex-direction:column;gap:8px"><h2 style="margin:0;font-size:28px;line-height:32px;letter-spacing:-.02em">Controlla gli SMS</h2><p style="margin:0;font-size:16px;line-height:1.45;color:var(--lw-ink-2)">Abbiamo mandato un codice di 6 cifre al <strong style="color:var(--lw-ink)">+39 333 123 4567</strong>. <a href="#">Cambia numero</a></p></div>
+<div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px">
+<div style="height:60px;border-radius:10px;border:2px solid var(--lw-danger);background:var(--lw-danger-soft);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">4</div>
+<div style="height:60px;border-radius:10px;border:2px solid var(--lw-danger);background:var(--lw-danger-soft);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">8</div>
+<div style="height:60px;border-radius:10px;border:2px solid var(--lw-danger);background:var(--lw-danger-soft);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">1</div>
+<div style="height:60px;border-radius:10px;border:2px solid var(--lw-danger);background:var(--lw-danger-soft);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">9</div>
+<div style="height:60px;border-radius:10px;border:2px solid var(--lw-danger);background:var(--lw-danger-soft);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">0</div>
+<div style="height:60px;border-radius:10px;border:2px solid var(--lw-danger);background:var(--lw-danger-soft);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">2</div>
+</div>
+<span style="font-size:15px;color:var(--lw-danger);font-weight:500;margin-top:-8px">Codice non corretto. Ti restano 2 tentativi.</span>
+<button style="align-self:flex-start;height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--lw-line);background:var(--lw-surface);color:var(--lw-ink);font:600 15px 'Bricolage Grotesque',sans-serif">Invia un nuovo codice</button>
+<div style="margin-top:auto;font-size:13px;color:var(--lw-ink-2);text-align:center">Dopo 3 errori il numero si blocca per 15 minuti.</div>
+</div>
+</div></div>
+</div>
+
+<div id="a5" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">A5</span>Completata · Android</div>
+<div style="{{ vS }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;padding:0 20px;flex:none"><span>9:41</span><span style="width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px"></span></div>
+<div style="padding:12px 20px 20px;display:flex;flex-direction:column;gap:22px;flex:1">
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-success)">Fatto</span><h2 style="margin:0;font-size:30px;line-height:1.08;letter-spacing:-.02em;text-wrap:balance">Benvenuta, Giulia. La tua carta è pronta.</h2></div>
+<div style="background:var(--lw-card-bg);color:var(--lw-card-fg);border-radius:20px;overflow:hidden;transform:rotate(-2deg);box-shadow:0 18px 30px -14px rgba(60,20,30,.5)">
+<div style="display:flex;align-items:center;gap:10px;padding:14px 16px 4px"><lw-img src="{{ logoS }}" alt="" style="width:34px;height:34px;border-radius:50%;display:block"></lw-img><strong style="font-size:16px">Salone Nora</strong><span style="margin-left:auto;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">0 / 10</span></div>
+<lw-img src="{{ stripS0 }}" alt="" style="width:100%;display:block"></lw-img></div>
+<p style="margin:0;font-size:16px;line-height:1.45;color:var(--lw-ink-2)">Salvala nel wallet: la trovi sempre sul telefono e si aggiorna da sola a ogni timbro.</p>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:12px">
+<div style="height:52px;border-radius:26px;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;font:500 16px Roboto,system-ui,sans-serif;border:1px solid #747775"><span style="width:26px;height:20px;border-radius:4px;border:1.5px dashed #9A9A9A"></span>Aggiungi a Google Wallet</div>
+<button style="height:52px;border-radius:14px;border:0;background:transparent;color:var(--lw-accent-text);font:600 16px 'Bricolage Grotesque',sans-serif">Vai alla tua area personale</button>
+<span style="font-size:12px;color:var(--lw-ink-2);text-align:center">Badge: SVG ufficiale Google “Aggiungi a Google Wallet” (IT).</span>
+</div>
+</div>
+</div></div>
+</div>
+
+<div id="a6" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">A6</span>Completata · iPhone · scuro</div>
+<div style="{{ vSD }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;padding:0 20px;flex:none"><span>9:41</span><span style="width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px"></span></div>
+<div style="padding:12px 20px 20px;display:flex;flex-direction:column;gap:22px;flex:1">
+<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-success)">Fatto</span><h2 style="margin:0;font-size:30px;line-height:1.08;letter-spacing:-.02em;text-wrap:balance">Benvenuta, Giulia. La tua carta è pronta.</h2></div>
+<div style="background:var(--lw-card-bg);color:var(--lw-card-fg);border-radius:20px;overflow:hidden;transform:rotate(-2deg);box-shadow:0 0 0 1px rgba(255,255,255,.12),0 18px 30px -14px rgba(0,0,0,.6)">
+<div style="display:flex;align-items:center;gap:10px;padding:14px 16px 4px"><lw-img src="{{ logoS }}" alt="" style="width:34px;height:34px;border-radius:50%;display:block"></lw-img><strong style="font-size:16px">Salone Nora</strong><span style="margin-left:auto;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">0 / 10</span></div>
+<lw-img src="{{ stripS0 }}" alt="" style="width:100%;display:block"></lw-img></div>
+<p style="margin:0;font-size:16px;line-height:1.45;color:var(--lw-ink-2)">Salvala nel wallet: la trovi sempre sul telefono e si aggiorna da sola a ogni timbro.</p>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:12px">
+<div style="height:52px;border-radius:10px;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;font:500 16px -apple-system,system-ui,sans-serif;border:1px solid #A6A6A6"><span style="width:26px;height:20px;border-radius:4px;border:1.5px dashed #9A9A9A"></span>Aggiungi a Apple Wallet</div>
+<button style="height:52px;border-radius:14px;border:0;background:transparent;color:var(--lw-accent-text);font:600 16px 'Bricolage Grotesque',sans-serif">Vai alla tua area personale</button>
+<span style="font-size:12px;color:var(--lw-ink-2);text-align:center">Rilevamento: iOS/macOS Safari → Apple · Android → Google · desktop → entrambi + “Invia link al telefono”.</span>
+</div>
+</div>
+</div></div>
+</div>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<h2 style="margin:0;font-size:32px;letter-spacing:-.02em">B · Area personale <span style="font-weight:500;color:#5E534B">/salone-nora/me</span></h2>
+<div style="display:flex;gap:40px;align-items:flex-start">
+
+<div id="b1" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">B1</span>A metà · 6/10</div>
+<div style="{{ vS }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;padding:0 20px;flex:none"><span>9:41</span><span style="width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px"></span></div>
+<div style="padding:4px 16px 20px;display:flex;flex-direction:column;gap:18px;flex:1;overflow:hidden">
+<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><lw-img src="{{ logoSInv }}" alt="" style="width:36px;height:36px;border-radius:50%;display:block"></lw-img><strong style="font-size:16px">Salone Nora</strong><span style="margin-left:auto;font-size:14px;color:var(--lw-ink-2)">Ciao, Giulia</span></div>
+<div style="background:var(--lw-card-bg);color:var(--lw-card-fg);border-radius:22px;overflow:hidden">
+<div style="display:flex;align-items:flex-end;justify-content:space-between;padding:18px 18px 0"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-card-label)">Carta Amica</span><span style="font-size:22px;font-weight:700;letter-spacing:-.01em">Ti mancano 4 tagli</span></div><span style="font-size:34px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums">6<span style="font-size:20px;color:var(--lw-card-label)">/10</span></span></div>
+<lw-img src="{{ stripS6 }}" alt="6 timbri su 10" style="width:100%;display:block"></lw-img>
+<div style="display:flex;gap:8px;padding:0 14px 14px"><div style="flex:1;height:44px;border-radius:12px;background:var(--lw-card-fg);color:var(--lw-card-bg);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600">Mostra QR</div><div style="flex:1;height:44px;border-radius:12px;border:1px solid var(--lw-card-ring);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600">Riaggiungi al wallet</div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px">
+<div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 4px 6px"><h3 style="margin:0;font-size:20px">Storico visite</h3><span style="font-size:13px;color:var(--lw-ink-2)">Premi riscattati: 1</span></div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:18px;display:flex;flex-direction:column">
+<sc-for list="{{ history }}" as="h" hint-placeholder-count="0">
+<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--lw-line)"><lw-img src="{{ h.icon }}" alt="" style="width:28px;height:28px;display:block"></lw-img><div style="display:flex;flex-direction:column;flex:1"><span style="font-size:15px;font-weight:600">{{ h.what }}</span><span style="font-size:13px;color:var(--lw-ink-2)">{{ h.when }}</span></div><span style="font-size:13px;color:var(--lw-ink-2);font-variant-numeric:tabular-nums">{{ h.count }}</span></div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:14px;border-radius:16px;background:var(--lw-surface);border:1px solid var(--lw-line);font-size:15px;font-weight:600">Preferenze e privacy<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"></path></svg></div>
+</div>
+</div></div>
+</div>
+
+<div id="b2" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">B2</span>Premio disponibile · scuro</div>
+<div style="{{ vSD }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(0,0,0,.6)">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;padding:0 20px;flex:none"><span>9:41</span><span style="width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px"></span></div>
+<div style="padding:4px 16px 20px;display:flex;flex-direction:column;gap:18px;flex:1;overflow:hidden">
+<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><lw-img src="{{ logoSInv }}" alt="" style="width:36px;height:36px;border-radius:50%;display:block"></lw-img><strong style="font-size:16px">Salone Nora</strong><span style="margin-left:auto;font-size:14px;color:var(--lw-ink-2)">Ciao, Giulia</span></div>
+<div style="background:var(--lw-card-bg);color:var(--lw-card-fg);border-radius:22px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.1)">
+<div style="display:flex;flex-direction:column;gap:4px;padding:18px 18px 0"><span style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-card-label)">Premio sbloccato</span><span style="font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.05">Il prossimo taglio è gratis</span></div>
+<lw-img src="{{ stripS10 }}" alt="10 timbri su 10, premio disponibile" style="width:100%;display:block"></lw-img>
+<div style="padding:0 14px 14px"><div style="height:48px;border-radius:12px;background:var(--lw-card-fg);color:var(--lw-card-bg);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600">Mostra QR alla cassa</div></div>
+</div>
+<div style="display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;background:var(--lw-accent-soft);font-size:14px;line-height:1.45"><lw-img src="{{ giftUI }}" alt="" style="width:28px;height:28px;display:block;flex:none"></lw-img><span><strong style="color:var(--lw-accent-text)">Valido fino al 12 gennaio.</strong> I timbri delle prossime visite si accumulano già sulla nuova carta.</span></div>
+<div style="display:flex;flex-direction:column;gap:4px">
+<h3 style="margin:0 4px 6px;font-size:20px">Storico visite</h3>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:18px;display:flex;flex-direction:column">
+<sc-for list="{{ historyD }}" as="h" hint-placeholder-count="0">
+<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--lw-line)"><lw-img src="{{ h.icon }}" alt="" style="width:28px;height:28px;display:block"></lw-img><div style="display:flex;flex-direction:column;flex:1"><span style="font-size:15px;font-weight:600">{{ h.what }}</span><span style="font-size:13px;color:var(--lw-ink-2)">{{ h.when }}</span></div><span style="font-size:13px;color:var(--lw-ink-2);font-variant-numeric:tabular-nums">{{ h.count }}</span></div>
+</sc-for>
+</div>
+</div>
+</div>
+</div></div>
+</div>
+
+<div id="b3" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">B3</span>Carta nuova · storico vuoto · tema bar</div>
+<div style="{{ vB }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;padding:0 20px;flex:none"><span>9:41</span><span style="width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px"></span></div>
+<div style="padding:4px 16px 20px;display:flex;flex-direction:column;gap:18px;flex:1">
+<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><lw-img src="{{ logoB }}" alt="" style="width:36px;height:36px;border-radius:50%;display:block"></lw-img><strong style="font-size:16px">Bar Girasole</strong><span style="margin-left:auto;font-size:14px;color:var(--lw-ink-2)">Ciao, Marco</span></div>
+<div style="background:var(--lw-card-bg);color:var(--lw-card-fg);border-radius:22px;overflow:hidden">
+<div style="display:flex;align-items:flex-end;justify-content:space-between;padding:18px 18px 0"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-card-label)">Colazione Club</span><span style="font-size:22px;font-weight:700;letter-spacing:-.01em">8 colazioni al premio</span></div><span style="font-size:34px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums">0<span style="font-size:20px;color:var(--lw-card-label)">/8</span></span></div>
+<lw-img src="{{ stripB0 }}" alt="0 timbri su 8" style="width:100%;display:block"></lw-img>
+<div style="display:flex;gap:8px;padding:0 14px 14px"><div style="flex:1;height:44px;border-radius:12px;background:var(--lw-card-fg);color:var(--lw-card-bg);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600">Mostra QR</div><div style="flex:1;height:44px;border-radius:12px;border:1px solid var(--lw-card-ring);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600">Aggiungi al wallet</div></div>
+</div>
+<div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:32px 20px;border-radius:18px;border:1.5px dashed var(--lw-line)">
+<lw-img src="{{ emptyStampB }}" alt="" style="width:56px;height:56px;display:block"></lw-img>
+<strong style="font-size:17px">Ancora nessuna visita</strong>
+<span style="font-size:14px;line-height:1.45;color:var(--lw-ink-2);max-width:240px">Il primo timbro arriva con la prossima colazione. Mostra il QR alla cassa.</span>
+</div>
+</div>
+</div></div>
+</div>
+
+<div id="b4" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">B4</span>Preferenze e privacy</div>
+<div style="{{ vS }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;padding:0 20px;flex:none"><span>9:41</span><span style="width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px"></span></div>
+<div style="padding:8px 16px 20px;display:flex;flex-direction:column;gap:20px;flex:1">
+<div style="display:flex;align-items:center;gap:12px"><div style="width:44px;height:44px;border-radius:50%;background:var(--lw-surface-2);display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"></path></svg></div><h2 style="margin:0;font-size:24px;letter-spacing:-.02em">Preferenze e privacy</h2></div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:18px;display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid var(--lw-line)"><div style="display:flex;flex-direction:column;flex:1;gap:2px"><span style="font-size:15px;font-weight:600">Offerte e novità</span><span style="font-size:13px;line-height:1.4;color:var(--lw-ink-2)">Al massimo 2 messaggi al mese da Salone Nora.</span></div><div style="width:52px;height:32px;border-radius:16px;background:var(--lw-accent);padding:3px;box-sizing:border-box;display:flex;justify-content:flex-end"><div style="width:26px;height:26px;border-radius:50%;background:var(--lw-on-accent)"></div></div></div>
+<div style="display:flex;flex-direction:column;gap:2px;padding:14px;border-bottom:1px solid var(--lw-line)"><span style="font-size:13px;color:var(--lw-ink-2)">Nome</span><span style="font-size:15px;font-weight:600">Giulia Rossi</span></div>
+<div style="display:flex;flex-direction:column;gap:2px;padding:14px"><span style="font-size:13px;color:var(--lw-ink-2)">Telefono · usato per accedere</span><span style="font-size:15px;font-weight:600">+39 333 123 4567</span></div>
+</div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:18px;display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:14px;border-bottom:1px solid var(--lw-line);font-size:15px;font-weight:600">Riaggiungi la carta al wallet<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"></path></svg></div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:14px;font-size:15px;font-weight:600"><div style="display:flex;flex-direction:column;gap:2px"><span>Esporta i miei dati</span><span style="font-size:13px;font-weight:400;color:var(--lw-ink-2)">File JSON con profilo, consensi e visite</span></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"></path></svg></div>
+</div>
+<button style="height:52px;border-radius:14px;border:0;background:var(--lw-danger-soft);color:var(--lw-danger);font:600 16px 'Bricolage Grotesque',sans-serif">Elimina account</button>
+<a href="#" style="font-size:14px;text-align:center;margin-top:auto">Esci</a>
+</div>
+</div></div>
+</div>
+
+<div id="b5" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">B5</span>Elimina · conferma</div>
+<div style="{{ vS }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:#3A302A;color:var(--lw-ink);display:flex;flex-direction:column;justify-content:flex-end;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="background:var(--lw-surface);border-radius:28px 28px 0 0;padding:12px 20px 28px;display:flex;flex-direction:column;gap:16px">
+<div style="width:40px;height:5px;border-radius:3px;background:var(--lw-line);align-self:center"></div>
+<h2 style="margin:6px 0 0;font-size:24px;line-height:1.15;letter-spacing:-.02em">Eliminare il tuo account?</h2>
+<p style="margin:0;font-size:16px;line-height:1.45;color:var(--lw-ink-2)">Perderai <strong style="color:var(--lw-ink)">6 timbri</strong>. La carta sparirà dal wallet e cancelleremo nome, telefono e visite entro 30 giorni. Non si può annullare.</p>
+<div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:14px;font-weight:600">Scrivi ELIMINA per confermare</label><div style="height:52px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-bg);display:flex;align-items:center;padding:0 12px;font-size:17px;letter-spacing:.06em">ELIMINA</div></div>
+<button style="height:56px;border-radius:14px;border:0;background:var(--lw-danger);color:#fff;font:600 17px 'Bricolage Grotesque',sans-serif">Elimina definitivamente</button>
+<button style="height:48px;border-radius:14px;border:0;background:transparent;color:var(--lw-ink);font:600 16px 'Bricolage Grotesque',sans-serif">Tieni la carta</button>
+</div>
+</div></div>
+</div>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<h2 style="margin:0;font-size:32px;letter-spacing:-.02em">C · Caricamento ed errori</h2>
+<div style="display:flex;gap:40px;align-items:flex-start">
+
+<div id="c1" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">C1</span>Caricamento area personale</div>
+<div style="{{ vS }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;flex:none"></div>
+<div style="padding:4px 16px;display:flex;flex-direction:column;gap:18px;animation:lwpulse 1.4s ease-in-out infinite">
+<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><div style="width:36px;height:36px;border-radius:50%;background:var(--lw-surface-2)"></div><div style="width:110px;height:14px;border-radius:7px;background:var(--lw-surface-2)"></div></div>
+<div style="height:236px;border-radius:22px;background:var(--lw-surface-2)"></div>
+<div style="width:140px;height:18px;border-radius:9px;background:var(--lw-surface-2);margin-left:4px"></div>
+<div style="height:220px;border-radius:18px;background:var(--lw-surface-2)"></div>
+</div>
+</div></div>
+</div>
+
+<div id="c2" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">C2</span>Negozio inesistente</div>
+<div style="{{ vN }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;flex:none"></div>
+<div style="padding:24px 24px;display:flex;flex-direction:column;gap:16px;flex:1;justify-content:center">
+<lw-img src="{{ lostStamp }}" alt="" style="width:88px;height:88px;display:block;transform:rotate(-8deg)"></lw-img>
+<h2 style="margin:0;font-size:28px;line-height:1.1;letter-spacing:-.02em">Qui non c'è nessuna carta</h2>
+<p style="margin:0;font-size:16px;line-height:1.45;color:var(--lw-ink-2)">Il link <strong style="color:var(--lw-ink)">timbri.app/salone-norra</strong> non corrisponde a nessun negozio. Forse c'è un errore di battitura, oppure il programma è stato chiuso.</p>
+<p style="margin:0;font-size:16px;line-height:1.45;color:var(--lw-ink-2)">Inquadra di nuovo il QR al bancone o chiedi il link al negozio.</p>
+</div>
+<div style="padding:0 20px 24px;font-size:12px;color:var(--lw-ink-2);text-align:center">Tema neutro: senza negozio non c'è colore. Accent = inchiostro.</div>
+</div></div>
+</div>
+
+<div id="c3" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">C3</span>Già iscritto · stesso numero</div>
+<div style="{{ vS }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;flex:none"></div>
+<div style="padding:24px 20px;display:flex;flex-direction:column;gap:16px;flex:1;justify-content:center">
+<lw-img src="{{ stampS }}" alt="" style="width:72px;height:72px;display:block"></lw-img>
+<h2 style="margin:0;font-size:28px;line-height:1.1;letter-spacing:-.02em">Hai già una carta qui</h2>
+<p style="margin:0;font-size:16px;line-height:1.45;color:var(--lw-ink-2)">Il numero +39 333 123 4567 è già iscritto a Salone Nora con <strong style="color:var(--lw-ink)">6 timbri</strong>. Ti mandiamo un codice per entrare.</p>
+</div>
+<div style="padding:0 20px 24px;display:flex;flex-direction:column;gap:8px"><button style="height:56px;border-radius:14px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font:600 17px 'Bricolage Grotesque',sans-serif">Inviami il codice</button><button style="height:48px;border-radius:14px;border:0;background:transparent;color:var(--lw-accent-text);font:600 16px 'Bricolage Grotesque',sans-serif">Usa un altro numero</button></div>
+</div></div>
+</div>
+
+<div id="c4" style="display:flex;flex-direction:column;gap:12px;width:360px">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="background:#2A211C;color:#fff;border-radius:6px;padding:2px 7px;font-size:12px">C4</span>Note per lo sviluppo</div>
+<div style="background:#FEFCF9;border:1px solid #DDD4CA;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:12px;font-size:14px;line-height:1.5;color:#5E534B">
+<div><strong style="color:#2A211C">Telefono.</strong> Normalizzare in E.164; prefisso +39 modificabile. Validare alla perdita di focus, non a ogni tasto.</div>
+<div><strong style="color:#2A211C">OTP.</strong> <code>inputmode="numeric" autocomplete="one-time-code"</code>, un solo input visivamente diviso in 6 caselle. Reinvio dopo 60 s, max 3 tentativi poi blocco 15 min.</div>
+<div><strong style="color:#2A211C">Errori.</strong> Messaggio sotto al campo + riepilogo in alto con focus spostato lì. Mai solo il colore: bordo 2 px + testo.</div>
+<div><strong style="color:#2A211C">Area personale.</strong> Accesso con OTP, sessione 90 giorni. Card e griglia usano le stesse immagini del wallet (strip Apple).</div>
+<div><strong style="color:#2A211C">Modalità scura.</strong> Segue il sistema. La carta mantiene il colore del negozio; in scuro aggiunge un filo bianco al 10%.</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;brand&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#5B1F2E&quot;,&quot;#1F3B34&quot;,&quot;#2F4B7C&quot;,&quot;#E86A33&quot;]},&quot;numbers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  componentDidMount() { if (!window.LW) this.t = setInterval(() => { if (window.LW) { clearInterval(this.t); this.forceUpdate(); } }, 30); }
+  componentWillUnmount() { clearInterval(this.t); }
+  renderVals() { if (!window.LW) return { ready: false }; return { ready: true, ...this._rv() }; }
+  _rv() {
+    const LW = window.LW; if (!LW) return {};
+    const P = LW.presets, S = P.salone, B = P.bar, num = this.props.numbers ?? true;
+    const brandS = this.props.brand || S.brand;
+    const sL = LW.theme(brandS, 'light'), sD = LW.theme(brandS, 'dark'), bL = LW.theme(B.brand, 'light'), nL = LW.theme('#2A211C', 'light');
+    const strip = (t, p, f, r) => LW.url(LW.strip({ n: p.n, filled: f, rewards: r, w: 1125, h: 369, bg: t.cardBg, fg: t.cardFg, ring: t.cardRing, icon: p.icon, numbers: num }));
+    const ui = (t, st, icon, s, i) => LW.stampURL(st, s || 56, { fg: t.accent, bg: t.onAccent, ring: t.ink3, icon, i: i ?? 2, numbers: num });
+    const hist = (t, rows) => rows.map(([what, when, count, st]) => ({ what, when, count, icon: ui(t, st, st.startsWith('reward') ? 'gift' : S.icon, 28) }));
+    return {
+      vS: LW.vars(sL), vSD: LW.vars(sD), vB: LW.vars(bL), vN: LW.vars(nL),
+      logoS: LW.monogram(S.shop, sL.cardFg, sL.cardBg, 104), logoSInv: LW.monogram(S.shop, sL.cardBg, sL.cardFg, 72), logoB: LW.monogram(B.shop, bL.cardFg, bL.cardBg, 104),
+      stripS0: strip(sL, S, 0, 0), stripS6: strip(sL, S, 6, 0), stripS10: strip(sL, S, 10, 1), stripB0: strip(bL, B, 0, 0),
+      history: hist(sL, [['Timbro', 'Sab 10 ottobre · 10:12', '6/10', 'filled'], ['Timbro', 'Ven 18 settembre', '5/10', 'filled'], ['Timbro', 'Mer 26 agosto', '4/10', 'filled'], ['Premio riscattato · Taglio gratis', 'Sab 11 luglio', '', 'reward-filled'], ['Timbro', 'Gio 18 giugno', '10/10', 'filled']]),
+      historyD: hist(sD, [['Premio sbloccato', 'Oggi · 11:40', '10/10', 'reward-filled'], ['Timbro', 'Sab 10 ottobre', '9/10', 'filled'], ['Timbro', 'Ven 18 settembre', '8/10', 'filled']]),
+      giftUI: ui(sD, 'reward-filled', 'gift', 28), emptyStampB: ui(bL, 'empty', B.icon, 56, 0), lostStamp: ui(nL, 'empty', 'check', 88, 0), stampS: ui(sL, 'filled', S.icon, 72, 1)
+    };
+  }
+}
+</script>
+</body>
+</html>

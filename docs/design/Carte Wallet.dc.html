@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&amp;display=swap" rel="stylesheet">
+<script src="lw-core.js"></script>
+<style>
+html,body{margin:0;background:#EFE9E1}
+body{font-family:'Bricolage Grotesque',system-ui,sans-serif;color:#2A211C;-webkit-font-smoothing:antialiased}
+a{color:#5B1F2E}a:hover{color:#2A211C}
+</style>
+</helmet>
+<sc-if value="{{ ready }}" hint-placeholder-val="{{ false }}">
+<div style="padding:64px;display:flex;flex-direction:column;gap:80px;width:max-content;min-width:100%;box-sizing:border-box">
+
+<header style="display:flex;flex-direction:column;gap:10px;max-width:900px">
+<div style="font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#5E534B">Consegna 1 · La carta nel Wallet</div>
+<h1 style="margin:0;font-size:56px;line-height:1;letter-spacing:-.03em">Google Wallet e Apple Wallet</h1>
+<p style="margin:0;font-size:18px;line-height:1.5;color:#5E534B;text-wrap:pretty">Struttura fissa dei wallet: progettiamo solo immagini, colori e testi. La griglia timbri è un'immagine generata (Google hero 1032×336, Apple strip 1125×369 @3x). Ogni carta qui sotto è prodotta dalle stesse funzioni di <code>lw-core.js</code>. Le cornici dei wallet sono approssimate. <a href="Design System.dc.html">← Design system</a></p>
+</header>
+
+<sc-for list="{{ themes }}" as="t" hint-placeholder-count="0">
+<section style="display:flex;flex-direction:column;gap:32px">
+<div style="display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#5E534B">{{ t.category }}</div>
+<h2 style="margin:0;font-size:40px;letter-spacing:-.02em">{{ t.shop }} · {{ t.program }}</h2>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:13px;padding-bottom:6px">
+<sc-for list="{{ t.chips }}" as="c" hint-placeholder-count="0"><div style="display:flex;align-items:center;gap:8px;background:#FEFCF9;border:1px solid #DDD4CA;border-radius:999px;padding:5px 12px 5px 5px"><div style="{{ c.sw }}"></div><span><strong>{{ c.k }}</strong> {{ c.v }}</span></div></sc-for>
+</div>
+</div>
+
+<div style="display:flex;gap:40px;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="font-size:15px;font-weight:700">Google Wallet · loyaltyObject</div>
+<div style="display:flex;gap:28px;align-items:flex-start">
+<sc-for list="{{ t.states }}" as="s" hint-placeholder-count="0">
+<div style="display:flex;flex-direction:column;gap:12px;width:340px">
+<div style="font-size:13px;font-weight:600;color:#5E534B">{{ s.label }}</div>
+<div style="background:#202124;border-radius:28px;padding:14px 12px 18px;display:flex;flex-direction:column;gap:12px">
+<div style="{{ t.gCard }}">
+<div style="display:flex;align-items:center;gap:12px;padding:18px 18px 0">
+<lw-img src="{{ t.logoCircle }}" alt="" style="width:40px;height:40px;border-radius:50%;display:block"></lw-img>
+<span style="font-size:15px;font-weight:500">{{ t.shop }}</span>
+</div>
+<div style="padding:14px 18px 0;font-size:24px;font-weight:600;letter-spacing:-.01em">{{ t.program }}</div>
+<div style="display:flex;gap:32px;padding:16px 18px 0">
+<div style="display:flex;flex-direction:column;gap:2px"><span style="{{ t.gLabel }}">Timbri</span><span style="font-size:20px;font-weight:600;font-variant-numeric:tabular-nums">{{ s.stamps }}</span></div>
+<div style="display:flex;flex-direction:column;gap:2px"><span style="{{ t.gLabel }}">Premi</span><span style="font-size:20px;font-weight:600;font-variant-numeric:tabular-nums">{{ s.rewards }}</span></div>
+</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 18px">
+<div style="background:#fff;border-radius:16px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px"><lw-img src="{{ t.qr }}" alt="QR" style="width:150px;height:150px;display:block"></lw-img><span style="font-size:12px;color:#3C4043;letter-spacing:.04em">{{ t.member }}</span></div>
+</div>
+<lw-img src="{{ s.hero }}" alt="" style="width:100%;display:block"></lw-img>
+</div>
+<div style="background:#2D2E31;border-radius:16px;padding:14px 16px;color:#E8EAED;display:flex;flex-direction:column;gap:4px">
+<span style="font-size:14px;font-weight:600">{{ s.moduleTitle }}</span>
+<span style="font-size:13px;line-height:1.45;color:#BDC1C6">{{ s.moduleBody }}</span>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="font-size:15px;font-weight:700">Apple Wallet · storeCard</div>
+<div style="display:flex;gap:28px;align-items:flex-start">
+<sc-for list="{{ t.states }}" as="s" hint-placeholder-count="0">
+<div style="display:flex;flex-direction:column;gap:12px;width:340px">
+<div style="font-size:13px;font-weight:600;color:#5E534B">{{ s.label }}</div>
+<div style="background:#F2F2F7;border-radius:28px;padding:16px 12px 18px">
+<div style="{{ t.aCard }}">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;height:50px;box-sizing:content-box">
+<div style="display:flex;align-items:center;gap:8px"><lw-img src="{{ t.logoCircle }}" alt="" style="width:30px;height:30px;border-radius:50%;display:block"></lw-img><span style="font-size:17px;font-weight:600">{{ t.shop }}</span></div>
+<div style="display:flex;flex-direction:column;align-items:flex-end"><span style="{{ t.aLabel }}">TIMBRI</span><span style="font-size:17px;font-variant-numeric:tabular-nums">{{ s.stamps }}</span></div>
+</div>
+<lw-img src="{{ s.strip }}" alt="" style="width:100%;display:block"></lw-img>
+<div style="display:flex;justify-content:space-between;padding:12px 14px 0">
+<div style="display:flex;flex-direction:column"><span style="{{ t.aLabel }}">CLIENTE</span><span style="font-size:16px">{{ t.customer }}</span></div>
+<div style="display:flex;flex-direction:column;align-items:flex-end"><span style="{{ t.aLabel }}">PREMI</span><span style="font-size:16px;font-variant-numeric:tabular-nums">{{ s.rewardsTxt }}</span></div>
+</div>
+<div style="display:flex;justify-content:center;padding:22px 14px 18px"><div style="background:#fff;border-radius:8px;padding:9px;display:flex;flex-direction:column;align-items:center;gap:4px"><lw-img src="{{ t.qr }}" alt="QR" style="width:128px;height:128px;display:block"></lw-img><span style="font-size:11px;color:#333">{{ t.member }}</span></div></div>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:16px;width:340px">
+<div style="font-size:15px;font-weight:700">Retro Apple e notifiche</div>
+<div style="background:#FEFCF9;border:1px solid #DDD4CA;border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:14px;font-size:14px;line-height:1.45">
+<sc-for list="{{ t.back }}" as="b" hint-placeholder-count="0">
+<div style="display:flex;flex-direction:column;gap:3px;padding-bottom:12px;border-bottom:1px solid #EDE7DF"><span style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#5E534B">{{ b.k }}</span><span style="white-space:pre-line">{{ b.v }}</span></div>
+</sc-for>
+</div>
+<div style="background:linear-gradient(#4A4E5A,#2C2F38);border-radius:24px;padding:16px 10px;display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ t.notifs }}" as="n" hint-placeholder-count="0">
+<div style="background:rgba(245,245,247,.86);border-radius:18px;padding:11px 13px;display:flex;gap:10px;align-items:flex-start">
+<lw-img src="{{ t.icon87 }}" alt="" style="width:36px;height:36px;border-radius:9px;display:block;flex:none"></lw-img>
+<div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1"><div style="display:flex;justify-content:space-between;font-size:13px"><strong>{{ t.shop }}</strong><span style="color:#6B6B70">{{ n.time }}</span></div><span style="font-size:13px;line-height:1.35;color:#1C1C1E">{{ n.body }}</span></div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</section>
+</sc-for>
+
+<section style="display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#5E534B">Set di asset · {{ assetShop }}</div><h2 style="margin:0;font-size:40px;letter-spacing:-.02em">File da generare</h2></div>
+<div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;max-width:1700px">
+<sc-for list="{{ assets }}" as="a" hint-placeholder-count="0">
+<div style="background:#FEFCF9;border:1px solid #DDD4CA;border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:flex-end;gap:12px;min-height:60px;background:repeating-conic-gradient(#EDE7DF 0 25%,#FEFCF9 0 50%) 0 0/14px 14px;padding:12px;border-radius:10px">
+<sc-for list="{{ a.imgs }}" as="im" hint-placeholder-count="0"><lw-img src="{{ im.src }}" alt="" style="{{ im.st }}"></lw-img></sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:2px"><code style="font-size:13px;font-weight:700">{{ a.file }}</code><span style="font-size:13px;color:#5E534B">{{ a.spec }}</span></div>
+</div>
+</sc-for>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,420px);gap:20px;font-size:14px;line-height:1.5;color:#5E534B">
+<div style="background:#FEFCF9;border:1px solid #DDD4CA;border-radius:20px;padding:20px"><strong style="color:#2A211C;display:block;margin-bottom:6px">Endpoint immagini</strong><code style="font-size:12.5px;color:#2A211C;white-space:pre-line">GET /api/wallet/[shop]/strip?n=10&amp;f=6&amp;r=0&amp;fmt=google|apple&amp;scale=1|2|3</code><br>Cache per chiave (shop, versione tema, n, f, r ≥ 1 ? 1 : 0). Al massimo (N+1)×2 immagini per negozio: si possono pre-generare al salvataggio del tema.</div>
+<div style="background:#FEFCF9;border:1px solid #DDD4CA;border-radius:20px;padding:20px"><strong style="color:#2A211C;display:block;margin-bottom:6px">Satori</strong>Ogni timbro è un <code>div</code> rotondo (bordo tratteggiato = SVG <code>circle</code> con <code>stroke-dasharray</code>), icona come <code>svg</code> inline, numero come testo con font TTF caricato. Rosetta = <code>path</code> generato (12 lobi). Niente ombre né texture: lo sfondo è il colore pieno della carta.</div>
+<div style="background:#FEFCF9;border:1px solid #DDD4CA;border-radius:20px;padding:20px"><strong style="color:#2A211C;display:block;margin-bottom:6px">Apple: niente primaryFields</strong>Su storeCard i primaryFields si sovrappongono alla strip e coprirebbero i timbri: lasciarli vuoti. Timbri in headerFields (visibile anche con le carte impilate), Cliente e Premi in secondaryFields. Google sceglie da solo il colore del testo in base a <code>hexBackgroundColor</code>.</div>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#5E534B">Testi della carta</div><h2 style="margin:0;font-size:40px;letter-spacing:-.02em">Copy · {{ assetShop }}</h2></div>
+<div style="background:#FEFCF9;border:1px solid #DDD4CA;border-radius:20px;overflow:hidden;width:1100px">
+<sc-for list="{{ copy }}" as="c" hint-placeholder-count="0">
+<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;padding:12px 20px;border-bottom:1px solid #EDE7DF;font-size:15px;line-height:1.45"><code style="font-size:12.5px;color:#5E534B;padding-top:2px">{{ c.k }}</code><span style="white-space:pre-line">{{ c.v }}</span></div>
+</sc-for>
+</div>
+<p style="margin:0;font-size:14px;color:#5E534B;max-width:1100px">Variabili: <code>{premio}</code> “taglio gratis”, <code>{unità}</code> “taglio/tagli”, <code>{n}</code> timbri necessari, <code>{mancano}</code>. Singolare/plurale gestiti: “Ti manca 1 taglio” · “Ti mancano 4 tagli”.</p>
+</section>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;customColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#2F4B7C&quot;,&quot;#E86A33&quot;,&quot;#9BC53D&quot;,&quot;#FFFFFF&quot;],&quot;section&quot;:&quot;Prova un terzo tema&quot;},&quot;customIcon&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;check&quot;,&quot;scissors&quot;,&quot;cup&quot;,&quot;pizza&quot;,&quot;sparkle&quot;],&quot;default&quot;:&quot;check&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prova un terzo tema&quot;},&quot;numbers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  componentDidMount() { if (!window.LW) this.t = setInterval(() => { if (window.LW) { clearInterval(this.t); this.forceUpdate(); } }, 30); }
+  componentWillUnmount() { clearInterval(this.t); }
+  build(p) {
+    const LW = window.LW, c = LW.cardColors(LW.norm(p.brand)), num = this.props.numbers ?? true;
+    const base = { bg: c.bg, fg: c.fg, ring: c.ring, icon: p.icon, numbers: num, n: p.n };
+    const g = (f, r) => LW.url(LW.strip({ ...base, filled: f, rewards: r, w: 1032, h: 336 }));
+    const a = (f, r) => LW.url(LW.strip({ ...base, filled: f, rewards: r, w: 1125, h: 369 }));
+    const half = Math.round(p.n * 0.6), left = p.n - half, Rw = p.reward, rl = Rw.toLowerCase();
+    const plural = k => k === 1 ? '1 ' + p.unit : k + ' ' + p.unitPl;
+    const states = [
+      { label: `Nuova · 0/${p.n}`, stamps: `0 / ${p.n}`, rewards: '0', rewardsTxt: '0', hero: g(0, 0), strip: a(0, 0), moduleTitle: 'Come funziona', moduleBody: `Un timbro per ogni ${p.unit}. Al ${p.n}° timbro, ${rl}. Mostra il QR alla cassa: niente app, niente carta da perdere.` },
+      { label: `A metà · ${half}/${p.n}`, stamps: `${half} / ${p.n}`, rewards: '0', rewardsTxt: '0', hero: g(half, 0), strip: a(half, 0), moduleTitle: `Ti ${left === 1 ? 'manca' : 'mancano'} ${plural(left)}`, moduleBody: `Ancora ${plural(left)} e il prossimo è gratis. Un timbro per ogni ${p.unit}.` },
+      { label: 'Premio sbloccato', stamps: `${p.n} / ${p.n}`, rewards: '1', rewardsTxt: `1 · ${Rw}`, hero: g(p.n, 1), strip: a(p.n, 1), moduleTitle: `${Rw} disponibile!`, moduleBody: `Hai completato la carta. Mostra il QR alla cassa e goditi ${rl}.` }
+    ];
+    const sw = col => ({ width: 22, height: 22, borderRadius: '50%', background: col, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.15)' });
+    const logoCircle = LW.monogram(p.shop, c.fg, c.bg, 120);
+    return {
+      ...p, states, logoCircle, qr: LW.qr(p.n * 31 + p.shop.length, '#111', '#fff'), member: p.key === 'bar' ? 'LW-0418-2291' : 'LW-1093-5507', customer: p.key === 'bar' ? 'Marco B.' : 'Giulia R.',
+      icon87: LW.monogram(p.shop, c.bg, c.fg, 87),
+      chips: [{ k: 'Scelto', v: LW.norm(p.brand), sw: sw(p.brand) }, { k: 'Sfondo', v: c.bg + (c.corrected ? ' (corretto)' : ''), sw: sw(c.bg) }, { k: 'Testo', v: c.fg + ' · ' + LW.contrast(c.fg, c.bg).toFixed(1) + ':1', sw: sw(c.fg) }, { k: 'Etichette', v: c.label + ' · ' + LW.contrast(c.label, c.bg).toFixed(1) + ':1', sw: sw(c.label) }, { k: 'Timbro vuoto', v: c.ring + ' · ' + LW.contrast(c.ring, c.bg).toFixed(1) + ':1', sw: sw(c.ring) }],
+      gCard: { background: c.bg, color: c.fg, borderRadius: 20, overflow: 'hidden', fontFamily: 'Roboto, system-ui, sans-serif' },
+      gLabel: { fontSize: 12, color: c.label, fontWeight: 500 },
+      aCard: { background: c.bg, color: c.fg, borderRadius: 14, overflow: 'hidden', fontFamily: '-apple-system, system-ui, sans-serif', boxShadow: '0 4px 16px rgba(0,0,0,.12)' },
+      aLabel: { fontSize: 11, color: c.label, fontWeight: 600, letterSpacing: '.02em' },
+      back: [
+        { k: 'Come funziona', v: `Un timbro per ogni ${p.unit}. Al ${p.n}° timbro, ${rl}.` },
+        { k: 'Regolamento', v: `• Un timbro per visita, al massimo uno ogni 4 ore.\n• Il premio vale 90 giorni dallo sblocco.\n• Non cumulabile con altre promozioni, non convertibile in denaro.\n• I timbri restano validi 12 mesi dall'ultima visita.` },
+        { k: 'La tua area personale', v: `timbri.app/${p.slug}/me` },
+        { k: 'Privacy', v: `Dati trattati da ${p.shop}. Puoi esportarli o cancellarli dall'area personale.` }
+      ],
+      notifs: [
+        { time: 'ora', body: `Premio sbloccato! ${Rw} al prossimo passaggio: mostra la carta alla cassa.` },
+        { time: '2 g fa', body: `Timbro aggiunto: ${half}/${p.n}. Ti ${left === 1 ? 'manca' : 'mancano'} ${plural(left)}.` }
+      ]
+    };
+  }
+  renderVals() { if (!window.LW) return { ready: false }; return { ready: true, ...this._rv() }; }
+  _rv() {
+    const LW = window.LW; if (!LW) return {};
+    const P = LW.presets;
+    const list = [P.salone, P.bar];
+    if (this.props.customColor) list.push({ ...P.salone, key: 'custom', shop: 'Il tuo negozio', program: 'Carta Fedeltà', category: 'Prova colore', brand: this.props.customColor, icon: this.props.customIcon || 'check', slug: 'il-tuo-negozio' });
+    const themes = list.map(p => this.build(p));
+    const p = P.salone, c = LW.cardColors(p.brand), base = { bg: c.bg, fg: c.fg, ring: c.ring, icon: p.icon, numbers: this.props.numbers ?? true, n: 10, filled: 6 };
+    const st = (w, h) => ({ width: w, height: h, display: 'block' });
+    const mono = s => LW.monogram(p.shop, c.bg, c.fg, s);
+    const logoApple = s => LW.url(`<svg xmlns="http://www.w3.org/2000/svg" width="${160 * s}" height="${50 * s}" viewBox="0 0 160 50"><circle cx="25" cy="25" r="20" fill="${c.fg}"/><text x="25" y="25" dy=".35em" text-anchor="middle" font-family="${LW.FONT}" font-weight="700" font-size="16" fill="${c.bg}">SN</text></svg>`);
+    const assets = [
+      { file: 'google/logo.png', spec: '660×660 · ritagliato a cerchio da Google · logo su fondo pieno, margine 15%', imgs: [{ src: mono(660), st: st(132, 132) }, { src: mono(660), st: { ...st(80, 80), borderRadius: '50%' } }] },
+      { file: 'google/hero.png', spec: '1032×336 · griglia timbri · uno per stato (0…N, + premio in attesa)', imgs: [{ src: LW.url(LW.strip({ ...base, w: 1032, h: 336 })), st: st(516, 168) }] },
+      { file: 'apple/icon.png · @2x · @3x', spec: '29 · 58 · 87 px · notifiche e schermata di blocco', imgs: [{ src: mono(29), st: { ...st(29, 29), borderRadius: 6 } }, { src: mono(58), st: { ...st(58, 58), borderRadius: 12 } }, { src: mono(87), st: { ...st(87, 87), borderRadius: 18 } }] },
+      { file: 'apple/logo.png · @2x · @3x', spec: 'max 160×50 · trasparente · marchio a sinistra, nome nel campo logoText', imgs: [{ src: logoApple(1), st: { ...st(160, 50), background: c.bg, borderRadius: 6 } }, { src: logoApple(3), st: { ...st(160, 50), background: c.bg, borderRadius: 6 } }] },
+      { file: 'apple/strip.png · @2x · @3x', spec: '375×123 · 750×246 · 1125×369', imgs: [1, 2, 3].map(s => ({ src: LW.url(LW.strip({ ...base, w: 375 * s, h: 123 * s })), st: st(125 * s, 41 * s) })) },
+      { file: 'pass.json · colori', spec: `backgroundColor ${c.bg} · foregroundColor ${c.fg} · labelColor ${c.label} · Google hexBackgroundColor ${c.bg}`, imgs: [{ src: LW.url(`<svg xmlns="http://www.w3.org/2000/svg" width="180" height="60"><rect width="60" height="60" fill="${c.bg}"/><rect x="60" width="60" height="60" fill="${c.fg}"/><rect x="120" width="60" height="60" fill="${c.label}"/></svg>`), st: { ...st(180, 60), borderRadius: 8 } }] }
+    ];
+    const copy = [
+      ['programName', 'Carta Amica'], ['label.stamps', 'Timbri'], ['label.rewards', 'Premi'], ['label.customer', 'Cliente'], ['value.stamps', '{f} / {n}'],
+      ['module.howto.title', 'Come funziona'], ['module.howto.body', 'Un timbro per ogni taglio. Al 10° timbro, taglio gratis. Mostra il QR alla cassa: niente app, niente carta da perdere.'],
+      ['module.progress.title', 'Ti mancano {mancano} {unità}'], ['module.progress.body', 'Ancora {mancano} {unità} e il prossimo è gratis.'],
+      ['module.reward.title', 'Taglio gratis disponibile!'], ['module.reward.body', 'Hai completato la carta. Mostra il QR alla cassa e goditi il taglio gratis.'],
+      ['notify.reward', 'Premio sbloccato! Taglio gratis al prossimo passaggio: mostra la carta alla cassa.'], ['notify.stamp (changeMessage)', 'Timbro aggiunto: %@'], ['notify.redeemed', 'Premio riscattato. Grazie! La nuova carta parte da 0.'], ['notify.expiring', 'Il tuo taglio gratis scade tra 7 giorni.'],
+      ['barcode.altText', 'Codice cliente {id}']
+    ].map(([k, v]) => ({ k, v }));
+    return { themes, assets, copy, assetShop: p.shop };
+  }
+}
+</script>
+</body>
+</html>

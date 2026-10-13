@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&amp;display=swap" rel="stylesheet">
+<script src="lw-core.js"></script>
+<style>
+:root{--lw-bg:#F6F2EC;--lw-surface:#FEFCF9;--lw-surface-2:#EDE7DF;--lw-line:#DDD4CA;--lw-ink:#2A211C;--lw-ink-2:#5E534B;--lw-ink-3:#968B81;--lw-accent:#5B1F2E;--lw-on-accent:#FFFFFF;--lw-accent-edge:#5B1F2E;--lw-accent-text:#5B1F2E;--lw-accent-soft:#F7EBEC;--lw-accent-line:#E3CBCE;--lw-success:#2E6B3F;--lw-success-soft:#E5F3E7;--lw-danger:#B42C25;--lw-danger-soft:#FBE8E5;--lw-warning:#74561A;--lw-warning-soft:#FBF0D9;--lw-card-bg:#5B1F2E;--lw-card-fg:#FFFFFF;--lw-card-label:#E2C9CE;--lw-card-ring:#B48F97}
+html,body{margin:0;background:#F6F2EC}
+body{font-family:'Bricolage Grotesque',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--lw-accent-text)}a:hover{color:var(--lw-ink)}
+</style>
+</helmet>
+<sc-if value="{{ ready }}" hint-placeholder-val="{{ false }}">
+<div style="{{ varsL }}">
+<div style="background:var(--lw-bg);color:var(--lw-ink);min-height:100vh;font-family:'Bricolage Grotesque',system-ui,sans-serif">
+<div style="max-width:1160px;margin:0 auto;padding:56px 24px 96px;display:flex;flex-direction:column;gap:72px">
+
+<header style="display:flex;flex-direction:column;gap:12px">
+<div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-ink-2)">Loyalty Wallet · Design system v1</div>
+<h1 style="margin:0;font-size:clamp(36px,6vw,64px);line-height:1;letter-spacing:-.03em;font-weight:700;text-wrap:balance">La carta timbri di carta,<br>ma più bella.</h1>
+<p style="margin:0;max-width:620px;font-size:18px;line-height:1.5;color:var(--lw-ink-2);text-wrap:pretty">Neutri caldi fissi, un solo colore del negozio da cui si deriva tutto il resto, un timbro riconoscibile anche a 24&nbsp;px. Tema attuale: <strong style="color:var(--lw-accent-text)">{{ shop }}</strong> · {{ brand }}.</p>
+<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:14px">
+<a href="Carte Wallet.dc.html">Carte Wallet →</a><a href="Cliente.dc.html">Cliente →</a><a href="Staff.dc.html">Staff →</a><a href="Titolare.dc.html">Titolare →</a><a href="Cartello A5.dc.html">Cartello A5 →</a>
+</div>
+</header>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-ink-2)">01 · Colore</div><h2 style="margin:0;font-size:32px;letter-spacing:-.02em">Dal colore del negozio ai token</h2></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:24px">
+<ol style="margin:0;padding:24px 24px 24px 44px;background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:20px;display:flex;flex-direction:column;gap:12px;font-size:15px;line-height:1.5;color:var(--lw-ink-2)">
+<li><strong style="color:var(--lw-ink)">Neutri fissi.</strong> Sfondi, testi e bordi sono caldi (OKLCH, tinta 55–85) e non dipendono dal negozio.</li>
+<li><strong style="color:var(--lw-ink)">accent</strong> = colore del negozio. Se né bianco né inchiostro raggiungono 4,5:1 sopra, si sposta solo la luminosità L di 0,01 alla volta (tinta e croma invariate). In scuro, se resta sotto 3:1 sullo sfondo, si schiarisce.</li>
+<li><strong style="color:var(--lw-ink)">accent-text</strong>: stessa tinta, L spostata finché il testo fa ≥4,5:1 su bg, surface-2 e accent-soft.</li>
+<li><strong style="color:var(--lw-ink)">accent-soft / accent-line</strong>: L fissa (chiaro 0,948 / 0,86 · scuro 0,275 / 0,40), croma limitata.</li>
+<li><strong style="color:var(--lw-ink)">Carta wallet</strong>: un solo colore, uguale in chiaro e scuro. Etichette = testo mescolato verso lo sfondo finché resta ≥4,5:1; anello del timbro vuoto ≥3:1.</li>
+<li>Implementazione di riferimento: <code style="font-size:13px;background:var(--lw-surface-2);padding:2px 6px;border-radius:6px">lw-core.js → theme(hex, mode)</code></li>
+</ol>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:20px;overflow:hidden">
+<div style="display:grid;grid-template-columns:minmax(0,1.4fr) 1fr 1fr;padding:12px 16px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--lw-ink-2);border-bottom:1px solid var(--lw-line)"><span>Token</span><span>Chiaro</span><span>Scuro</span></div>
+<sc-for list="{{ tokenRows }}" as="r" hint-placeholder-count="0">
+<div style="display:grid;grid-template-columns:minmax(0,1.4fr) 1fr 1fr;align-items:center;padding:8px 16px;border-bottom:1px solid var(--lw-line);gap:8px">
+<div style="display:flex;flex-direction:column;min-width:0"><code style="font-size:13px;font-weight:600">{{ r.name }}</code><span style="font-size:12px;color:var(--lw-ink-2)">{{ r.role }}</span></div>
+<div style="display:flex;align-items:center;gap:8px"><div style="{{ r.lightSw }}"></div><code style="font-size:12px;color:var(--lw-ink-2)">{{ r.light }}</code></div>
+<div style="display:flex;align-items:center;gap:8px"><div style="{{ r.darkSw }}"></div><code style="font-size:12px;color:var(--lw-ink-2)">{{ r.dark }}</code></div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px">
+<h3 style="margin:0;font-size:20px">Prova di robustezza: qualsiasi colore</h3>
+<p style="margin:0;color:var(--lw-ink-2);font-size:15px">Colore scelto dal titolare → colore effettivo della carta, pulsante in chiaro e in scuro. I valori corretti sono segnati.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:16px">
+<sc-for list="{{ stress }}" as="s" hint-placeholder-count="0">
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:20px;padding:12px;display:flex;flex-direction:column;gap:10px">
+<lw-img src="{{ s.strip }}" alt="" style="width:100%;border-radius:12px;display:block"></lw-img>
+<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px"><span><code>{{ s.input }}</code> → <code>{{ s.card }}</code></span><span style="color:var(--lw-ink-2)">{{ s.note }}</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+<div style="{{ s.btnL }}">Chiaro {{ s.cL }}:1</div>
+<div style="{{ s.btnD }}">Scuro {{ s.cD }}:1</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-ink-2)">02 · Tipografia</div><h2 style="margin:0;font-size:32px;letter-spacing:-.02em">Bricolage Grotesque, una sola famiglia</h2></div>
+<p style="margin:0;max-width:640px;color:var(--lw-ink-2);font-size:15px;line-height:1.5">Ottica variabile (opsz 12–96): calda nei titoli, leggibile nel testo. Numeri sempre <code>tabular-nums</code>. Campi di input ≥16&nbsp;px (niente zoom su iOS). Per satori servono i TTF 600 e 700.</p>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:20px;display:flex;flex-direction:column">
+<div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:16px;align-items:baseline;padding:20px 24px;border-bottom:1px solid var(--lw-line)"><code style="font-size:12px;color:var(--lw-ink-2)">display 44/46 · 700</code><div style="font-size:44px;line-height:46px;font-weight:700;letter-spacing:-.03em">Ti manca 1 taglio</div></div>
+<div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:16px;align-items:baseline;padding:20px 24px;border-bottom:1px solid var(--lw-line)"><code style="font-size:12px;color:var(--lw-ink-2)">titolo 28/32 · 700</code><div style="font-size:28px;line-height:32px;font-weight:700;letter-spacing:-.02em">Iscriviti alla Carta Amica</div></div>
+<div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:16px;align-items:baseline;padding:20px 24px;border-bottom:1px solid var(--lw-line)"><code style="font-size:12px;color:var(--lw-ink-2)">sottotitolo 20/26 · 600</code><div style="font-size:20px;line-height:26px;font-weight:600">Storico visite</div></div>
+<div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:16px;align-items:baseline;padding:20px 24px;border-bottom:1px solid var(--lw-line)"><code style="font-size:12px;color:var(--lw-ink-2)">corpo 16/24 · 400</code><div style="font-size:16px;line-height:24px;max-width:520px">Ogni 10 tagli, uno è offerto da noi. Mostra la carta alla cassa: al resto pensiamo noi.</div></div>
+<div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:16px;align-items:baseline;padding:20px 24px;border-bottom:1px solid var(--lw-line)"><code style="font-size:12px;color:var(--lw-ink-2)">piccolo 14/20 · 400</code><div style="font-size:14px;line-height:20px;color:var(--lw-ink-2)">Ti invieremo un SMS con un codice di 6 cifre.</div></div>
+<div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:16px;align-items:baseline;padding:20px 24px;border-bottom:1px solid var(--lw-line)"><code style="font-size:12px;color:var(--lw-ink-2)">etichetta 12/16 · 600</code><div style="font-size:12px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-ink-2)">Timbri · Premi · Cliente</div></div>
+<div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:16px;align-items:baseline;padding:20px 24px"><code style="font-size:12px;color:var(--lw-ink-2)">numero 56 · 700 tab</code><div style="font-size:56px;line-height:1;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--lw-accent-text)">6<span style="color:var(--lw-ink-3)">/10</span></div></div>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-ink-2)">03 · Timbri</div><h2 style="margin:0;font-size:32px;letter-spacing:-.02em">Vuoto, pieno, premio</h2></div>
+<p style="margin:0;max-width:680px;color:var(--lw-ink-2);font-size:15px;line-height:1.5;text-wrap:pretty">Il vuoto è un anello tratteggiato (con il numero sopra i 28&nbsp;px). Il pieno è un disco con l'icona del mestiere, ruotata di un angolo fisso per indice (−12°…+12°) come un timbro dato a mano. L'ultimo posto è sempre la rosetta del premio: la si vede vuota fin dal primo giorno, così l'obiettivo è chiaro. Sotto i 32&nbsp;px spariscono anello interno e numero.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px">
+<div style="background:var(--lw-card-bg);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:16px">
+<div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-card-label)">Su colore carta (wallet)</div>
+<sc-for list="{{ stampSizesCard }}" as="row" hint-placeholder-count="0">
+<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px"><code style="width:36px;font-size:12px;color:var(--lw-card-label)">{{ row.size }}</code><sc-for list="{{ row.items }}" as="it" hint-placeholder-count="0"><lw-img src="{{ it }}" alt="" style="display:block"></lw-img></sc-for></div>
+</sc-for>
+</div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:16px">
+<div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-ink-2)">Su superficie (web, staff)</div>
+<sc-for list="{{ stampSizesUI }}" as="row" hint-placeholder-count="0">
+<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px"><code style="width:36px;font-size:12px;color:var(--lw-ink-2)">{{ row.size }}</code><sc-for list="{{ row.items }}" as="it" hint-placeholder-count="0"><lw-img src="{{ it }}" alt="" style="display:block"></lw-img></sc-for></div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{ iconSet }}" as="ic" hint-placeholder-count="0">
+<div style="display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:999px;font-size:13px"><lw-img src="{{ ic.src }}" alt="" style="display:block;width:32px;height:32px"></lw-img>{{ ic.label }}</div>
+</sc-for>
+</div>
+
+<h3 style="margin:16px 0 0;font-size:20px">Griglia per N timbri</h3>
+<p style="margin:0;max-width:680px;color:var(--lw-ink-2);font-size:15px;line-height:1.5">N ≤ 6 → una riga. N 7–20 → due righe, la prima con ⌈N/2⌉ posti; con N dispari la seconda riga è centrata. Diametro = 80% della cella più piccola. Stesso algoritmo per Google (1032×336) e Apple (1125×369 @3x).</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:16px">
+<sc-for list="{{ grids }}" as="g" hint-placeholder-count="0">
+<div style="display:flex;flex-direction:column;gap:8px"><lw-img src="{{ g.src }}" alt="" style="width:100%;display:block;border-radius:14px"></lw-img><div style="display:flex;justify-content:space-between;gap:8px;font-size:13px"><strong style="white-space:nowrap;flex:none">N = {{ g.n }}</strong><span style="color:var(--lw-ink-2)">{{ g.layout }}</span></div></div>
+</sc-for>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-ink-2)">04 · Componenti</div><h2 style="margin:0;font-size:32px;letter-spacing:-.02em">Chiaro e scuro, stesso markup</h2></div>
+<p style="margin:0;max-width:680px;color:var(--lw-ink-2);font-size:15px;line-height:1.5">Spaziatura su base 4 (4·8·12·16·24·32·48). Raggi: 10 campi, 14 pulsanti, 20 card, pieno per pillole. Altezze: 56 pulsante cliente, 72 pulsante staff. Focus: anello 3&nbsp;px <code>accent-line</code> + 1&nbsp;px <code>accent-edge</code>.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:16px">
+<sc-for list="{{ modes }}" as="m" hint-placeholder-count="0">
+<div style="{{ m.vars }}">
+<div style="background:var(--lw-bg);border:1px solid var(--lw-line);border-radius:24px;padding:24px;display:flex;flex-direction:column;gap:24px;color:var(--lw-ink)">
+<div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-ink-2)">{{ m.label }}</div>
+
+<div style="display:flex;flex-direction:column;gap:10px">
+<button style="height:56px;border-radius:14px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font:600 17px 'Bricolage Grotesque',sans-serif;cursor:pointer">Iscriviti gratis</button>
+<button style="height:56px;border-radius:14px;border:1px solid var(--lw-line);background:var(--lw-surface);color:var(--lw-ink);font:600 17px 'Bricolage Grotesque',sans-serif;cursor:pointer">Riaggiungi al wallet</button>
+<div style="display:flex;gap:10px"><button style="flex:1;height:48px;border-radius:14px;border:0;background:transparent;color:var(--lw-accent-text);font:600 16px 'Bricolage Grotesque',sans-serif;cursor:pointer">Annulla</button><button style="flex:1;height:48px;border-radius:14px;border:0;background:var(--lw-danger-soft);color:var(--lw-danger);font:600 16px 'Bricolage Grotesque',sans-serif;cursor:pointer">Elimina account</button></div>
+<button style="height:56px;border-radius:14px;border:1px solid var(--lw-line);background:var(--lw-surface-2);color:var(--lw-ink-3);font:600 17px 'Bricolage Grotesque',sans-serif">Disattivato</button>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<button style="height:88px;border-radius:18px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font:700 22px 'Bricolage Grotesque',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer"><span style="font-size:30px;line-height:1">+1</span><span style="font-size:14px;font-weight:600">timbro</span></button>
+<button style="height:88px;border-radius:18px;border:2px solid var(--lw-accent-edge);background:var(--lw-accent-soft);color:var(--lw-accent-text);font:700 18px 'Bricolage Grotesque',sans-serif;cursor:pointer">Riscatta premio</button>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:6px">
+<label style="font-size:14px;font-weight:600">Telefono</label>
+<div style="display:flex;height:56px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);overflow:hidden"><span style="display:flex;align-items:center;padding:0 12px;border-right:1px solid var(--lw-line);color:var(--lw-ink-2);font-size:16px">+39</span><span style="display:flex;align-items:center;padding:0 12px;font-size:17px;font-variant-numeric:tabular-nums">333 123 4567</span></div>
+<label style="font-size:14px;font-weight:600;margin-top:8px">Nome</label>
+<div style="display:flex;align-items:center;height:56px;padding:0 12px;border-radius:10px;border:2px solid var(--lw-danger);background:var(--lw-surface);font-size:17px;color:var(--lw-ink-3)">Come ti chiami?</div>
+<span style="font-size:14px;color:var(--lw-danger);font-weight:500">Scrivi il tuo nome, ci serve per riconoscerti.</span>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:8px">
+<label style="font-size:14px;font-weight:600">Codice di verifica</label>
+<div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;max-width:340px">
+<div style="height:60px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">4</div>
+<div style="height:60px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">8</div>
+<div style="height:60px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">1</div>
+<div style="height:60px;border-radius:10px;border:2px solid var(--lw-accent-edge);box-shadow:0 0 0 3px var(--lw-accent-line);background:var(--lw-surface);display:flex;align-items:center;justify-content:center"><div style="width:2px;height:28px;background:var(--lw-ink)"></div></div>
+<div style="height:60px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface-2)"></div>
+<div style="height:60px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface-2)"></div>
+</div>
+<span style="font-size:14px;color:var(--lw-ink-2)">Nuovo codice tra <strong style="font-variant-numeric:tabular-nums;color:var(--lw-ink)">0:42</strong></span>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--lw-success-soft);color:var(--lw-ink)"><div style="width:28px;height:28px;border-radius:50%;background:var(--lw-success);flex:none"></div><div style="display:flex;flex-direction:column"><strong style="font-size:16px">Timbro aggiunto</strong><span style="font-size:14px;color:var(--lw-ink-2)">Giulia ha 7 timbri su 10</span></div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--lw-accent);color:var(--lw-on-accent)"><div style="width:28px;height:28px;border-radius:50%;border:2px solid var(--lw-on-accent);flex:none"></div><div style="display:flex;flex-direction:column"><strong style="font-size:16px">Premio sbloccato!</strong><span style="font-size:14px">Taglio gratis disponibile</span></div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--lw-warning-soft);color:var(--lw-ink)"><div style="width:28px;height:28px;border-radius:50%;background:var(--lw-warning);flex:none"></div><div style="display:flex;flex-direction:column"><strong style="font-size:16px">Timbro già dato da poco</strong><span style="font-size:14px;color:var(--lw-ink-2)">Riprova tra 3 ore · ultimo alle 10:12</span></div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--lw-danger-soft);color:var(--lw-ink)"><div style="width:28px;height:28px;border-radius:50%;background:var(--lw-danger);flex:none"></div><div style="display:flex;flex-direction:column"><strong style="font-size:16px">QR non valido</strong><span style="font-size:14px;color:var(--lw-ink-2)">Non è una carta di questo negozio</span></div></div>
+</div>
+
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:10px"><lw-img src="{{ logo }}" alt="" style="width:36px;height:36px;border-radius:50%;display:block"></lw-img><div style="display:flex;flex-direction:column"><strong style="font-size:15px">{{ shop }}</strong><span style="font-size:13px;color:var(--lw-ink-2)">{{ program }}</span></div><div style="margin-left:auto;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--lw-accent-text)">6<span style="color:var(--lw-ink-3);font-weight:600">/10</span></div></div>
+<lw-img src="{{ m.grid }}" alt="6 timbri su 10" style="width:100%;display:block"></lw-img>
+<div style="font-size:14px;color:var(--lw-ink-2)">Ancora <strong style="color:var(--lw-ink)">4 tagli</strong> e il prossimo è gratis.</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="height:52px;border-radius:12px;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;font:500 16px system-ui,sans-serif;border:1px solid #5E5E5E"><span style="width:26px;height:20px;border-radius:4px;border:1.5px dashed #9A9A9A"></span>Aggiungi a Google Wallet</div>
+<div style="height:52px;border-radius:12px;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;font:500 16px system-ui,sans-serif;border:1px solid #5E5E5E"><span style="width:26px;height:20px;border-radius:4px;border:1.5px dashed #9A9A9A"></span>Aggiungi a Apple Wallet</div>
+<span style="font-size:12px;color:var(--lw-ink-2)">Segnaposto: usare gli SVG ufficiali in italiano, nero, altezza ≥ 48 px, non ricolorare.</span>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--lw-ink-2)">05 · Movimento</div><h2 style="margin:0;font-size:32px;letter-spacing:-.02em">Il timbro si dà, non appare</h2></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;font-size:15px;line-height:1.5;color:var(--lw-ink-2)">
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:20px;padding:20px"><strong style="color:var(--lw-ink);display:block;margin-bottom:6px">+1 timbro · 420 ms</strong>Il disco scende da scale 1.6 a 0.92 a 1 con opacità 0→1 (cubic-bezier .2,.9,.3,1.2), poi un anello si espande e svanisce. Vibrazione 20 ms.</div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:20px;padding:20px"><strong style="color:var(--lw-ink);display:block;margin-bottom:6px">Premio sbloccato · 1,6 s</strong>Timbro finale come sopra, la rosetta ruota di 20° e pulsa due volte, 18 coriandoli (cerchi e quadrati nei colori accent / on-accent) partono dal centro. Vibrazione 30-60-30.</div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:20px;padding:20px"><strong style="color:var(--lw-ink);display:block;margin-bottom:6px">Riduci movimento</strong>Con <code>prefers-reduced-motion</code>: niente scale né coriandoli, solo dissolvenza 150 ms e cambio di colore. Il messaggio resta identico.</div>
+</div>
+</section>
+
+</div>
+</div>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;preset&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;salone&quot;,&quot;bar&quot;,&quot;pizzeria&quot;,&quot;estetica&quot;],&quot;default&quot;:&quot;salone&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;brandOverride&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prova colore&quot;},&quot;numbers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  componentDidMount() { if (!window.LW) this.t = setInterval(() => { if (window.LW) { clearInterval(this.t); this.forceUpdate(); } }, 30); }
+  componentWillUnmount() { clearInterval(this.t); }
+  renderVals() { if (!window.LW) return { ready: false }; return { ready: true, ...this._rv() }; }
+  _rv() {
+    const LW = window.LW; if (!LW) return {};
+    const p = LW.presets[this.props.preset ?? 'salone'] || LW.presets.salone;
+    const brand = LW.norm(this.props.brandOverride || p.brand);
+    const numbers = this.props.numbers ?? true;
+    const L = LW.theme(brand, 'light'), D = LW.theme(brand, 'dark');
+    const roles = [['bg', 'Sfondo pagina'], ['surface', 'Card, fogli'], ['surface2', 'Campi vuoti, righe'], ['line', 'Bordi, divisori'], ['ink', 'Testo'], ['ink2', 'Testo secondario'], ['ink3', 'Segnaposto, timbro vuoto UI'], ['accent', 'Pulsante principale'], ['onAccent', 'Testo su accent'], ['accentEdge', 'Bordo accent (colori chiari)'], ['accentText', 'Link, numeri, icone'], ['accentSoft', 'Sfondi tinti'], ['accentLine', 'Bordi tinti, focus'], ['success', 'Conferma'], ['warning', 'Attesa, cooldown'], ['danger', 'Errore, elimina'], ['cardBg', 'Wallet: sfondo'], ['cardFg', 'Wallet: testo, timbro'], ['cardLabel', 'Wallet: etichette'], ['cardRing', 'Wallet: timbro vuoto']];
+    const VAR = { surface2: 'surface-2', ink2: 'ink-2', ink3: 'ink-3', onAccent: 'on-accent', accentEdge: 'accent-edge', accentText: 'accent-text', accentSoft: 'accent-soft', accentLine: 'accent-line', cardBg: 'card-bg', cardFg: 'card-fg', cardLabel: 'card-label', cardRing: 'card-ring' };
+    const sw = c => ({ width: 24, height: 24, borderRadius: 7, background: c, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.12)', flex: 'none' });
+    const tokenRows = roles.map(([k, role]) => ({ name: '--lw-' + (VAR[k] || k), role, light: L[k], dark: D[k], lightSw: sw(L[k]), darkSw: sw(D[k]) }));
+    const cardStamp = (st, size, i) => LW.stampURL(st, size, { fg: L.cardFg, bg: L.cardBg, ring: L.cardRing, icon: p.icon, numbers, i });
+    const uiStamp = (st, size, i) => LW.stampURL(st, size, { fg: L.accent, bg: L.onAccent, ring: L.ink3, icon: p.icon, numbers, i });
+    const sizes = [56, 40, 24];
+    const row = (fn, s) => ({ size: s + 'px', items: [fn('empty', s, 3), fn('filled', s, 1), fn('filled', s, 4), fn('reward-empty', s, 9), fn('reward-filled', s, 9)] });
+    const grids = [5, 6, 8, 10, 12, 15, 20].map(n => { const g = LW.gridLayout(n); return { n, layout: g.rows === 1 ? `1 × ${n}` : `2 righe · ${g.perRow.join(' + ')}`, src: LW.url(LW.strip({ n, filled: Math.round(n * 0.6), w: 1032, h: 336, bg: L.cardBg, fg: L.cardFg, ring: L.cardRing, icon: p.icon, numbers })) }; });
+    const stressIn = [p.brand, '#F7C843', '#7FA89A', '#3A8DDE', '#FAFAF7', '#111111'];
+    const stress = stressIn.map(c => { const tl = LW.theme(c, 'light'), td = LW.theme(c, 'dark'); const btn = (t) => ({ height: 40, borderRadius: 12, background: t.accent, color: t.onAccent, border: '1px solid ' + t.accentEdge, outline: '6px solid ' + t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600 }); return { input: c, card: tl.cardBg, note: tl.cardCorrected ? 'corretto' : 'invariato', strip: LW.url(LW.strip({ n: 10, filled: 6, w: 1032, h: 336, bg: tl.cardBg, fg: tl.cardFg, ring: tl.cardRing, icon: 'check', numbers })), btnL: btn(tl), btnD: btn(td), cL: tl.report.accentOn, cD: td.report.accentOn }; });
+    const modes = [['Chiaro', L], ['Scuro', D]].map(([label, t]) => ({ label, vars: LW.vars(t), grid: LW.url(LW.strip({ n: 10, filled: 6, w: 640, h: 250, padX: 4, padY: 8, transparent: true, fg: t.accent, bg: t.onAccent, ring: t.ink3, icon: p.icon, numbers })) }));
+    const iconSet = [['scissors', 'Parrucchiere, barbiere'], ['cup', 'Bar'], ['pizza', 'Pizzeria'], ['sparkle', 'Estetista'], ['check', 'Generico'], ['gift', 'Premio']].map(([k, label]) => ({ label, src: LW.stampURL(k === 'gift' ? 'reward-filled' : 'filled', 32, { fg: L.accent, bg: L.onAccent, ring: L.ink3, icon: k, i: 2 }) }));
+    return { varsL: LW.vars(L), shop: p.shop, program: p.program, brand, tokenRows, stress, stampSizesCard: sizes.map(s => row(cardStamp, s)), stampSizesUI: sizes.map(s => row(uiStamp, s)), grids, modes, iconSet, logo: LW.monogram(p.shop, L.cardBg, L.cardFg, 72) };
+  }
+}
+</script>
+</body>
+</html>

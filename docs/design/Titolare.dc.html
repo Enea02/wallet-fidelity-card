@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&amp;display=swap" rel="stylesheet">
+<script src="lw-core.js"></script>
+<style>
+:root{--lw-bg:#F6F2EC;--lw-surface:#FEFCF9;--lw-surface-2:#EDE7DF;--lw-line:#DDD4CA;--lw-ink:#2A211C;--lw-ink-2:#5E534B;--lw-ink-3:#968B81;--lw-accent:#5B1F2E;--lw-on-accent:#FFFFFF;--lw-accent-edge:#5B1F2E;--lw-accent-text:#5B1F2E;--lw-accent-soft:#F7EBEC;--lw-accent-line:#E3CBCE;--lw-success:#2E6B3F;--lw-success-soft:#E5F3E7;--lw-danger:#B42C25;--lw-danger-soft:#FBE8E5;--lw-warning:#74561A;--lw-warning-soft:#FBF0D9;--lw-card-bg:#5B1F2E;--lw-card-fg:#FFFFFF;--lw-card-label:#E2C9CE;--lw-card-ring:#B48F97}
+html,body{margin:0;background:#E9E2D8}
+body{font-family:'Bricolage Grotesque',system-ui,sans-serif;color:#2A211C;-webkit-font-smoothing:antialiased}
+a{color:var(--lw-accent-text)}a:hover{color:var(--lw-ink)}
+button,input,textarea{font-family:'Bricolage Grotesque',system-ui,sans-serif}
+</style>
+</helmet>
+<sc-if value="{{ ready }}" hint-placeholder-val="{{ false }}">
+<div style="padding:64px;display:flex;flex-direction:column;gap:72px;width:max-content">
+<header style="display:flex;flex-direction:column;gap:10px;max-width:900px">
+<div style="font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#5E534B">Consegna 2 · Titolare · desktop 1280 e mobile 360</div>
+<h1 style="margin:0;font-size:56px;line-height:1;letter-spacing:-.03em">Area negozio</h1>
+<p style="margin:0;font-size:18px;line-height:1.5;color:#5E534B">Pochi numeri che contano, impostazioni con anteprima live della carta. <a href="Staff.dc.html">← Staff</a> · <a href="Cartello A5.dc.html">Cartello A5 →</a></p>
+</header>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<h2 style="margin:0;font-size:32px;letter-spacing:-.02em">T1 · Impostazioni carta <span style="font-weight:500;color:#5E534B">· interattivo</span></h2>
+<div id="t1" style="{{ varsLive }}"><div style="width:1280px;height:820px;border-radius:16px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;box-shadow:0 30px 60px -30px rgba(60,40,20,.45)">
+<nav style="width:232px;flex:none;background:var(--lw-surface);border-right:1px solid var(--lw-line);padding:20px 14px;display:flex;flex-direction:column;gap:4px">
+<div style="display:flex;align-items:center;gap:10px;padding:0 8px 18px"><lw-img src="{{ logoLive }}" alt="" style="width:36px;height:36px;border-radius:50%;display:block"></lw-img><div style="display:flex;flex-direction:column"><strong style="font-size:15px">{{ shopName }}</strong><span style="font-size:12px;color:var(--lw-ink-2)">Titolare</span></div></div>
+<sc-for list="{{ nav3 }}" as="i" hint-placeholder-count="0"><div style="{{ i.st }}">{{ i.label }}</div></sc-for>
+</nav>
+<main style="flex:1;display:grid;grid-template-columns:minmax(0,1fr) 520px;min-width:0">
+<div style="padding:28px 32px;display:flex;flex-direction:column;gap:22px;overflow:hidden">
+<div style="display:flex;flex-direction:column;gap:4px"><h2 style="margin:0;font-size:28px;letter-spacing:-.02em">Impostazioni carta</h2><span style="font-size:15px;color:var(--lw-ink-2)">Le modifiche arrivano su tutte le carte nei wallet entro qualche minuto.</span></div>
+<div style="display:flex;gap:16px;align-items:center">
+<div style="width:96px;height:96px;border-radius:20px;border:2px dashed var(--lw-line);display:flex;align-items:center;justify-content:center;background:var(--lw-surface)"><lw-img src="{{ logoLive }}" alt="" style="width:64px;height:64px;border-radius:50%;display:block"></lw-img></div>
+<div style="display:flex;flex-direction:column;gap:6px"><strong style="font-size:15px">Logo</strong><span style="font-size:13px;color:var(--lw-ink-2);max-width:280px">PNG o SVG quadrato, almeno 660 px. Senza logo usiamo le iniziali.</span><button style="align-self:flex-start;height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--lw-line);background:var(--lw-surface);color:var(--lw-ink);font-size:14px;font-weight:600;white-space:nowrap">Carica logo</button></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<strong style="font-size:15px">Colore</strong>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+<sc-for list="{{ swatches }}" as="s" hint-placeholder-count="0"><button onClick="{{ s.pick }}" style="{{ s.st }}" aria-label="{{ s.hex }}"></button></sc-for>
+<div style="display:flex;align-items:center;height:40px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);padding:0 10px;gap:6px;margin-left:6px"><span style="color:var(--lw-ink-2);font-size:14px">HEX</span><input value="{{ hexInput }}" onChange="{{ onHex }}" style="width:84px;border:0;outline:0;background:transparent;font-size:15px;color:var(--lw-ink);font-variant-numeric:tabular-nums"></div>
+</div>
+<sc-if value="{{ corrected }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--lw-warning-soft);font-size:13px;line-height:1.4"><div style="{{ correctedSw }}"></div><span>Per la leggibilità la carta userà <strong>{{ cardHex }}</strong> invece di {{ brandHex }}.</span></div></sc-if>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ checks }}" as="c" hint-placeholder-count="0"><span style="{{ c.st }}">{{ c.label }}</span></sc-for></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="display:flex;flex-direction:column;gap:8px"><strong style="font-size:15px">Timbri necessari</strong>
+<div style="display:flex;align-items:center;gap:10px"><button onClick="{{ dec }}" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--lw-line);background:var(--lw-surface);color:var(--lw-ink);font-size:22px;cursor:pointer">−</button><span style="font-size:28px;font-weight:700;width:44px;text-align:center;font-variant-numeric:tabular-nums">{{ n }}</span><button onClick="{{ inc }}" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--lw-line);background:var(--lw-surface);color:var(--lw-ink);font-size:22px;cursor:pointer">+</button><span style="font-size:13px;color:var(--lw-ink-2)">da 5 a 20 · griglia {{ layoutLabel }}</span></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px"><strong style="font-size:15px">Icona del timbro</strong>
+<div style="display:flex;gap:6px"><sc-for list="{{ icons }}" as="ic" hint-placeholder-count="0"><button onClick="{{ ic.pick }}" style="{{ ic.st }}"><lw-img src="{{ ic.src }}" alt="{{ ic.k }}" style="width:28px;height:28px;display:block"></lw-img></button></sc-for></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px"><strong style="font-size:15px">Testo del premio</strong>
+<input value="{{ reward }}" onChange="{{ onReward }}" maxlength="28" style="height:48px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);padding:0 12px;font-size:16px;color:var(--lw-ink);outline:0">
+<span style="font-size:13px;color:var(--lw-ink-2)">Appare sulla carta e nella notifica: “{{ reward }} disponibile!”</span>
+</div>
+<div style="display:flex;gap:10px;margin-top:auto"><button style="height:48px;padding:0 22px;border-radius:14px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font-size:16px;font-weight:600">Salva e aggiorna le carte</button><button onClick="{{ reset }}" style="height:48px;padding:0 18px;border-radius:14px;border:0;background:transparent;color:var(--lw-ink);font-size:15px;font-weight:600;cursor:pointer">Ripristina</button></div>
+</div>
+<aside style="background:var(--lw-surface-2);border-left:1px solid var(--lw-line);padding:24px;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+<div style="display:flex;justify-content:space-between;align-items:center"><strong style="font-size:15px">Anteprima</strong><div style="display:flex;background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:10px;padding:3px"><sc-for list="{{ stateTabs }}" as="s" hint-placeholder-count="0"><button onClick="{{ s.pick }}" style="{{ s.st }}">{{ s.label }}</button></sc-for></div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:var(--lw-ink-2)">Google Wallet</span>
+<div style="{{ gCard }}">
+<div style="display:flex;align-items:center;gap:8px;padding:12px 12px 0"><lw-img src="{{ logoCircle }}" alt="" style="width:28px;height:28px;border-radius:50%;display:block"></lw-img><span style="font-size:12px;font-weight:500">{{ shopName }}</span></div>
+<div style="padding:8px 12px 0;font-size:16px;font-weight:600">{{ program }}</div>
+<div style="display:flex;gap:18px;padding:8px 12px 0"><div style="display:flex;flex-direction:column"><span style="{{ gLabel }}">Timbri</span><span style="font-size:14px;font-weight:600">{{ stampsTxt }}</span></div><div style="display:flex;flex-direction:column"><span style="{{ gLabel }}">Premi</span><span style="font-size:14px;font-weight:600">{{ rewardsTxt }}</span></div></div>
+<div style="display:flex;justify-content:center;padding:12px"><div style="background:#fff;border-radius:10px;padding:7px"><lw-img src="{{ qr }}" alt="" style="width:88px;height:88px;display:block"></lw-img></div></div>
+<lw-img src="{{ hero }}" alt="" style="width:100%;display:block"></lw-img>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:var(--lw-ink-2)">Apple Wallet</span>
+<div style="{{ aCard }}">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 10px"><div style="display:flex;align-items:center;gap:6px"><lw-img src="{{ logoCircle }}" alt="" style="width:22px;height:22px;border-radius:50%;display:block"></lw-img><span style="font-size:12px;font-weight:600">{{ shopName }}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end"><span style="{{ aLabel }}">TIMBRI</span><span style="font-size:12px">{{ stampsTxt }}</span></div></div>
+<lw-img src="{{ strip }}" alt="" style="width:100%;display:block"></lw-img>
+<div style="display:flex;justify-content:space-between;padding:8px 10px 0"><div style="display:flex;flex-direction:column"><span style="{{ aLabel }}">CLIENTE</span><span style="font-size:12px">Giulia R.</span></div><div style="display:flex;flex-direction:column;align-items:flex-end"><span style="{{ aLabel }}">PREMI</span><span style="font-size:12px">{{ rewardsTxt }}</span></div></div>
+<div style="display:flex;justify-content:center;padding:14px 10px 12px"><div style="background:#fff;border-radius:6px;padding:6px"><lw-img src="{{ qr }}" alt="" style="width:80px;height:80px;display:block"></lw-img></div></div>
+</div>
+</div>
+</div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:3px"><span style="font-size:12px;font-weight:600;color:var(--lw-ink-2)">Modulo testo</span><strong style="font-size:14px">{{ moduleTitle }}</strong><span style="font-size:13px;color:var(--lw-ink-2);line-height:1.4">{{ moduleBody }}</span></div>
+</aside>
+</main>
+</div></div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<h2 style="margin:0;font-size:32px;letter-spacing:-.02em">T2 · Dashboard</h2>
+<div style="display:flex;gap:40px;align-items:flex-start">
+<div id="t2" style="{{ vars }}"><div style="width:1280px;height:820px;border-radius:16px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;box-shadow:0 30px 60px -30px rgba(60,40,20,.45)">
+<nav style="width:232px;flex:none;background:var(--lw-surface);border-right:1px solid var(--lw-line);padding:20px 14px;display:flex;flex-direction:column;gap:4px">
+<div style="display:flex;align-items:center;gap:10px;padding:0 8px 18px"><lw-img src="{{ logo }}" alt="" style="width:36px;height:36px;border-radius:50%;display:block"></lw-img><div style="display:flex;flex-direction:column"><strong style="font-size:15px">Salone Nora</strong><span style="font-size:12px;color:var(--lw-ink-2)">Titolare</span></div></div>
+<sc-for list="{{ nav0 }}" as="i" hint-placeholder-count="0"><div style="{{ i.st }}">{{ i.label }}</div></sc-for>
+</nav>
+<main style="flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:20px;min-width:0">
+<div style="display:flex;justify-content:space-between;align-items:flex-end"><div style="display:flex;flex-direction:column;gap:4px"><h2 style="margin:0;font-size:28px;letter-spacing:-.02em">Buongiorno, Nora</h2><span style="font-size:15px;color:var(--lw-ink-2)">Settimana 5–11 ottobre</span></div><button style="height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font-size:15px;font-weight:600">Scarica cartello da bancone</button></div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px">
+<sc-for list="{{ kpis }}" as="k" hint-placeholder-count="0">
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:6px"><span style="font-size:14px;color:var(--lw-ink-2);font-weight:500">{{ k.label }}</span><span style="font-size:40px;line-height:1;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums">{{ k.value }}</span><span style="font-size:13px;color:var(--lw-ink-2)">{{ k.note }}</span></div>
+</sc-for>
+</div>
+<div style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;flex:1;min-height:0">
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:18px;padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;justify-content:space-between;align-items:center"><strong style="font-size:17px">Ultime 8 settimane</strong><div style="display:flex;gap:14px;font-size:13px;color:var(--lw-ink-2)"><span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--lw-accent)"></span>Timbri</span><span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;border:2px solid var(--lw-accent-text);box-sizing:border-box"></span>Premi</span></div></div>
+<div style="flex:1;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:14px;align-items:end;padding-top:10px;border-bottom:1px solid var(--lw-line)">
+<sc-for list="{{ weeks }}" as="w" hint-placeholder-count="0">
+<div style="display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
+<span style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums">{{ w.t }}</span>
+<div style="{{ w.bar }}"><div style="{{ w.dot }}">{{ w.p }}</div></div>
+</div>
+</sc-for>
+</div>
+<div style="display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:14px;font-size:12px;color:var(--lw-ink-2);text-align:center"><sc-for list="{{ weeks }}" as="w" hint-placeholder-count="0"><span>{{ w.label }}</span></sc-for></div>
+</div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:18px;padding:18px 20px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;flex-direction:column;gap:2px"><strong style="font-size:17px">Clienti inattivi</strong><span style="font-size:13px;color:var(--lw-ink-2)">Nessuna visita da oltre 60 giorni · 37 clienti</span></div>
+<sc-for list="{{ inactive }}" as="c" hint-placeholder-count="0">
+<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--lw-line)"><div style="width:34px;height:34px;border-radius:50%;background:var(--lw-surface-2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">{{ c.ini }}</div><div style="display:flex;flex-direction:column;flex:1"><span style="font-size:15px;font-weight:600">{{ c.name }}</span><span style="font-size:13px;color:var(--lw-ink-2)">{{ c.last }}</span></div><span style="font-size:13px;font-variant-numeric:tabular-nums;color:var(--lw-ink-2)">{{ c.stamps }}</span></div>
+</sc-for>
+<a href="#" style="font-size:14px;font-weight:600;margin-top:auto">Scrivi ai 21 con consenso marketing →</a>
+</div>
+</div>
+</main>
+</div></div>
+
+<div id="t2m" style="{{ vars }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;flex:none"></div>
+<div style="padding:4px 16px 16px;display:flex;flex-direction:column;gap:14px;flex:1">
+<div style="display:flex;align-items:center;gap:10px"><lw-img src="{{ logo }}" alt="" style="width:36px;height:36px;border-radius:50%;display:block"></lw-img><strong style="font-size:18px">Questa settimana</strong></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<sc-for list="{{ kpis }}" as="k" hint-placeholder-count="0"><div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:var(--lw-ink-2)">{{ k.label }}</span><span style="font-size:30px;line-height:1;font-weight:700;font-variant-numeric:tabular-nums">{{ k.value }}</span><span style="font-size:12px;color:var(--lw-ink-2)">{{ k.note }}</span></div></sc-for>
+</div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;height:200px;box-sizing:border-box">
+<strong style="font-size:15px">Timbri · 8 settimane</strong>
+<div style="flex:1;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;align-items:end"><sc-for list="{{ weeks }}" as="w" hint-placeholder-count="0"><div style="{{ w.barM }}"></div></sc-for></div>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:14px;border-radius:16px;background:var(--lw-surface);border:1px solid var(--lw-line)"><div style="display:flex;flex-direction:column"><strong style="font-size:15px">37 clienti inattivi</strong><span style="font-size:13px;color:var(--lw-ink-2)">da oltre 60 giorni</span></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"></path></svg></div>
+<div style="margin-top:auto;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--lw-line);padding-top:10px;font-size:11px;text-align:center;color:var(--lw-ink-2)"><span style="color:var(--lw-accent-text);font-weight:700">Home</span><span>Clienti</span><span>Carta</span><span>Staff</span><span>Messaggi</span></div>
+</div>
+</div></div>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<h2 style="margin:0;font-size:32px;letter-spacing:-.02em">T3 · Clienti e correzione saldo</h2>
+<div style="display:flex;gap:40px;align-items:flex-start">
+<div id="t3" style="{{ vars }}"><div style="width:1280px;height:820px;border-radius:16px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;position:relative;box-shadow:0 30px 60px -30px rgba(60,40,20,.45)">
+<nav style="width:232px;flex:none;background:var(--lw-surface);border-right:1px solid var(--lw-line);padding:20px 14px;display:flex;flex-direction:column;gap:4px">
+<div style="display:flex;align-items:center;gap:10px;padding:0 8px 18px"><lw-img src="{{ logo }}" alt="" style="width:36px;height:36px;border-radius:50%;display:block"></lw-img><div style="display:flex;flex-direction:column"><strong style="font-size:15px">Salone Nora</strong><span style="font-size:12px;color:var(--lw-ink-2)">Titolare</span></div></div>
+<sc-for list="{{ nav1 }}" as="i" hint-placeholder-count="0"><div style="{{ i.st }}">{{ i.label }}</div></sc-for>
+</nav>
+<main style="flex:1;display:grid;grid-template-columns:minmax(0,1fr) 420px;min-width:0">
+<div style="padding:28px 32px;display:flex;flex-direction:column;gap:16px;min-width:0">
+<div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0;font-size:28px;letter-spacing:-.02em">Clienti <span style="color:var(--lw-ink-3);font-weight:600">248</span></h2><button style="height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--lw-line);background:var(--lw-surface);color:var(--lw-ink);font-size:14px;font-weight:600;white-space:nowrap">Esporta CSV</button></div>
+<div style="display:flex;gap:10px"><div style="flex:1;height:44px;border-radius:12px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--lw-ink-2);font-size:15px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>Cerca per nome o telefono</div><div style="display:flex;gap:6px"><span style="height:44px;padding:0 14px;border-radius:12px;background:var(--lw-ink);color:var(--lw-bg);display:flex;align-items:center;font-size:14px;font-weight:600">Tutti</span><span style="height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--lw-line);display:flex;align-items:center;font-size:14px;font-weight:600;white-space:nowrap">Con premio</span><span style="height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--lw-line);display:flex;align-items:center;font-size:14px;font-weight:600">Inattivi</span></div></div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:16px;overflow:hidden">
+<div style="display:grid;grid-template-columns:minmax(0,1.6fr) 1.2fr 1fr 1fr;padding:10px 16px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--lw-ink-2);border-bottom:1px solid var(--lw-line)"><span>Cliente</span><span>Telefono</span><span>Timbri</span><span>Ultima visita</span></div>
+<sc-for list="{{ customers }}" as="c" hint-placeholder-count="0">
+<div style="{{ c.row }}"><span style="font-weight:600;display:flex;align-items:center;gap:8px">{{ c.name }}<sc-if value="{{ c.prize }}"><lw-img src="{{ giftSmall }}" alt="premio" style="width:20px;height:20px;display:block"></lw-img></sc-if></span><span style="color:var(--lw-ink-2);font-variant-numeric:tabular-nums">{{ c.phone }}</span><span style="font-variant-numeric:tabular-nums">{{ c.stamps }}</span><span style="color:var(--lw-ink-2)">{{ c.last }}</span></div>
+</sc-for>
+</div>
+</div>
+<aside style="background:var(--lw-surface);border-left:1px solid var(--lw-line);padding:24px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:center;gap:12px"><div style="width:52px;height:52px;border-radius:50%;background:var(--lw-accent-soft);color:var(--lw-accent-text);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700">GR</div><div style="display:flex;flex-direction:column"><strong style="font-size:20px">Giulia Rossi</strong><span style="font-size:14px;color:var(--lw-ink-2)">+39 333 123 4567 · dal 3 marzo</span></div></div>
+<div style="background:var(--lw-bg);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:14px;color:var(--lw-ink-2)">Saldo</span><span style="font-size:28px;font-weight:700;color:var(--lw-accent-text)">6<span style="font-size:17px;color:var(--lw-ink-3)">/10</span></span></div><lw-img src="{{ grid6 }}" alt="" style="width:100%;display:block"></lw-img></div>
+<div style="display:flex;gap:8px"><button style="flex:1;height:44px;border-radius:12px;border:1px solid var(--lw-line);background:var(--lw-surface);color:var(--lw-ink);font-size:14px;font-weight:600">Correggi saldo</button><button style="flex:1;height:44px;border-radius:12px;border:1px solid var(--lw-line);background:var(--lw-surface);color:var(--lw-ink);font-size:14px;font-weight:600">Reinvia carta</button></div>
+<strong style="font-size:16px">Storico</strong>
+<div style="display:flex;flex-direction:column">
+<sc-for list="{{ ledger }}" as="l" hint-placeholder-count="0"><div style="display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:9px 0;border-bottom:1px solid var(--lw-line);font-size:14px"><span style="font-weight:600">{{ l.what }}</span><span style="font-variant-numeric:tabular-nums;font-weight:600">{{ l.delta }}</span><span style="color:var(--lw-ink-2);font-size:13px">{{ l.meta }}</span></div></sc-for>
+</div>
+</aside>
+</main>
+<div style="position:absolute;inset:0;background:rgba(30,25,21,.45);display:flex;align-items:center;justify-content:center">
+<div style="width:440px;background:var(--lw-surface);border-radius:24px;padding:26px;display:flex;flex-direction:column;gap:16px;box-shadow:0 30px 60px -20px rgba(0,0,0,.4)">
+<h3 style="margin:0;font-size:22px">Correggi saldo di Giulia</h3>
+<div style="display:flex;align-items:center;gap:14px"><span style="font-size:15px;color:var(--lw-ink-2)">Da <strong style="color:var(--lw-ink)">6</strong> a</span><div style="display:flex;align-items:center;gap:8px"><span style="width:44px;height:44px;border-radius:12px;border:1px solid var(--lw-line);display:flex;align-items:center;justify-content:center;font-size:22px">−</span><span style="font-size:28px;font-weight:700;width:40px;text-align:center">7</span><span style="width:44px;height:44px;border-radius:12px;border:1px solid var(--lw-line);display:flex;align-items:center;justify-content:center;font-size:22px">+</span></div><span style="font-size:14px;font-weight:600;color:var(--lw-success)">+1 timbro</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:14px;font-weight:600">Motivo <span style="color:var(--lw-ink-2);font-weight:400">(obbligatorio, visibile nello storico)</span></label><div style="display:flex;flex-wrap:wrap;gap:6px"><span style="padding:7px 12px;border-radius:999px;background:var(--lw-ink);color:var(--lw-bg);font-size:13px;font-weight:600">Timbro dimenticato</span><span style="padding:7px 12px;border-radius:999px;border:1px solid var(--lw-line);font-size:13px;font-weight:600">Errore dello staff</span><span style="padding:7px 12px;border-radius:999px;border:1px solid var(--lw-line);font-size:13px;font-weight:600">Carta di carta vecchia</span><span style="padding:7px 12px;border-radius:999px;border:1px solid var(--lw-line);font-size:13px;font-weight:600">Altro</span></div><div style="height:48px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-bg);display:flex;align-items:center;padding:0 12px;font-size:15px">Taglio del 10/10, Sara non aveva il telefono</div></div>
+<div style="display:flex;gap:10px;justify-content:flex-end"><button style="height:48px;padding:0 18px;border-radius:14px;border:0;background:transparent;color:var(--lw-ink);font-size:15px;font-weight:600">Annulla</button><button style="height:48px;padding:0 20px;border-radius:14px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font-size:15px;font-weight:600;white-space:nowrap">Salva correzione</button></div>
+</div>
+</div>
+</div></div>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+<h2 style="margin:0;font-size:32px;letter-spacing:-.02em">T4 · Staff e messaggio promozionale</h2>
+<div style="display:flex;gap:40px;align-items:flex-start">
+<div id="t4" style="{{ vars }}"><div style="width:1280px;height:820px;border-radius:16px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;box-shadow:0 30px 60px -30px rgba(60,40,20,.45)">
+<nav style="width:232px;flex:none;background:var(--lw-surface);border-right:1px solid var(--lw-line);padding:20px 14px;display:flex;flex-direction:column;gap:4px">
+<div style="display:flex;align-items:center;gap:10px;padding:0 8px 18px"><lw-img src="{{ logo }}" alt="" style="width:36px;height:36px;border-radius:50%;display:block"></lw-img><div style="display:flex;flex-direction:column"><strong style="font-size:15px">Salone Nora</strong><span style="font-size:12px;color:var(--lw-ink-2)">Titolare</span></div></div>
+<sc-for list="{{ nav4 }}" as="i" hint-placeholder-count="0"><div style="{{ i.st }}">{{ i.label }}</div></sc-for>
+</nav>
+<main style="flex:1;display:grid;grid-template-columns:minmax(0,1fr) 440px;min-width:0">
+<div style="padding:28px 32px;display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;flex-direction:column;gap:4px"><h2 style="margin:0;font-size:28px;letter-spacing:-.02em">Messaggio promozionale</h2><span style="font-size:15px;color:var(--lw-ink-2)">Arriva come notifica sulla carta nel wallet. Massimo 2 al mese.</span></div>
+<div style="display:flex;flex-direction:column;gap:8px"><label style="font-size:15px;font-weight:600">Testo</label><div style="min-height:120px;border-radius:12px;border:2px solid var(--lw-accent-edge);box-shadow:0 0 0 3px var(--lw-accent-line);background:var(--lw-surface);padding:12px 14px;font-size:17px;line-height:1.45;box-sizing:border-box">Ottobre da Nora: piega + trattamento ristrutturante a 35 €. Prenota al 051 123456.</div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--lw-ink-2)"><span>Breve e concreto: cosa, quanto, come prenotare.</span><span style="font-variant-numeric:tabular-nums">82 / 120</span></div></div>
+<div style="display:flex;gap:16px;align-items:center;padding:16px;border-radius:16px;background:var(--lw-accent-soft)"><span style="font-size:40px;font-weight:700;line-height:1;color:var(--lw-accent-text);font-variant-numeric:tabular-nums">142</span><span style="font-size:15px;line-height:1.4">destinatari con consenso marketing<br><span style="color:var(--lw-ink-2)">su 248 clienti · gli altri 106 non riceveranno nulla</span></span></div>
+<div style="display:flex;flex-direction:column;gap:8px"><label style="font-size:15px;font-weight:600">Quando</label><div style="display:flex;gap:8px"><span style="height:44px;padding:0 16px;border-radius:12px;background:var(--lw-ink);color:var(--lw-bg);display:flex;align-items:center;font-size:14px;font-weight:600">Subito</span><span style="height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--lw-line);display:flex;align-items:center;font-size:14px;font-weight:600">Martedì 14 · 10:00</span></div></div>
+<div style="display:flex;gap:10px;margin-top:auto"><button style="height:52px;padding:0 22px;border-radius:14px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font-size:16px;font-weight:600">Invia a 142 clienti</button><span style="align-self:center;font-size:13px;color:var(--lw-ink-2)">Ultimo invio: 12 settembre · 1 rimasto questo mese</span></div>
+</div>
+<aside style="background:var(--lw-surface-2);border-left:1px solid var(--lw-line);padding:24px;display:flex;flex-direction:column;gap:16px">
+<strong style="font-size:15px">Anteprima notifica</strong>
+<div style="background:linear-gradient(#4A4E5A,#2C2F38);border-radius:24px;padding:18px 12px;display:flex;flex-direction:column;gap:10px">
+<div style="background:rgba(245,245,247,.88);border-radius:18px;padding:11px 13px;display:flex;gap:10px"><lw-img src="{{ logo }}" alt="" style="width:36px;height:36px;border-radius:9px;display:block;flex:none"></lw-img><div style="display:flex;flex-direction:column;gap:1px"><div style="display:flex;justify-content:space-between;font-size:13px;color:#1C1C1E"><strong>Salone Nora</strong><span style="color:#6B6B70">ora</span></div><span style="font-size:13px;line-height:1.35;color:#1C1C1E">Ottobre da Nora: piega + trattamento ristrutturante a 35 €. Prenota al 051 123456.</span></div></div>
+<span style="font-size:12px;color:#C9CBD2;text-align:center">iPhone · schermata di blocco</span>
+</div>
+<div style="background:#202124;border-radius:24px;padding:18px 12px;display:flex;flex-direction:column;gap:10px">
+<div style="background:#303134;border-radius:18px;padding:12px 14px;display:flex;gap:10px;color:#E8EAED"><lw-img src="{{ logo }}" alt="" style="width:32px;height:32px;border-radius:50%;display:block;flex:none"></lw-img><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#BDC1C6">Google Wallet · Salone Nora</span><span style="font-size:13px;line-height:1.35">Ottobre da Nora: piega + trattamento ristrutturante a 35 €. Prenota al 051 123456.</span></div></div>
+<span style="font-size:12px;color:#BDC1C6;text-align:center">Android · notifica del messaggio sulla carta</span>
+</div>
+</aside>
+</main>
+</div></div>
+
+<div id="t5" style="{{ vars }}"><div style="width:360px;height:780px;border-radius:32px;overflow:hidden;background:var(--lw-bg);color:var(--lw-ink);display:flex;flex-direction:column;box-shadow:0 24px 50px -24px rgba(60,40,20,.45)">
+<div style="height:40px;flex:none"></div>
+<div style="padding:4px 16px 16px;display:flex;flex-direction:column;gap:14px;flex:1">
+<h2 style="margin:0;font-size:26px;letter-spacing:-.02em">Staff</h2>
+<div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:14px;font-weight:600">Invita con email</label><div style="display:flex;gap:8px"><div style="flex:1;height:52px;border-radius:10px;border:1px solid var(--lw-line);background:var(--lw-surface);display:flex;align-items:center;padding:0 12px;font-size:16px;color:var(--lw-ink-3)">nome@email.it</div><button style="height:52px;padding:0 16px;border-radius:12px;border:1px solid var(--lw-accent-edge);background:var(--lw-accent);color:var(--lw-on-accent);font-size:15px;font-weight:600">Invita</button></div></div>
+<div style="background:var(--lw-surface);border:1px solid var(--lw-line);border-radius:18px;display:flex;flex-direction:column">
+<sc-for list="{{ staff }}" as="s" hint-placeholder-count="0">
+<div style="display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid var(--lw-line)"><div style="width:40px;height:40px;border-radius:50%;background:var(--lw-surface-2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700">{{ s.ini }}</div><div style="display:flex;flex-direction:column;flex:1;min-width:0"><span style="font-size:15px;font-weight:600">{{ s.name }}</span><span style="font-size:13px;color:var(--lw-ink-2)">{{ s.meta }}</span></div><span style="{{ s.st }}">{{ s.action }}</span></div>
+</sc-for>
+</div>
+<div style="padding:14px;border-radius:16px;background:var(--lw-danger-soft);display:flex;flex-direction:column;gap:10px"><span style="font-size:15px;line-height:1.4"><strong>Rimuovere Luca Neri?</strong> Non potrà più dare timbri. I timbri già dati restano.</span><div style="display:flex;gap:8px"><button style="flex:1;height:44px;border-radius:12px;border:0;background:var(--lw-danger);color:#fff;font-size:14px;font-weight:600">Rimuovi</button><button style="flex:1;height:44px;border-radius:12px;border:1px solid var(--lw-line);background:var(--lw-surface);color:var(--lw-ink);font-size:14px;font-weight:600">Annulla</button></div></div>
+<div style="margin-top:auto;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--lw-line);padding-top:10px;font-size:11px;text-align:center;color:var(--lw-ink-2)"><span>Home</span><span>Clienti</span><span>Carta</span><span style="color:var(--lw-accent-text);font-weight:700">Staff</span><span>Messaggi</span></div>
+</div>
+</div></div>
+</div>
+</section>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;preset&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;salone&quot;,&quot;bar&quot;,&quot;pizzeria&quot;,&quot;estetica&quot;],&quot;default&quot;:&quot;salone&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;numbers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { brand: null, hex: null, n: null, icon: null, reward: null, st: 1 };
+  componentDidMount() { if (!window.LW) this.t = setInterval(() => { if (window.LW) { clearInterval(this.t); this.forceUpdate(); } }, 30); }
+  componentWillUnmount() { clearInterval(this.t); }
+  renderVals() { if (!window.LW) return { ready: false }; return { ready: true, ...this._rv() }; }
+  _rv() {
+    const LW = window.LW; if (!LW) return {};
+    const P = LW.presets[this.props.preset ?? 'salone'] || LW.presets.salone, s = this.state, num = this.props.numbers ?? true;
+    const t = LW.theme(LW.presets.salone.brand, 'light');
+    const brand = LW.norm(s.brand || P.brand), n = s.n || P.n, icon = s.icon || P.icon, reward = s.reward ?? P.reward;
+    const lt = LW.theme(brand, 'light'), c = LW.cardColors(brand);
+    const navItems = ['Panoramica', 'Clienti', 'Staff', 'Carta', 'Messaggi'];
+    const nav = (th, a) => navItems.map((label, i) => ({ label, st: { height: 40, display: 'flex', alignItems: 'center', padding: '0 12px', borderRadius: 10, fontSize: 15, fontWeight: i === a ? 700 : 500, background: i === a ? th.accentSoft : 'transparent', color: i === a ? th.accentText : th.ink } }));
+    const filled = [0, Math.round(n * 0.6), n][s.st], rw = s.st === 2 ? 1 : 0;
+    const base = { n, filled, rewards: rw, bg: c.bg, fg: c.fg, ring: c.ring, icon, numbers: num };
+    const g = LW.gridLayout(n), left = n - filled;
+    const sws = ['#5B1F2E', '#1F3B34', '#2F4B7C', '#C8412B', '#E86A33', '#F7C843', '#7FA89A', '#2A211C'];
+    const ok = (label, v, min) => ({ label: `${label} ${v.toFixed(1)}:1 ${v >= min ? '✓' : '✕'}`, st: { fontSize: 12, fontWeight: 600, padding: '5px 10px', borderRadius: 999, background: v >= min ? t.successSoft : t.dangerSoft, color: t.ink } });
+    const cust = [['Giulia Rossi', '•••• 4567', '6/10', '10 ott', false], ['Marco Bassi', '•••• 2291', '10/10', '9 ott', true], ['Elena Conti', '•••• 0183', '3/10', '8 ott', false], ['Paolo Galli', '•••• 7740', '1/10', '8 ott', false], ['Sofia Marino', '•••• 3321', '9/10', '5 ott', false], ['Anna Ferri', '•••• 9052', '2/10', '30 set', false], ['Luca De Santis', '•••• 1186', '7/10', '27 set', false], ['Chiara Villa', '•••• 6610', '4/10', '12 ago', false], ['Davide Riva', '•••• 4409', '0/10', '2 lug', false]];
+    const wk = [[54, 3], [61, 5], [58, 4], [70, 6], [66, 5], [74, 6], [81, 7], [92, 8]], mx = 115;
+    const tab = (label, i) => ({ label, pick: () => this.setState({ st: i }), st: { height: 30, padding: '0 10px', border: 0, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: s.st === i ? t.ink : 'transparent', color: s.st === i ? t.bg : t.ink } });
+    return {
+      vars: LW.vars(t), varsLive: { ...LW.vars(lt) }, logo: LW.monogram('Salone Nora', t.cardBg, t.cardFg, 96),
+      logoLive: LW.monogram(P.shop, c.bg, c.fg, 96), logoCircle: LW.monogram(P.shop, c.fg, c.bg, 96), shopName: P.shop, program: P.program,
+      nav0: nav(t, 0), nav1: nav(t, 1), nav3: nav(lt, 3), nav4: nav(t, 4),
+      swatches: sws.map(hex => ({ hex, pick: () => this.setState({ brand: hex, hex: null }), st: { width: 36, height: 36, borderRadius: '50%', background: hex, cursor: 'pointer', border: '3px solid ' + (hex === brand ? t.ink : t.surface), boxShadow: '0 0 0 1px ' + t.line } })),
+      hexInput: s.hex ?? brand, onHex: e => { const v = e.target.value; this.setState({ hex: v }); if (/^#?[0-9a-f]{6}$/i.test(v.trim())) this.setState({ brand: LW.norm(v) }); },
+      corrected: c.corrected, cardHex: c.bg, brandHex: brand, correctedSw: { width: 22, height: 22, borderRadius: '50%', background: c.bg, flex: 'none' },
+      checks: [ok('Testo carta', LW.contrast(c.fg, c.bg), 4.5), ok('Etichette', LW.contrast(c.label, c.bg), 4.5), ok('Timbro vuoto', LW.contrast(c.ring, c.bg), 3), ok('Pulsanti', LW.contrast(lt.accent, lt.onAccent), 4.5)],
+      n, layoutLabel: g.rows === 1 ? `1 × ${n}` : `${g.perRow.join(' + ')}`, dec: () => this.setState({ n: Math.max(5, n - 1) }), inc: () => this.setState({ n: Math.min(20, n + 1) }),
+      icons: ['scissors', 'cup', 'pizza', 'sparkle', 'check'].map(k => ({ k, pick: () => this.setState({ icon: k }), src: LW.stampURL('filled', 28, { fg: t.ink, bg: t.surface, ring: t.ink3, icon: k, i: 1 }), st: { width: 48, height: 48, borderRadius: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.surface, border: (k === icon ? '2px solid ' + t.ink : '1px solid ' + t.line) } })),
+      reward, onReward: e => this.setState({ reward: e.target.value }), reset: () => this.setState({ brand: null, hex: null, n: null, icon: null, reward: null }),
+      stateTabs: [tab('Nuova', 0), tab('A metà', 1), tab('Premio', 2)],
+      gCard: { background: c.bg, color: c.fg, borderRadius: 16, overflow: 'hidden', fontFamily: 'Roboto,system-ui,sans-serif' }, gLabel: { fontSize: 10, color: c.label },
+      aCard: { background: c.bg, color: c.fg, borderRadius: 10, overflow: 'hidden', fontFamily: '-apple-system,system-ui,sans-serif', boxShadow: '0 4px 14px rgba(0,0,0,.12)' }, aLabel: { fontSize: 9, color: c.label, fontWeight: 600 },
+      stampsTxt: `${filled} / ${n}`, rewardsTxt: String(rw), qr: LW.qr(42), hero: LW.url(LW.strip({ ...base, w: 1032, h: 336 })), strip: LW.url(LW.strip({ ...base, w: 1125, h: 369 })),
+      moduleTitle: s.st === 2 ? `${reward || 'Premio'} disponibile!` : s.st === 1 ? `Ti ${left === 1 ? 'manca' : 'mancano'} ${left} ${left === 1 ? P.unit : P.unitPl}` : 'Come funziona',
+      moduleBody: s.st === 2 ? 'Hai completato la carta. Mostra il QR alla cassa.' : `Un timbro per ogni ${P.unit}. Al ${n}° timbro: ${(reward || '').toLowerCase()}.`,
+      kpis: [{ label: 'Clienti iscritti', value: '248', note: '+14 questa settimana' }, { label: 'Timbri', value: '92', note: '+11 sulla settimana scorsa' }, { label: 'Premi sbloccati', value: '8', note: '6 già riscattati' }, { label: 'Inattivi', value: '37', note: 'nessuna visita da 60+ giorni' }],
+      weeks: wk.map(([tv, p], i) => ({ t: tv, p, label: ['17 ago', '24 ago', '31 ago', '7 set', '14 set', '21 set', '28 set', '5 ott'][i], bar: { width: '100%', height: (tv / mx * 100) + '%', background: i === 7 ? t.accent : t.accentLine, borderRadius: '8px 8px 2px 2px', position: 'relative', display: 'flex', justifyContent: 'center' }, dot: { position: 'absolute', top: 8, width: 24, height: 24, borderRadius: '50%', background: t.surface, border: '2px solid ' + t.accentText, boxSizing: 'border-box', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.ink }, barM: { height: (tv / mx * 100) + '%', background: i === 7 ? t.accent : t.accentLine, borderRadius: 6 } })),
+      inactive: [['Chiara Villa', '12 agosto', '4/10'], ['Davide Riva', '2 luglio', '0/10'], ['Marta Leoni', '28 giugno', '8/10'], ['Ivo Russo', '15 giugno', '5/10'], ['Rita Sala', '3 giugno', '9/10']].map(([name, last, stamps]) => ({ name, last: 'Ultima visita ' + last, stamps, ini: name.split(' ').map(w => w[0]).join('') })),
+      customers: cust.map(([name, phone, stamps, last, prize], i) => ({ name, phone, stamps, last, prize, row: { display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) 1.2fr 1fr 1fr', padding: '0 16px', height: 50, alignItems: 'center', fontSize: 15, borderBottom: '1px solid ' + t.line, background: i === 0 ? t.accentSoft : 'transparent' } })),
+      giftSmall: LW.stampURL('reward-filled', 20, { fg: t.accent, bg: t.onAccent, icon: 'gift' }),
+      grid6: LW.url(LW.strip({ n: 10, filled: 6, w: 640, h: 250, padX: 4, padY: 8, transparent: true, fg: t.accent, bg: t.onAccent, ring: t.ink3, icon: 'scissors', numbers: num })),
+      ledger: [['Timbro', '10 ott · 10:12 · Sara', '+1'], ['Timbro', '18 set · 16:40 · Sara', '+1'], ['Correzione · Timbro dimenticato', '30 ago · Nora', '+1'], ['Timbro', '26 ago · Luca', '+1'], ['Premio riscattato · Taglio gratis', '11 lug · Sara', '−10'], ['Iscrizione', '3 mar · da cartello bancone', '0']].map(([what, meta, delta]) => ({ what, meta, delta })),
+      staff: [['Nora Bellini', 'Titolare', '', 'NB'], ['Sara Bianchi', 'Staff · attiva · 412 timbri', 'Rimuovi', 'SB'], ['Luca Neri', 'Staff · attivo · 96 timbri', 'Rimuovi', 'LN'], ['ilaria@gmail.com', 'Invito inviato 2 giorni fa', 'Reinvia', 'I']].map(([name, meta, action, ini]) => ({ name, meta, action, ini, st: { fontSize: 14, fontWeight: 600, color: action === 'Rimuovi' ? t.danger : t.accentText } }))
+    };
+  }
+}
+</script>
+</body>
+</html>

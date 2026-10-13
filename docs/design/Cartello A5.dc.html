@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&amp;display=swap" rel="stylesheet">
+<script src="lw-core.js"></script>
+<style>
+:root{--lw-card-bg:#5B1F2E;--lw-card-fg:#FFFFFF;--lw-card-label:#E2C9CE;--lw-card-ring:#B48F97}
+html,body{margin:0;background:#E9E2D8}
+body{font-family:'Bricolage Grotesque',system-ui,sans-serif;-webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+a{color:inherit}
+</style>
+</helmet>
+<sc-if value="{{ ready }}" hint-placeholder-val="{{ false }}">
+<div style="{{ vars }}">
+<div style="width:148mm;height:210mm;background:var(--lw-card-bg);color:var(--lw-card-fg);display:flex;flex-direction:column;overflow:hidden;font-family:'Bricolage Grotesque',sans-serif">
+<div style="padding:11mm 11mm 0;display:flex;flex-direction:column;gap:6mm">
+<div style="display:flex;align-items:center;gap:4mm"><lw-img src="{{ logo }}" alt="" style="width:16mm;height:16mm;border-radius:50%;display:block"></lw-img><div style="display:flex;flex-direction:column"><strong style="font-size:17pt;line-height:1.1">{{ shop }}</strong><span style="font-size:11pt;color:var(--lw-card-label)">{{ program }}</span></div></div>
+<div style="font-size:40pt;line-height:.98;font-weight:700;letter-spacing:-.03em;text-wrap:balance">{{ headline }}</div>
+<lw-img src="{{ strip }}" alt="" style="width:calc(100% + 6mm);margin:0 -3mm;display:block"></lw-img>
+</div>
+<div style="margin-top:auto;background:#FBF8F3;color:#2A211C;border-radius:8mm 8mm 0 0;padding:8mm 11mm 9mm;display:grid;grid-template-columns:52mm 1fr;gap:7mm;align-items:center">
+<div style="display:flex;flex-direction:column;align-items:center;gap:2.5mm"><div style="background:#fff;border:0.4mm solid #DDD4CA;border-radius:4mm;padding:3mm"><lw-img src="{{ qr }}" alt="QR iscrizione" style="width:44mm;height:44mm;display:block"></lw-img></div><span style="font-size:9pt;color:#5E534B;letter-spacing:.02em">{{ url }}</span></div>
+<div style="display:flex;flex-direction:column;gap:4mm">
+<div style="font-size:19pt;line-height:1.05;font-weight:700;letter-spacing:-.02em">Niente app da scaricare.</div>
+<div style="display:flex;flex-direction:column;gap:2.6mm;font-size:12pt;line-height:1.3">
+<div style="display:flex;gap:3mm;align-items:baseline"><strong style="{{ num }}">1</strong><span>Inquadra il QR con la fotocamera</span></div>
+<div style="display:flex;gap:3mm;align-items:baseline"><strong style="{{ num }}">2</strong><span>Scrivi nome e telefono</span></div>
+<div style="display:flex;gap:3mm;align-items:baseline"><strong style="{{ num }}">3</strong><span>Salva la carta nel wallet</span></div>
+</div>
+<span style="font-size:9pt;color:#5E534B;line-height:1.35">Google Wallet e Apple Wallet · Gratis</span>
+</div>
+</div>
+</div>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;148mm&quot;,&quot;height&quot;:&quot;210mm&quot;},&quot;preset&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;salone&quot;,&quot;bar&quot;,&quot;pizzeria&quot;,&quot;estetica&quot;],&quot;default&quot;:&quot;salone&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;headline&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;numbers&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  componentDidMount() { if (!window.LW) this.t = setInterval(() => { if (window.LW) { clearInterval(this.t); this.forceUpdate(); } }, 30); }
+  componentWillUnmount() { clearInterval(this.t); }
+  renderVals() { if (!window.LW) return { ready: false }; return { ready: true, ...this._rv() }; }
+  _rv() {
+    const LW = window.LW; if (!LW) return {};
+    const p = LW.presets[this.props.preset ?? 'salone'] || LW.presets.salone, c = LW.cardColors(p.brand);
+    const heads = { salone: 'Ogni 10 tagli, uno è gratis.', bar: "L'ottava colazione la offriamo noi.", pizzeria: 'Ogni 12 pizze, una Margherita è gratis.', estetica: 'Ogni 6 trattamenti, il viso è gratis.' };
+    return {
+      vars: { '--lw-card-bg': c.bg, '--lw-card-fg': c.fg, '--lw-card-label': c.label, '--lw-card-ring': c.ring },
+      shop: p.shop, program: p.program, headline: this.props.headline || heads[p.key], url: 'timbri.app/' + p.slug,
+      logo: LW.monogram(p.shop, c.fg, c.bg, 200), qr: LW.qr(p.slug.length * 13, '#1E1915', '#fff'),
+      strip: LW.url(LW.strip({ n: p.n, filled: Math.round(p.n * 0.6), w: 1125, h: 369, bg: c.bg, fg: c.fg, ring: c.ring, icon: p.icon, numbers: this.props.numbers ?? true, transparent: true })),
+      num: { width: '7mm', height: '7mm', borderRadius: '50%', background: c.bg, color: c.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10pt', flex: 'none', transform: 'translateY(-0.6mm)' }
+    };
+  }
+}
+</script>
+</body>
+</html>
