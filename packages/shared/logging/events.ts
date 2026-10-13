@@ -231,8 +231,10 @@ export const events = {
     level: "info",
     description: "Una richiesta API è arrivata al server. Apre il blocco di righe con lo stesso request_id.",
     msg: (f) =>
-      `Richiesta ${f.method} ${f.route} ricevuta da ${f.platform}` +
-      `${f.app_version === "n/d" ? "" : ` (app ${f.app_version})`}.`,
+      f.platform === "sconosciuta"
+        ? `Richiesta ${f.method} ${f.route} ricevuta (piattaforma non indicata).`
+        : `Richiesta ${f.method} ${f.route} ricevuta da ${f.platform}` +
+          `${f.app_version === "n/d" ? "" : ` (app ${f.app_version})`}.`,
     examples: [
       { method: "POST", route: "/api/staff/stamp", platform: "ios", app_version: "1.4.0", ip_hash: "9f2c4e1ab37d5c08" },
       {

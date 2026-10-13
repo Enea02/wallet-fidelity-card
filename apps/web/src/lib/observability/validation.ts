@@ -26,7 +26,7 @@ export async function parseJsonBody<S extends z.ZodType>(req: Request, schema: S
   const first = fields[0];
   throw new AppError(
     "E_VALIDATION",
-    `dati non validi: ${fields.map((f) => `${f.field} (${f.problem})`).join(", ")}`,
+    `dati non validi, ${fields.map((f) => `campo ${f.field}: ${f.problem}`).join("; ")}`,
     { fields: fields.map((f) => f.field) },
     { userMessage: first ? `Dati non validi: ${first.problem}` : "Dati non validi." },
   );
