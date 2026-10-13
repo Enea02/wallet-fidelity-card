@@ -22,4 +22,11 @@ Carta fedeltà a timbri su Google Wallet / Apple Wallet per piccoli negozi, mult
 - Mai in chiaro nei log: token, OTP, password, chiavi, JWT, `qr_token`, telefono.
 
 ## Comandi
-(da completare in Fase 0: install, dev, test, lint, typecheck, migrazioni, build app)
+Monorepo pnpm + Turborepo (Node 24, pnpm 11). Prerequisiti: Docker avviato, Supabase CLI.
+- Install: `pnpm i`
+- Dev: `pnpm dev` (avvia Supabase locale, crea `apps/web/.env.local` al primo avvio, web su :3000)
+- Typecheck / lint / format: `pnpm typecheck` · `pnpm lint` · `pnpm format:check` (`pnpm format` per correggere)
+- Test: `pnpm test` (unitari) · `pnpm test:smoke` (iscrizione + timbro su Supabase locale)
+- Build: `pnpm build`
+- Migrazioni: `pnpm db:new <nome>` crea, `pnpm db:reset` ricrea il DB locale da migrazioni + `supabase/seed.sql`
+- Prima di dire che una fase è finita: `pnpm format:check && pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:smoke`
