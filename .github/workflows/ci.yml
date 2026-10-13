@@ -24,6 +24,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
+      - name: Runbook allineato ai cataloghi di eventi ed errori
+        run: pnpm runbook:check
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test

@@ -29,4 +29,13 @@ Monorepo pnpm + Turborepo (Node 24, pnpm 11). Prerequisiti: Docker avviato, Supa
 - Test: `pnpm test` (unitari) · `pnpm test:smoke` (iscrizione + timbro su Supabase locale)
 - Build: `pnpm build`
 - Migrazioni: `pnpm db:new <nome>` crea, `pnpm db:reset` ricrea il DB locale da migrazioni + `supabase/seed.sql`
-- Prima di dire che una fase è finita: `pnpm format:check && pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:smoke`
+- Runbook: `pnpm runbook` rigenera eventi ed errori in `docs/runbook-assistenza.md` dai cataloghi (obbligatorio dopo ogni modifica ai cataloghi; la CI lo controlla)
+- Modalità diagnostica: `pnpm diag list|enable|disable` (vedi runbook)
+- Prima di dire che una fase è finita: `pnpm format:check && pnpm runbook:check && pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:smoke`
+
+## Logging (Fase 1) — come si usa
+- Route handler: sempre `export const POST = withApi(async (req) => …)` (`apps/web/src/lib/observability/with-api.ts`); body con `parseJsonBody(req, schema)`.
+- Errori: `throw new AppError("E_…", "messaggio tecnico con i valori", contesto)`; codici solo da `packages/shared/errors.ts`. Mai loggare un errore che poi si rilancia.
+- Log: `log.event("dominio.oggetto.azione", campi)` da `@/lib/observability/logger`; nuovi eventi prima nel catalogo con `msg` ed `examples`, poi `pnpm runbook`.
+- Dopo l'autenticazione o il caricamento di negozio/carta: `setContext({ shop_id, user_id, customer_ref })` così tutte le righe della richiesta li hanno.
+- Chiamate HTTP esterne: `fetchExternal({ provider, operation, url, … })`, che logga da sé.
