@@ -246,6 +246,58 @@ export const errors = {
     probableCause: "Web app esercente pubblicata su un dominio nuovo non ancora configurato, oppure sito di terzi.",
     action: "Se il dominio è nostro, aggiungerlo a MERCHANT_APP_ORIGINS e rifare il deploy.",
   },
+  E_GOOGLE_AUTH: {
+    status: 502,
+    userMessage: "La carta nel Wallet non si è aggiornata. Il dato è salvato: si aggiornerà da sola appena possibile.",
+    description: "Google Wallet ha rifiutato le credenziali del service account (401/403).",
+    probableCause:
+      "Chiave GOOGLE_WALLET_SA_KEY_B64 revocata o sbagliata, oppure il service account non è utente (Developer) dell'emittente nella Google Pay & Wallet Console.",
+    action:
+      "Verificare la chiave GOOGLE_WALLET_SA_KEY_B64 e, nella Wallet Console → Users, che l'email del service account abbia il ruolo Developer.",
+  },
+  E_GOOGLE_NOT_FOUND: {
+    status: 502,
+    userMessage: "La carta nel Wallet non si è aggiornata. Il dato è salvato: si aggiornerà da sola appena possibile.",
+    description: "Google Wallet non trova la carta o il template del negozio (404).",
+    probableCause:
+      "Template del negozio mai creato, oppure GOOGLE_WALLET_ISSUER_ID diverso da quello con cui la carta è stata creata.",
+    action:
+      "Risincronizzare il negozio (pnpm wallet:resync --shop <slug>): ricrea template e carte mancanti. Se persiste, verificare l'Issuer ID.",
+  },
+  E_GOOGLE_QUOTA: {
+    status: 502,
+    userMessage: "La carta nel Wallet non si è aggiornata. Il dato è salvato: si aggiornerà da sola appena possibile.",
+    description: "Superato il limite di richieste o di notifiche di Google Wallet (429).",
+    probableCause:
+      "Troppe richieste in poco tempo (es. risincronizzazione di molti negozi) o troppe notifiche alla stessa carta.",
+    action:
+      "Nessuna azione immediata: i tentativi automatici riprovano. Se è frequente, ridurre gli invii o chiedere più quota a Google.",
+  },
+  E_GOOGLE_INVALID_PAYLOAD: {
+    status: 502,
+    userMessage: "La carta nel Wallet non si è aggiornata. Il dato è salvato: lo segnaleremo all'assistenza.",
+    description: "Google Wallet ha rifiutato i dati della carta o del template (400).",
+    probableCause:
+      "Logo non raggiungibile o non PNG/JPEG, colore o testi non validi per Google, oppure un bug nei dati inviati.",
+    action:
+      "Leggere la risposta di Google nel log (provider_response): indica il campo rifiutato. Correggere le impostazioni del negozio o segnalare allo sviluppo.",
+  },
+  E_GOOGLE_UNAVAILABLE: {
+    status: 502,
+    userMessage: "La carta nel Wallet non si è aggiornata. Il dato è salvato: si aggiornerà da sola appena possibile.",
+    description: "Google Wallet non risponde o risponde con un errore interno (5xx, timeout, rete).",
+    probableCause: "Disservizio temporaneo di Google.",
+    action:
+      "Nessuna azione: i tentativi automatici riprovano. Controllare lo stato dei servizi Google se dura più di un'ora.",
+  },
+  E_CRON_UNAUTHORIZED: {
+    status: 401,
+    userMessage: "Non autorizzato.",
+    description: "Chiamata all'endpoint del cron senza il segreto corretto.",
+    probableCause: "CRON_SECRET diverso tra l'app e il Vault di Supabase, oppure chiamata non nostra.",
+    action:
+      "Riallineare il segreto con `pnpm cron:configure` (vedi README). Se le chiamate non sono nostre, ruotare CRON_SECRET.",
+  },
   E_EXTERNAL_UNAVAILABLE: {
     status: 502,
     userMessage: "Un servizio esterno non risponde. Riprova tra qualche minuto.",

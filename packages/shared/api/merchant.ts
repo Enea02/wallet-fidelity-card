@@ -125,6 +125,10 @@ export const ShopSettings = z.object({
   vatNumber: z.string().nullable(),
   privacyEmail: z.string().nullable(),
   status: z.enum(["active", "suspended"]),
+  /** Testi della carta nel Wallet: "Carta Amica", "taglio" / "tagli" ("Ti mancano 4 tagli"). */
+  programName: z.string(),
+  stampUnit: z.string(),
+  stampUnitPlural: z.string(),
 });
 export const SettingsResponse = z.object({ settings: ShopSettings });
 export const SettingsUpdateBody = z
@@ -143,6 +147,9 @@ export const SettingsUpdateBody = z
       .regex(/^(IT)?\d{11}$/, "partita IVA non valida")
       .nullable(),
     privacyEmail: z.email().nullable(),
+    programName: z.string().trim().min(2).max(40),
+    stampUnit: z.string().trim().min(2).max(20),
+    stampUnitPlural: z.string().trim().min(2).max(20),
   })
   .partial()
   .refine((o) => Object.keys(o).length > 0, { message: "nessun campo da aggiornare" });

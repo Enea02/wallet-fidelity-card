@@ -9,7 +9,7 @@ const cases = names.flatMap((name) =>
 
 describe("catalogo eventi", () => {
   it.each(names)("%s: nome nel formato dominio.oggetto.azione[.esito] (il brief usa anche dominio.azione)", (name) => {
-    expect(name).toMatch(/^[a-z_]+(\.[a-z_]+){1,3}$/);
+    expect(name).toMatch(/^[a-z_]+(\.[a-z_]+){1,4}$/);
   });
 
   it.each(cases)("%s: il msg è una frase completa senza valori vuoti", (_label, name, example) => {

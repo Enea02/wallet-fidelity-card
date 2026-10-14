@@ -77,8 +77,21 @@ describe("logger", () => {
     const part = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
     const jwt = [part({ alg: "HS256" }), part({ sub: "utente-finto" }), "firmafinta"].join(".");
     log.event(
-      "wallet.update.failed",
-      { provider: "google", customer_ref: "B71D0E44", error_message: `token ${jwt} rifiutato` },
+      "wallet.google.patch.failed",
+      {
+        customer_ref: "B71D0E44",
+        shop_name: "Salone Mario",
+        stamps: 7,
+        stamps_required: 10,
+        rewards: 0,
+        card_state: "ACTIVE",
+        duration_ms: 120,
+        attempt: 1,
+        http_status: 401,
+        error_code: "E_GOOGLE_AUTH",
+        provider_response: `token ${jwt} rifiutato`,
+        retry_in_min: 1,
+      },
       { error: new Error(`boom ${jwt}`) },
     );
     expect(texts[0]).not.toContain(jwt);
