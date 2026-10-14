@@ -5,7 +5,7 @@ import { googleEnabled, notifyLoyaltyObject, patchLoyaltyObject } from "./google
 import { notifyApple } from "./apple";
 
 export interface CardChange {
-  kind: "stamp" | "redeem";
+  kind: "stamp" | "redeem" | "undo" | "adjust";
   rewardUnlocked: boolean;
 }
 

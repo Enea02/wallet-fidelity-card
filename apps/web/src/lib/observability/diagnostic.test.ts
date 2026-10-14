@@ -31,12 +31,12 @@ describe("livello per contesto", () => {
     setActiveDiagnosticModes([
       mode({ scope_type: "shop", scope_id: "shop-a" }),
       mode({ id: "d2", scope_type: "staff_user", scope_id: "user-1", level: "trace" }),
-      mode({ id: "d3", scope_type: "customer", scope_id: "cust-1" }),
+      mode({ id: "d3", scope_type: "customer", scope_id: "uuid-cliente", scope_label: "DEMA2345" }),
     ]);
     expect(diagnosticLevelFor({ shop_id: "shop-a" }, "info", NOW)).toBe("debug");
     expect(diagnosticLevelFor({ shop_id: "shop-b" }, "info", NOW)).toBe("info");
     expect(diagnosticLevelFor({ user_id: "user-1" }, "info", NOW)).toBe("trace");
-    expect(diagnosticLevelFor({ customer_ref: "cust-1" }, "info", NOW)).toBe("debug");
+    expect(diagnosticLevelFor({ customer_ref: "DEMA2345" }, "info", NOW)).toBe("debug");
     expect(diagnosticLevelFor({}, "info", NOW)).toBe("info");
     // il più verboso vince
     expect(diagnosticLevelFor({ shop_id: "shop-a", user_id: "user-1" }, "info", NOW)).toBe("trace");

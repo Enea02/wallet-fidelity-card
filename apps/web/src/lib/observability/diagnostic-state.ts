@@ -31,7 +31,8 @@ function matches(mode: DiagnosticMode, ctx: LogContext): boolean {
     case "staff_user":
       return ctx.user_id === mode.scope_id;
     case "customer":
-      return ctx.customer_ref === mode.scope_id;
+      // nei log customer_ref è il codice breve della carta, salvato come scope_label
+      return ctx.customer_ref === mode.scope_label;
   }
 }
 

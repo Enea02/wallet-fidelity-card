@@ -10,6 +10,6 @@ const Body = z.object({ shopId: z.uuid(), qrToken: z.string().regex(/^[0-9a-f]{3
 
 export const POST = withApi(async (req) => {
   const { shopId, qrToken } = await parseJsonBody(req, Body);
-  const staffId = await requireStaff(req, shopId);
-  return Response.json(await addStamp(shopId, qrToken, staffId));
+  const staff = await requireStaff(req, shopId);
+  return Response.json(await addStamp(shopId, qrToken, staff.userId));
 });

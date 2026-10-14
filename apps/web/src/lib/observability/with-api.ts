@@ -29,7 +29,8 @@ function parsePayload(text: string): unknown {
  * lo crea) restituito in risposta, log di inizio e fine con durata, payload in modalità
  * diagnostica, eccezioni convertite in `{ error: { code, message, support_code } }`.
  *
- * Un errore si logga una sola volta: errori del catalogo → `http.request.end` a livello warn;
+ * Un errore si logga una sola volta: errori del catalogo → `http.request.end` a livello warn
+ * (info se un evento di dominio l'ha già registrato, `AppError.logged`);
  * errori imprevisti → solo `http.request.failed` a livello error, con lo stack.
  */
 export function withApi<Args extends unknown[]>(
@@ -46,10 +47,11 @@ export function withApi<Args extends unknown[]>(
     const app_version = req.headers.get("x-app-version") ?? "n/d";
     const build = req.headers.get("x-app-build");
 
-    const ctx = { request_id, route, method, platform, app_version, ...(build !== null && { build }) };
+    const ip_hash = hashIp(req);
+    const ctx = { request_id, route, method, platform, app_version, ip_hash, ...(build !== null && { build }) };
     return runWithContext(ctx, async () => {
       await refreshDiagnosticModes();
-      log.event("http.request.start", { method, route, platform, app_version, ip_hash: hashIp(req) });
+      log.event("http.request.start", { method, route, platform, app_version, ip_hash });
       // il body serve solo in modalità diagnostica, che si decide quando il contesto è completo
       const requestText =
         method === "GET" || method === "HEAD"
@@ -82,10 +84,11 @@ export function withApi<Args extends unknown[]>(
             { error: error.cause ?? error },
           );
         } else {
+          // già registrato da un evento (es. stamp.add.rejected_cooldown): qui solo l'esito, a info
           log.event(
             "http.request.end",
             { ...common, error_code: error.code, error_message: error.message },
-            { level: "warn" },
+            { level: error.logged ? "info" : "warn" },
           );
         }
         res = errorResponse(error, request_id);
