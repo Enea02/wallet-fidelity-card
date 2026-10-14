@@ -62,6 +62,42 @@ Errori più comuni:
   PNG/JPEG pubblico, raggiungibile da Google).
 - `E_GOOGLE_NOT_FOUND`: template o carta mancanti (es. Issuer ID cambiato): `pnpm wallet:resync --shop <slug>`.
 
+## Iscrizione del cliente: "non riesco a iscrivermi" / "non mi arriva l'SMS"
+
+Tutte le righe di un'iscrizione hanno lo stesso `enrollment_id` (e lo stesso `shop_id`): filtrando per quello si vede
+in quale passo si è fermato il cliente. Ordine normale del funnel:
+`enroll.form.submitted` → `enroll.otp.sent` → `enroll.otp.verified` → `enroll.customer.created` (o `.returning`) →
+`enroll.wallet.link.shown` → `enroll.wallet.link.clicked`.
+
+- **Si ferma dopo `form.submitted`**:
+  - `enroll.captcha.failed`: controllo anti-bot non superato (pagina aperta da troppo, blocco contenuti). Far
+    ricaricare la pagina. Se succede a molti: chiavi Turnstile sbagliate.
+  - `enroll.otp.limited`: troppi SMS per quel numero (3/ora, 5/giorno), per quell'IP (10/ora) o numero bloccato dopo
+    5 codici sbagliati (15 minuti). Il `msg` dice quale limite e tra quanto riprovare. Molti blocchi da IP diversi in
+    poco tempo = possibile abuso (SMS pumping): avvisare lo sviluppo.
+  - `enroll.otp.send_failed`: Twilio non ha inviato l'SMS; `provider_response` dice perché (credenziali, credito,
+    numero rifiutato). Controllare la console Twilio.
+- **SMS inviato ma il cliente non lo riceve**: `enroll.otp.sent` c'è. Far controllare il numero (nel log è mascherato:
+  confrontare le ultime 4 cifre), aspettare 60 secondi e chiedere "Invia un nuovo codice". Verificare nella console
+  Twilio (Verify → Logs) l'esito della consegna.
+- **Codice sbagliato**: `enroll.otp.wrong_code` con i tentativi rimasti; al quinto `enroll.otp.too_many_attempts` e
+  numero bloccato 15 minuti.
+- **Carta creata ma non salvata nel Wallet**: c'è `enroll.wallet.link.shown` ma non `.clicked`. Su iPhone, finché non
+  c'è Apple Wallet (Fase 12), la pagina mostra il QR e il codice breve da mostrare in cassa.
+- **Pagina "Qui non c'è nessuna carta" / "Carta momentaneamente non disponibile"**: `enroll.shop.unavailable` con lo
+  slug richiesto (QR stampato con un link sbagliato) o negozio sospeso.
+
+Il cliente che rifà l'iscrizione con lo stesso numero ritrova la stessa carta con i timbri (`enroll.customer.returning`).
+Nome e telefono delle iscrizioni non completate vengono cancellati dopo 24 ore; i contatori dei limiti tengono il
+telefono solo come impronta (hash).
+
+## Disiscrizione dalle promozioni
+
+Il link nei messaggi (`/u/<token>`) è firmato e vale una volta: `marketing.unsubscribe.ok` (con
+`already_unsubscribed: true` se il link era già stato usato). Il consenso revocato è in `audit_log`
+(`action = marketing_consent`, `actor_type = customer`). Link manomesso o di una carta cancellata:
+`public.link.invalid`, il cliente vede "Link non valido" e può chiedere in negozio.
+
 ## Il cron dei wallet
 
 Ogni minuto `pg_cron` (Supabase) chiama `POST /api/internal/cron/wallet-sync`: nuovi tentativi, riconciliazione, invio
@@ -237,6 +273,17 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | --- | --- | --- | --- |
 | `enroll.customer.created` | info | Un nuovo cliente si è iscritto: carta creata con il suo codice breve. | Nuovo cliente iscritto al negozio Salone Mario da web pubblico: carta A3F2C91B creata (consenso marketing: sì). |
 | `enroll.customer.returning` | info | Un cliente già iscritto ha rifatto l'iscrizione con lo stesso telefono: ritrova la stessa carta. | Cliente già iscritto al negozio Salone Mario ha ritrovato la sua carta A3F2C91B (6/10 timbri, premi disponibili: 0). |
+| `enroll.form.submitted` | info | Funnel di iscrizione, passo 1: il cliente ha compilato il form (nome, telefono, consensi). | Iscrizione avviata al negozio Salone Mario dal web pubblico: form compilato (consenso marketing: sì). |
+| `enroll.captcha.failed` | warn | Funnel di iscrizione: il controllo anti-bot non è stato superato, nessun SMS inviato. | Iscrizione al negozio Salone Mario fermata dal controllo anti-bot (timeout-or-duplicate): nessun SMS inviato. |
+| `enroll.otp.sent` | info | Funnel di iscrizione, passo 2: SMS con il codice inviato (o nuovo codice chiesto dal cliente). | SMS con il codice inviato per l'iscrizione al negozio Salone Mario in 640 ms. |
+| `enroll.otp.send_failed` | error | Funnel di iscrizione: il fornitore SMS non ha inviato il codice. Il cliente non può proseguire. | SMS con il codice NON inviato per l'iscrizione al negozio Salone Mario: Twilio ha risposto status 401 ("Authenticate"). Azione: controllare credito e credenziali Twilio. |
+| `enroll.otp.limited` | warn | Funnel di iscrizione: SMS non inviato per un limite (per numero, per IP o numero bloccato). Molti blocchi per IP = possibile abuso. | SMS per l'iscrizione al negozio Salone Mario non inviato: superato il limite per numero. Si può riprovare tra 60 minuti. |
+| `enroll.otp.verified` | info | Funnel di iscrizione, passo 3: codice corretto, telefono verificato. | Telefono verificato per l'iscrizione al negozio Salone Mario (al primo tentativo). |
+| `enroll.otp.wrong_code` | warn | Funnel di iscrizione: codice sbagliato, il cliente ha ancora tentativi. | Codice sbagliato nell'iscrizione al negozio Salone Mario: restano 2 tentativi. |
+| `enroll.otp.too_many_attempts` | warn | Funnel di iscrizione: 5 codici sbagliati, iscrizione annullata e numero bloccato. | Iscrizione al negozio Salone Mario bloccata dopo 5 codici sbagliati: il numero potrà riprovare tra 15 minuti. |
+| `enroll.wallet.link.shown` | info | Funnel di iscrizione, passo 5: al cliente è stato mostrato il modo per salvare la carta. | Al cliente della carta A3F2C91B (negozio Salone Mario) è stato mostrato il pulsante Aggiungi a Google Wallet. |
+| `enroll.wallet.link.clicked` | info | Funnel di iscrizione, ultimo passo: il cliente ha aperto il link per salvare la carta nel Wallet. | Il cliente della carta A3F2C91B (negozio Salone Mario) ha aperto il link per salvare la carta nel Wallet. |
+| `enroll.shop.unavailable` | warn | Qualcuno ha aperto la pagina di iscrizione di un negozio inesistente o sospeso. | Pagina di iscrizione aperta per "salone-norra", che non corrisponde a nessun negozio (QR o link sbagliato?). |
 
 ### stamp
 
@@ -324,6 +371,7 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
 | `counter_qr.downloaded` | info | Il titolare ha scaricato il PDF del cartello A5 con il QR di iscrizione. | Mario (titolare, web) ha scaricato il cartello A5 del negozio Salone Mario (PDF di 47 KB, generato in 420 ms). |
+| `counter_qr.public_downloaded` | info | Il PDF del cartello A5 è stato scaricato dalla pagina pubblica /<negozio>/qr. | Cartello A5 del negozio Salone Mario scaricato dalla pagina pubblica (PDF di 47 KB, 420 ms). |
 
 ### diagnostics
 
@@ -348,6 +396,18 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | `wallet.card.deactivated` | info | Carta resa non utilizzabile su Google Wallet (stato INACTIVE): cliente cancellato o negozio sospeso. | Carta A3F2C91B del negozio Salone Mario disattivata su Google Wallet: cliente cancellato. |
 | `wallet.sync.reconciled` | info | La riconciliazione periodica ha trovato una carta non allineata al database e l'ha riallineata. | Carta A3F2C91B del negozio Salone Mario riallineata su Google Wallet dalla riconciliazione (differenza: saldo). |
 | `wallet.sync.unexpected_error` | error | Errore imprevisto (non di Google) durante un lavoro verso i wallet: la riga contiene lo stack. La carta verrà riallineata dalla riconciliazione. | Errore imprevisto durante sincronizzazione carta verso i wallet: fetch failed (Supabase non raggiungibile). La carta verrà riallineata dalla riconciliazione; azione: passare lo stack di questa riga allo sviluppo. |
+
+### marketing
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `marketing.unsubscribe.ok` | info | Il cliente si è disiscritto dalle promozioni con il link nel messaggio (link monouso). | Il cliente della carta A3F2C91B (negozio Salone Mario) si è disiscritto dalle promozioni dal link nel messaggio. |
+
+### public
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `public.link.invalid` | warn | Qualcuno ha aperto un link pubblico firmato non valido (scaduto, manomesso o di una carta cancellata). | Aperto un link per salvare la carta non valido (scaduto): mostrata la pagina di link scaduto. |
 
 ### cron
 
@@ -617,6 +677,69 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Chiamata all'endpoint del cron senza il segreto corretto.
 - **Causa probabile**: CRON_SECRET diverso tra l'app e il Vault di Supabase, oppure chiamata non nostra.
 - **Cosa fare**: Riallineare il segreto con `pnpm cron:configure` (vedi README). Se le chiamate non sono nostre, ruotare CRON_SECRET.
+
+### `E_CAPTCHA_FAILED` (HTTP 400)
+
+- **L'utente vede**: Non siamo riusciti a verificare che tu non sia un robot. Ricarica la pagina e riprova.
+- **Cosa è successo**: Il controllo anti-bot (Cloudflare Turnstile) non è stato superato prima dell'invio dell'SMS.
+- **Causa probabile**: Pagina aperta da troppo tempo (verifica scaduta), blocco di contenuti nel browser, oppure un bot.
+- **Cosa fare**: Far ricaricare la pagina. Se succede a molti clienti veri, verificare le chiavi Turnstile (NEXT_PUBLIC_TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY).
+
+### `E_PHONE_INVALID` (HTTP 400)
+
+- **L'utente vede**: Controlla il numero di cellulare.
+- **Cosa è successo**: Numero di telefono non valido per l'iscrizione: serve un cellulare italiano (+39 3…).
+- **Causa probabile**: Numero incompleto, fisso o estero.
+- **Cosa fare**: Nessuna azione: il messaggio sotto il campo spiega al cliente cosa correggere.
+
+### `E_OTP_SEND_FAILED` (HTTP 502)
+
+- **L'utente vede**: Non siamo riusciti a inviare l'SMS. Riprova tra qualche minuto.
+- **Cosa è successo**: Il fornitore SMS (Twilio Verify) non ha inviato il codice di verifica.
+- **Causa probabile**: Credenziali Twilio errate, credito esaurito, numero rifiutato da Twilio o disservizio.
+- **Cosa fare**: Leggere la risposta di Twilio nel log (provider_response). Controllare credito e credenziali (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID).
+
+### `E_OTP_RESEND_TOO_SOON` (HTTP 429)
+
+- **L'utente vede**: Aspetta qualche secondo prima di chiedere un nuovo codice.
+- **Cosa è successo**: Richiesta di un nuovo codice prima dei 60 secondi dal precedente.
+- **Causa probabile**: Doppio tocco o pagina che non mostra il conto alla rovescia.
+- **Cosa fare**: Nessuna azione.
+
+### `E_OTP_LIMIT` (HTTP 429)
+
+- **L'utente vede**: Troppi codici richiesti per questo numero. Riprova più tardi.
+- **Cosa è successo**: Superato il limite di SMS per numero (3 all'ora, 5 al giorno) o per IP (10 all'ora), o numero bloccato.
+- **Causa probabile**: Cliente che riprova molte volte, numero bloccato dopo 5 codici sbagliati, oppure tentativo di abuso (SMS pumping).
+- **Cosa fare**: Il log enroll.otp.limited dice quale limite. Se è un cliente vero, può riprovare dopo il tempo indicato; molti blocchi per IP diversi = possibile abuso.
+
+### `E_OTP_WRONG_CODE` (HTTP 400)
+
+- **L'utente vede**: Codice non corretto.
+- **Cosa è successo**: Il codice di verifica inserito non è quello inviato via SMS.
+- **Causa probabile**: Errore di battitura o codice di un SMS precedente.
+- **Cosa fare**: Nessuna azione: il cliente ha altri tentativi (il messaggio dice quanti).
+
+### `E_OTP_TOO_MANY_ATTEMPTS` (HTTP 429)
+
+- **L'utente vede**: Troppi codici sbagliati: il numero è bloccato per 15 minuti.
+- **Cosa è successo**: Cinque codici sbagliati: iscrizione annullata e numero bloccato per 15 minuti.
+- **Causa probabile**: Cliente che non trova l'SMS giusto, oppure tentativo di indovinare il codice.
+- **Cosa fare**: Far riprovare dopo 15 minuti, controllando che il numero sia giusto.
+
+### `E_OTP_EXPIRED` (HTTP 410)
+
+- **L'utente vede**: La verifica è scaduta. Ricomincia l'iscrizione.
+- **Cosa è successo**: Iscrizione in corso scaduta (15 minuti) o già completata.
+- **Causa probabile**: Pagina lasciata aperta a lungo, o pulsante premuto due volte dopo il completamento.
+- **Cosa fare**: Far ricominciare dal QR del bancone.
+
+### `E_LINK_INVALID` (HTTP 410)
+
+- **L'utente vede**: Questo link non è più valido.
+- **Cosa è successo**: Link firmato (disiscrizione o apertura della carta) scaduto, già usato o manomesso.
+- **Causa probabile**: Link vecchio, copiato male, oppure link di disiscrizione già usato.
+- **Cosa fare**: Per la disiscrizione: il cliente è già disiscritto o può chiederlo in negozio. Per la carta: rifare l'iscrizione con lo stesso numero.
 
 ### `E_EXTERNAL_UNAVAILABLE` (HTTP 502)
 

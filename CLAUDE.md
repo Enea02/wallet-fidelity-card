@@ -41,4 +41,5 @@ Monorepo pnpm + Turborepo (Node 24, pnpm 11). Prerequisiti: Docker avviato, Supa
 - Log: `log.event("dominio.oggetto.azione", campi)` da `@/lib/observability/logger`; nuovi eventi prima nel catalogo con `msg` ed `examples`, poi `pnpm runbook`.
 - Dopo l'autenticazione o il caricamento di negozio/carta: `setContext({ shop_id, user_id, customer_ref })` così tutte le righe della richiesta li hanno.
 - Chiamate HTTP esterne: `fetchExternal({ provider, operation, url, … })`, che logga da sé (`quiet: true` se l'esito lo registra un evento più specifico).
+- Web pubblico: niente dati personali in URL o log (telefono sempre mascherato, nome mai); ogni passo dell'iscrizione ha il suo evento `enroll.*` con `enrollment_id`. Colori sempre da `packages/shared/theme.ts` (porting di `lw-core.js`). Test end-to-end con `pnpm e2e`.
 - Wallet: il dominio chiama solo `notifyCardChanged(shop, customerId, change)` (`apps/web/src/lib/wallet/notifier.ts`); la sincronizzazione (`wallet/sync.ts`) invia sempre lo stato completo, registra ogni tentativo e ritenta da sé. Non chiamare Google da altre parti.

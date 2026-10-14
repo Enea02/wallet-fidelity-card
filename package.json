@@ -24,7 +24,9 @@
     "runbook:check": "tsx packages/shared/scripts/gen-runbook.ts --check",
     "api:try": "node scripts/api-try.mjs",
     "wallet:resync": "pnpm --filter @loyalty/web wallet:resync",
-    "cron:configure": "pnpm --filter @loyalty/web cron:configure"
+    "cron:configure": "pnpm --filter @loyalty/web cron:configure",
+    "lighthouse": "node scripts/lighthouse.mjs",
+    "e2e": "pnpm --filter @loyalty/web e2e"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

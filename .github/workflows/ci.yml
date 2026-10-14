@@ -60,3 +60,34 @@ jobs:
       - name: Supabase locale (migrazioni e seed; Storage per i loghi, Mailpit per gli inviti)
         run: supabase start -x realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
       - run: pnpm test:smoke
+
+  e2e:
+    name: Test end-to-end del web pubblico (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.98.2
+      - run: pnpm install --frozen-lockfile
+      - name: Supabase locale
+        run: supabase start -x realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - name: Chromium per Playwright
+        run: pnpm --filter @loyalty/web exec playwright install --with-deps chromium
+      - name: Build di produzione e test end-to-end (OTP di prova, chiavi di prova di Turnstile)
+        run: pnpm e2e
+      - name: Rapporto Playwright e log del server (se fallisce)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+            apps/web/e2e-logs
+          retention-days: 7
