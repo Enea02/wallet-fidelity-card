@@ -1,19 +1,24 @@
 import "server-only";
 import { log } from "../observability/logger";
+import { supabaseAdmin } from "../supabase";
 import { sendPromotions } from "./promotions-sender";
 import { processDueRetries, reconcile } from "./sync";
 
 const BATCH = 50;
 
 /**
- * Lavoro del cron dei wallet (ogni minuto, da pg_cron): nuovi tentativi, riconciliazione delle
- * carte rimaste indietro, invio delle promozioni. Una riga di riepilogo solo se c'è stato lavoro.
+ * Lavoro del cron (ogni minuto, da pg_cron): nuovi tentativi verso i wallet, riconciliazione delle
+ * carte rimaste indietro, invio delle promozioni, pulizia delle iscrizioni non completate.
+ * Una riga di riepilogo solo se c'è stato lavoro verso i wallet.
  */
 export async function runWalletCron() {
   const started = performance.now();
   const retries = await processDueRetries(BATCH);
   const reconciled = await reconcile(BATCH);
   const promo = await sendPromotions(BATCH);
+  // iscrizioni dal web non completate: nome e telefono via dopo 24 ore
+  const { error } = await supabaseAdmin().rpc("enrollment_cleanup");
+  if (error) throw error;
   const summary = {
     retries: retries.total,
     retries_ok: retries.ok,

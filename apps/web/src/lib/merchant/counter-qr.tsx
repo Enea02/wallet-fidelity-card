@@ -5,6 +5,8 @@ import type { ActorFields } from "@loyalty/shared/logging/events";
 import QRCode from "qrcode";
 import { fetchExternal } from "../observability/fetch-external";
 import { log } from "../observability/logger";
+import { cardColors } from "@loyalty/shared/theme";
+import { taglineFor } from "../public/shop-view";
 import type { Shop } from "../types";
 
 /*
@@ -64,7 +66,6 @@ const s = StyleSheet.create({
   footnote: { fontSize: 9, color: MUTED },
 });
 
-const lowerFirst = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
 const initials = (name: string) =>
   name
     .split(/\s+/)
@@ -81,28 +82,28 @@ interface SignProps {
 }
 
 function Sign({ shop, url, qrDataUrl, logo }: SignProps) {
+  // colori della carta (corretti per il contrasto, come la carta nel Wallet e la pagina di iscrizione)
+  const c = cardColors(shop.hex_color.toUpperCase());
   const filled = Math.round(shop.stamps_required * 0.6);
   const dot = shop.stamps_required > 12 ? mm(7) : mm(10);
   return (
     <Document title={`Cartello ${shop.name}`} author="Loyalty Wallet" language="it">
-      <Page size="A5" style={[s.page, { backgroundColor: shop.hex_color, color: "#FFFFFF" }]}>
+      <Page size="A5" style={[s.page, { backgroundColor: c.bg, color: c.fg }]}>
         <View style={s.top}>
           <View style={s.brand}>
             {logo ? (
               <Image style={s.logo} src={logo} />
             ) : (
-              <View style={[s.monogram, { backgroundColor: "#FFFFFF" }]}>
-                <Text style={{ color: shop.hex_color, fontSize: 16, fontWeight: 700 }}>{initials(shop.name)}</Text>
+              <View style={[s.monogram, { backgroundColor: c.fg }]}>
+                <Text style={{ color: c.bg, fontSize: 16, fontWeight: 700 }}>{initials(shop.name)}</Text>
               </View>
             )}
             <View>
               <Text style={s.shopName}>{shop.name}</Text>
-              <Text style={s.program}>Carta fedeltà</Text>
+              <Text style={[s.program, { color: c.label, opacity: 1 }]}>{shop.program_name}</Text>
             </View>
           </View>
-          <Text style={s.headline}>
-            Ogni {shop.stamps_required} visite, {lowerFirst(shop.reward_label)}.
-          </Text>
+          <Text style={s.headline}>{taglineFor(shop)}</Text>
           <View style={s.stamps}>
             {Array.from({ length: shop.stamps_required }, (_, i) => (
               <View
@@ -112,9 +113,8 @@ function Sign({ shop, url, qrDataUrl, logo }: SignProps) {
                   height: dot,
                   borderRadius: dot / 2,
                   borderWidth: 2,
-                  borderColor: "#FFFFFF",
-                  backgroundColor: i < filled ? "#FFFFFF" : "transparent",
-                  opacity: i < filled ? 1 : 0.6,
+                  borderColor: i < filled ? c.fg : c.ring,
+                  backgroundColor: i < filled ? c.fg : "transparent",
                 }}
               />
             ))}
@@ -132,7 +132,7 @@ function Sign({ shop, url, qrDataUrl, logo }: SignProps) {
             <Text style={s.stepsTitle}>Niente app da scaricare.</Text>
             {["Inquadra il QR con la fotocamera", "Scrivi nome e telefono", "Salva la carta nel wallet"].map((t, i) => (
               <View key={t} style={s.step}>
-                <View style={[s.stepNum, { backgroundColor: shop.hex_color }]}>
+                <View style={[s.stepNum, { backgroundColor: c.bg }]}>
                   <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700 }}>{i + 1}</Text>
                 </View>
                 <Text style={s.stepText}>{t}</Text>
@@ -163,7 +163,8 @@ async function loadLogo(shop: Shop): Promise<SignProps["logo"]> {
   }
 }
 
-export async function counterQrPdf(shop: Shop, actor: ActorFields): Promise<Response> {
+/** PDF del cartello; actor = chi lo scarica dall'app (null = pagina pubblica /<slug>/qr). */
+export async function counterQrPdf(shop: Shop, actor: ActorFields | null): Promise<Response> {
   const started = performance.now();
   const base = (process.env.APP_BASE_URL ?? "").replace(/\/$/, "");
   const url = `${base}/${shop.slug}`;
@@ -173,12 +174,9 @@ export async function counterQrPdf(shop: Shop, actor: ActorFields): Promise<Resp
   ]);
   const pdf = await renderToBuffer(<Sign shop={shop} url={url} qrDataUrl={qrDataUrl} logo={logo} />);
 
-  log.event("counter_qr.downloaded", {
-    ...actor,
-    shop_name: shop.name,
-    size_bytes: pdf.length,
-    duration_ms: Math.round(performance.now() - started),
-  });
+  const done = { shop_name: shop.name, size_bytes: pdf.length, duration_ms: Math.round(performance.now() - started) };
+  if (actor) log.event("counter_qr.downloaded", { ...actor, ...done });
+  else log.event("counter_qr.public_downloaded", done);
   return new Response(new Uint8Array(pdf), {
     headers: {
       "content-type": "application/pdf",

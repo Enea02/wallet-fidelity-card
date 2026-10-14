@@ -136,7 +136,7 @@ describe("iscrizione e timbri", () => {
     await addStamp(BARBIERE, c.id, MARCO);
     expect(balance(c.id)).toBe("1 / 10");
     const obj = mock.objects.get(oid(c.id)) as { textModulesData: Array<{ header: string }> };
-    expect(obj.textModulesData[0]?.header).toBe("Ti mancano 9 visite");
+    expect(obj.textModulesData[0]?.header).toBe("Ti mancano 9 barbe");
     expect(await state(c.id)).toMatchObject({ synced_stamps: 1, attempts: 0 });
     expect(ev("wallet.google.patch.ok")[0]?.msg).toBe(
       `Carta ${c.shortCode} aggiornata su Google Wallet (1/10, 0 premi) in ${ev("wallet.google.patch.ok")[0]?.duration_ms} ms.`,

@@ -15,7 +15,12 @@ export interface Shop {
   /** Sale quando cambia qualcosa di visibile sulla carta: le carte con versione vecchia vanno riallineate. */
   card_version: number;
   legal_name: string | null;
+  vat_number: string | null;
   privacy_email: string | null;
+  /** Frase d'apertura della pagina di iscrizione (null = generata). */
+  tagline: string | null;
+  /** Icona dei timbri: scissors | cup | pizza | sparkle | gift | check. */
+  stamp_icon: string;
 }
 
 export interface Customer {

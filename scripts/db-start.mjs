@@ -48,12 +48,17 @@ const generated = {
   IP_HASH_SALT: () => randomBytes(16).toString("hex"),
   CRON_SECRET: () => randomBytes(32).toString("hex"),
   UNSUBSCRIBE_SECRET: () => randomBytes(32).toString("hex"),
+  PUBLIC_LINK_SECRET: () => randomBytes(32).toString("hex"),
 };
 
 // variabili nuove con un valore fisso per lo sviluppo locale
 const localDefaults = {
   MERCHANT_APP_ORIGINS: () => "http://localhost:8081",
   MERCHANT_APP_URL: () => "http://localhost:8081",
+  // chiavi di prova pubbliche di Cloudflare Turnstile (passano sempre): https://developers.cloudflare.com/turnstile/troubleshooting/testing/
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: () => "1x00000000000000000000AA",
+  TURNSTILE_SECRET_KEY: () => "1x0000000000000000000000000000000AA",
+  OTP_PROVIDER: () => "test",
 };
 
 if (existsSync(envLocal)) {

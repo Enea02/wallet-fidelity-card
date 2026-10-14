@@ -17,7 +17,10 @@ const shop: Shop = {
   stamp_unit_plural: "tagli",
   card_version: 1,
   legal_name: "Nora Bianchi",
+  vat_number: null,
   privacy_email: "privacy@salonenora.it",
+  tagline: null,
+  stamp_icon: "scissors",
 };
 
 describe("testi della carta (design: Testi della carta)", () => {
