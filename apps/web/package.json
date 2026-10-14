@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:smoke": "vitest run --config vitest.smoke.config.ts"
+    "test:smoke": "vitest run --config vitest.smoke.config.ts",
+    "diag": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/diag.ts"
   },
   "dependencies": {
     "@loyalty/shared": "workspace:*",
@@ -31,6 +32,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.4",
+    "tsx": "^4.23.0"
   }
 }

@@ -42,14 +42,28 @@ if (!s) {
 }
 console.log(`✔ Supabase locale attivo: API ${s.API_URL} · Studio ${s.STUDIO_URL}`);
 
-if (!existsSync(envLocal)) {
+// variabili che si possono generare da sole: aggiunte anche a un .env.local già esistente
+const generated = {
+  ADMIN_SETUP_TOKEN: () => randomBytes(24).toString("hex"),
+  IP_HASH_SALT: () => randomBytes(16).toString("hex"),
+};
+
+if (existsSync(envLocal)) {
+  const current = readFileSync(envLocal, "utf8");
+  const missing = Object.keys(generated).filter((k) => !new RegExp(`^${k}=.+`, "m").test(current));
+  if (missing.length > 0) {
+    const lines = missing.map((k) => `${k}=${generated[k]()}`).join("\n");
+    writeFileSync(envLocal, `${current.replace(/\n*$/, "\n")}${lines}\n`, { mode: 0o600 });
+    console.log(`✔ Aggiunte ad apps/web/.env.local le variabili nuove: ${missing.join(", ")}.`);
+  }
+} else {
   const values = {
     APP_ENV: "development",
     APP_BASE_URL: "http://localhost:3000",
     NEXT_PUBLIC_SUPABASE_URL: s.API_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: s.ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: s.SERVICE_ROLE_KEY,
-    ADMIN_SETUP_TOKEN: randomBytes(24).toString("hex"),
+    ...Object.fromEntries(Object.entries(generated).map(([k, gen]) => [k, gen()])),
   };
   // parte da .env.example così commenti e voci facoltative restano documentati
   const content = readFileSync(envExample, "utf8")

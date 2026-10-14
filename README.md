@@ -39,22 +39,37 @@ funzionano lo stesso, senza il pulsante "Aggiungi a Google Wallet".
 
 ## Comandi
 
-| Comando                        | Cosa fa                                                                  |
-| ------------------------------ | ------------------------------------------------------------------------ |
-| `pnpm dev`                     | Supabase locale + web in sviluppo                                        |
-| `pnpm build`                   | build di produzione di tutte le app                                      |
-| `pnpm typecheck`               | TypeScript strict su tutto il monorepo                                   |
-| `pnpm lint`                    | ESLint                                                                   |
-| `pnpm format` / `format:check` | Prettier (scrive / verifica)                                             |
-| `pnpm test`                    | test unitari (Vitest) di `packages/shared` e `apps/web`                  |
-| `pnpm test:smoke`              | iscrizione + timbro contro il Supabase locale (richiede `pnpm db:start`) |
-| `pnpm db:start` / `db:stop`    | avvia / ferma Supabase locale                                            |
-| `pnpm db:reset`                | ricrea il DB locale da migrazioni + seed (**cancella i dati locali**)    |
-| `pnpm db:new <nome>`           | crea una nuova migrazione in `supabase/migrations/`                      |
-| `pnpm db:migrate`              | applica le migrazioni non ancora applicate al DB locale                  |
+| Comando                           | Cosa fa                                                                                   |
+| --------------------------------- | ----------------------------------------------------------------------------------------- |
+| `pnpm dev`                        | Supabase locale + web in sviluppo                                                         |
+| `pnpm build`                      | build di produzione di tutte le app                                                       |
+| `pnpm typecheck`                  | TypeScript strict su tutto il monorepo                                                    |
+| `pnpm lint`                       | ESLint                                                                                    |
+| `pnpm format` / `format:check`    | Prettier (scrive / verifica)                                                              |
+| `pnpm test`                       | test unitari (Vitest) di `packages/shared` e `apps/web`                                   |
+| `pnpm test:smoke`                 | iscrizione, timbro, permessi e diagnostica sul Supabase locale (richiede `pnpm db:start`) |
+| `pnpm runbook` / `runbook:check`  | rigenera / verifica eventi ed errori in `docs/runbook-assistenza.md`                      |
+| `pnpm diag list\|enable\|disable` | modalità diagnostica per negozio, staff o cliente (vedi runbook)                          |
+| `pnpm db:start` / `db:stop`       | avvia / ferma Supabase locale                                                             |
+| `pnpm db:reset`                   | ricrea il DB locale da migrazioni + seed (**cancella i dati locali**)                     |
+| `pnpm db:new <nome>`              | crea una nuova migrazione in `supabase/migrations/`                                       |
+| `pnpm db:migrate`                 | applica le migrazioni non ancora applicate al DB locale                                   |
 
-La CI (GitHub Actions) esegue su ogni push e pull request: format, typecheck, lint, test, build, gitleaks su tutta la
-storia e uno Supabase locale con migrazioni, seed e smoke test.
+La CI (GitHub Actions) esegue su ogni push e pull request: format, allineamento del runbook, typecheck, lint, test,
+build, gitleaks su tutta la storia e uno Supabase locale con migrazioni, seed e smoke test.
+
+## Log e diagnostica
+
+- Ogni riga di log è un evento del catalogo `packages/shared/logging/events.ts` con un `msg` in italiano; gli errori
+  hanno un codice del catalogo `packages/shared/errors.ts`. Descrizioni, cause e azioni per l'assistenza sono in
+  [`docs/runbook-assistenza.md`](docs/runbook-assistenza.md).
+- In sviluppo i log sono leggibili (`10:32:14 INFO  … [evento · ERR-7K3QX]`), in produzione JSON su stdout.
+  `LOG_FORMAT=json` per vedere il JSON anche in locale.
+- In produzione Vercel inoltra stdout ad **Axiom** con un Log Drain (Project → Settings → Log Drains, integrazione
+  Axiom): nessuna configurazione nel codice.
+- Ogni risposta API ha l'header `X-Request-Id`; gli errori hanno la forma
+  `{ "error": { "code", "message", "support_code" } }` con il codice assistenza `ERR-XXXXX` da comunicarci.
+- Token, password, OTP, JWT, chiavi, `qr_token` e telefoni vengono redatti automaticamente in ogni riga.
 
 ## Struttura
 
@@ -63,7 +78,7 @@ apps/
   web/            Next.js 16: API, pagine pubbliche di iscrizione, (poi) pannello interno
   merchant/       app esercente Expo (iOS, Android, Web): dalla Fase 6
 packages/
-  shared/         codice condiviso: catalogo eventi di log, catalogo errori, validazione env, logger
+  shared/         codice condiviso: catalogo eventi di log, catalogo errori, logger e redazione, request_id, env
 supabase/
   migrations/     schema del database, una migrazione per modifica
   seed.sql        dati di prova per lo sviluppo locale
@@ -75,6 +90,8 @@ Dentro `apps/web`:
 
 - `src/lib/loyalty.ts` — dominio (iscrizione, timbri, riscatti)
 - `src/lib/wallet/notifier.ts` — unico punto di contatto dominio → wallet
+- `src/lib/observability/` — `withApi` (request_id, log di richiesta, errori standard), logger del server,
+  `fetchExternal`, modalità diagnostica
 - `src/lib/wallet/google.ts` — LoyaltyClass, LoyaltyObject, JWT "Salva", notifiche
 - `src/lib/wallet/apple.ts` — `pass.json` pronto, firma e web service in Fase 12
 - `src/lib/server-env.ts` — variabili d'ambiente validate all'avvio (documentate in `apps/web/.env.example`)

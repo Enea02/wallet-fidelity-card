@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiErrorMessage } from "@/lib/client/api-error";
 
 export default function EnrollForm({ shopSlug, accent }: { shopSlug: string; accent: string }) {
   const [busy, setBusy] = useState(false);
@@ -26,7 +27,7 @@ export default function EnrollForm({ shopSlug, accent }: { shopSlug: string; acc
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Errore");
+      if (!res.ok) throw new Error(apiErrorMessage(json));
       setGoogleUrl(json.googleSaveUrl);
       setDone(true);
     } catch (err) {

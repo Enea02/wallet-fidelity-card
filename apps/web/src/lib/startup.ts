@@ -1,5 +1,5 @@
 import { AppError } from "@loyalty/shared/errors";
-import { logEvent } from "@loyalty/shared/logger";
+import { log } from "./observability/logger";
 import { loadServerEnv } from "./server-env";
 
 /**
@@ -11,7 +11,7 @@ export function runStartupChecks(): void {
   const version = process.env.APP_VERSION ?? "sconosciuta";
   try {
     const env = loadServerEnv();
-    logEvent("server.startup.ok", {
+    log.event("server.startup.ok", {
       app: "web",
       env: env.APP_ENV,
       version,
@@ -24,7 +24,7 @@ export function runStartupChecks(): void {
     });
   } catch (e) {
     if (!(e instanceof AppError) || e.code !== "E_CONFIG_INVALID") throw e;
-    logEvent("server.startup.failed", {
+    log.event("server.startup.failed", {
       app: "web",
       env: process.env.APP_ENV ?? "development",
       version,

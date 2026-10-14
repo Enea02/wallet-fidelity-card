@@ -3,6 +3,7 @@
  * iscrizione di un cliente e timbro dello staff, passando dai veri route handler.
  * Usa negozio e utente staff di supabase/seed.sql.
  */
+import { supportCodeFromRequestId } from "@loyalty/shared/logging/request-id";
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST as enroll } from "@/app/api/enroll/route";
@@ -89,13 +90,28 @@ describe("scheletro: iscrizione e timbro in locale", () => {
     expect(count).toBe(1);
   });
 
-  it("senza token il timbro è rifiutato", async () => {
+  it("senza token il timbro è rifiutato con E_AUTH_REQUIRED e codice assistenza", async () => {
     const res = await stamp(post({ shopId: SHOP_ID, qrToken: SEED_CUSTOMER_QR }));
     expect(res.status).toBe(401);
+    const rid = res.headers.get("x-request-id") ?? "";
+    expect(await res.json()).toEqual({
+      error: {
+        code: "E_AUTH_REQUIRED",
+        message: "Devi accedere per continuare.",
+        support_code: supportCodeFromRequestId(rid),
+      },
+    });
   });
 
   it("lo staff non può timbrare per un negozio non suo", async () => {
     const res = await stamp(post({ shopId: OTHER_SHOP_ID, qrToken: SEED_CUSTOMER_QR }, staffToken));
     expect(res.status).toBe(403);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("E_FORBIDDEN_SHOP");
+  });
+
+  it("un QR di un'altra carta non trovata dà E_CARD_NOT_FOUND", async () => {
+    const res = await stamp(post({ shopId: SHOP_ID, qrToken: "f".repeat(32) }, staffToken));
+    expect(res.status).toBe(404);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("E_CARD_NOT_FOUND");
   });
 });

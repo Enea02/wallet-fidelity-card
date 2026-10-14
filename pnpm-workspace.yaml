@@ -1,5 +1,8 @@
 packages:
   - apps/*
   - packages/*
+allowBuilds:
+  # esbuild (usato da tsx) verifica il binario della piattaforma all'installazione
+  esbuild: true
 minimumReleaseAgeExclude:
   - google-auth-library@11.3.0
