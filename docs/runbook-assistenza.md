@@ -489,6 +489,7 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | `app.diagnostics.sent` | info | L'utente ha premuto "Invia diagnostica all'assistenza" e il server ha restituito il codice ticket. | Diagnostica inviata all'assistenza: ticket DIAG-7K3QXA2M (412 eventi, 37 KB). |
 | `app.password.reset_requested` | info | Richiesto il link per reimpostare la password ("Password dimenticata?"). | Richiesto il link per reimpostare la password di gi***@salone-mario.it. |
 | `app.password.changed` | info | Lo staff ha impostato una nuova password, dal link di recupero o accettando l'invito. | Password reimpostata dal link di recupero e accesso eseguito. |
+| `app.error.unexpected` | error | Errore imprevisto nel codice dell'app (non una risposta del server): va segnalato allo sviluppo con la diagnostica e Sentry. | Errore imprevisto nell'app durante il caricamento dei negozi: TypeError: shops.map is not a function. |
 | `app.invite.accepted` | info | Lo staff ha aperto il link d'invito e la sessione è valida: deve solo scegliere la password. | Aperto il link d'invito di gi***@salone-mario.it: in attesa della scelta della password. |
 
 ## Errori

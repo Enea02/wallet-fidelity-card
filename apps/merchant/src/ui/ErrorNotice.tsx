@@ -11,7 +11,7 @@ export function ErrorNotice({
   error: Pick<ApiError, "userMessage" | "supportCode" | "code">;
   title?: string;
 }) {
-  const showCode = error.code !== "E_OFFLINE";
+  const showCode = error.code !== "E_OFFLINE" && error.supportCode !== "";
   return (
     <Banner tone="danger" {...(title !== undefined && { title })}>
       <T variant="small" testID="messaggio-errore">

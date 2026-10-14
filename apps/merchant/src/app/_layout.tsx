@@ -81,13 +81,14 @@ function RootLayout() {
   });
   const ref = useNavigationContainerRef();
   useEffect(() => {
-    if (ref) navigationIntegration.registerNavigationContainer(ref);
+    if (ref && sentryEnabled) navigationIntegration.registerNavigationContainer(ref);
   }, [ref]);
   const ready = fontsLoaded || fontError !== null;
   useEffect(() => {
     if (ready) void SplashScreen.hideAsync();
   }, [ready]);
-  if (!ready) return null;
+  // il navigatore si monta subito (Expo Router aggiorna il suo stato all'avvio): finché i font non
+  // sono pronti lo splash screen resta sopra l'app
   return (
     <SafeAreaProvider>
       <SessionProvider>
