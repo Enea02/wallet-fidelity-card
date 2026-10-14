@@ -87,8 +87,9 @@ function RootLayout() {
   useEffect(() => {
     if (ready) void SplashScreen.hideAsync();
   }, [ready]);
-  // il navigatore si monta subito (Expo Router aggiorna il suo stato all'avvio): finché i font non
-  // sono pronti lo splash screen resta sopra l'app
+  // finché i font non sono pronti resta lo splash screen: su Android un testo misurato con il font
+  // di sistema non viene rimisurato dopo, e le scritte restano tagliate
+  if (!ready) return null;
   return (
     <SafeAreaProvider>
       <SessionProvider>

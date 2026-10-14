@@ -1,4 +1,5 @@
-import { Redirect } from "expo-router";
+import { router, type Href } from "expo-router";
+import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { homeFor } from "@/lib/navigation/sections";
 import { useSession } from "@/lib/session";
@@ -13,9 +14,19 @@ export default function Index() {
   const { status, role, error, reload, signOut, user } = useSession();
   const t = useTheme();
 
-  if (status === "signedOut") return <Redirect href="/accedi" />;
-  if (status === "chooseShop") return <Redirect href="/negozi" />;
-  if (status === "ready" && role) return <Redirect href={`/${homeFor(role)}`} />;
+  // reindirizzamento dopo il montaggio: un <Redirect> durante il primo render arriva prima che
+  // il navigatore sia pronto (avviso di React all'avvio su mobile)
+  const target: Href | null =
+    status === "signedOut"
+      ? "/accedi"
+      : status === "chooseShop"
+        ? "/negozi"
+        : status === "ready" && role
+          ? (`/${homeFor(role)}` as Href)
+          : null;
+  useEffect(() => {
+    if (target) router.replace(target);
+  }, [target]);
 
   if (status === "noShops") {
     return (
