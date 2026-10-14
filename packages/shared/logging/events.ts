@@ -94,10 +94,14 @@ const googleWhy = (f: GoogleFailureFields) => {
   return `${why} (${f.http_status === null ? "nessuna risposta" : f.http_status})`;
 };
 const googleNext = (f: GoogleFailureFields) =>
-  f.retry_in_min === null
-    ? "Tentativi automatici esauriti: dopo aver risolto, risincronizzare a mano con pnpm wallet:resync"
-    : `verrà ritentato tra ${minutes(f.retry_in_min)}`;
-const googleAction = (f: GoogleFailureFields) => (GOOGLE_REASON[f.error_code] ?? ["", "vedi il runbook"])[1];
+  f.retry_in_min === null ? "tentativi automatici esauriti" : `verrà ritentato tra ${minutes(f.retry_in_min)}`;
+/** Con i tentativi esauriti "riprova da solo" non vale più: serve risincronizzare a mano. */
+const googleAction = (f: GoogleFailureFields) =>
+  f.retry_in_min !== null
+    ? (GOOGLE_REASON[f.error_code] ?? ["", "vedi il runbook"])[1]
+    : GOOGLE_REASON[f.error_code]?.[1].startsWith("nessuna")
+      ? "quando Google torna disponibile, risincronizzare con pnpm wallet:resync"
+      : `${GOOGLE_REASON[f.error_code]?.[1] ?? "risolvere la causa"}, poi risincronizzare con pnpm wallet:resync`;
 const cardBalance = (f: GoogleCardFields) =>
   `${f.stamps}/${f.stamps_required}, ${f.rewards === 1 ? "1 premio" : `${f.rewards} premi`}`;
 

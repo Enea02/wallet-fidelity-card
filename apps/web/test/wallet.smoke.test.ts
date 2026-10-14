@@ -198,7 +198,9 @@ describe("errori e nuovi tentativi", () => {
       attempts: 5,
       error_code: "E_GOOGLE_UNAVAILABLE",
     });
-    expect(ev("wallet.google.patch.failed").at(-1)?.msg).toContain("Tentativi automatici esauriti");
+    expect(ev("wallet.google.patch.failed").at(-1)?.msg).toContain(
+      "Il dato è salvato; tentativi automatici esauriti. Azione: quando Google torna disponibile, risincronizzare con pnpm wallet:resync.",
+    );
     const { data } = await admin.from("wallet_sync_failures").select("exhausted_at").eq("customer_id", c.id).single();
     expect(data?.exhausted_at).not.toBeNull();
   });
