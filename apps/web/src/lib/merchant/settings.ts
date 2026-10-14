@@ -7,11 +7,12 @@ import type { z } from "zod";
 import { log } from "../observability/logger";
 import { supabaseAdmin } from "../supabase";
 import type { Shop } from "../types";
+import { notifyShopChanged } from "../wallet/notifier";
 import { callDomain, staffMeta } from "./domain-call";
 
 const BUCKET = "logos";
 const COLS =
-  "name, slug, hex_color, stamps_required, reward_label, stamp_cooldown_minutes, logo_url, legal_name, vat_number, privacy_email, status";
+  "name, slug, hex_color, stamps_required, reward_label, stamp_cooldown_minutes, logo_url, legal_name, vat_number, privacy_email, status, program_name, stamp_unit, stamp_unit_plural";
 
 interface Row {
   name: string;
@@ -25,6 +26,9 @@ interface Row {
   vat_number: string | null;
   privacy_email: string | null;
   status: "active" | "suspended";
+  program_name: string;
+  stamp_unit: string;
+  stamp_unit_plural: string;
 }
 
 const toSettings = (r: Row): z.input<typeof ShopSettings> => ({
@@ -39,6 +43,9 @@ const toSettings = (r: Row): z.input<typeof ShopSettings> => ({
   vatNumber: r.vat_number,
   privacyEmail: r.privacy_email,
   status: r.status,
+  programName: r.program_name,
+  stampUnit: r.stamp_unit,
+  stampUnitPlural: r.stamp_unit_plural,
 });
 
 export async function getSettings(shop: Shop) {
@@ -58,6 +65,9 @@ const LABELS: Record<string, string> = {
   legal_name: "ragione sociale",
   vat_number: "partita IVA",
   privacy_email: "email privacy",
+  program_name: "nome del programma",
+  stamp_unit: "unità (singolare)",
+  stamp_unit_plural: "unità (plurale)",
 };
 
 const show = (v: unknown) => (v === null || v === undefined || v === "" ? "vuoto" : String(v));
@@ -89,15 +99,20 @@ export async function updateSettings(
   if (input.legalName !== undefined) changes.legal_name = input.legalName;
   if (input.vatNumber !== undefined) changes.vat_number = input.vatNumber;
   if (input.privacyEmail !== undefined) changes.privacy_email = input.privacyEmail;
+  if (input.programName !== undefined) changes.program_name = input.programName;
+  if (input.stampUnit !== undefined) changes.stamp_unit = input.stampUnit;
+  if (input.stampUnitPlural !== undefined) changes.stamp_unit_plural = input.stampUnitPlural;
   if (input.logoPath !== undefined) {
     changes.logo_path = input.logoPath;
     changes.logo_url = await publicLogoUrl(shop, input.logoPath);
   }
 
-  const r = await callDomain<{ before: Record<string, unknown>; after: Record<string, unknown>; shop_name: string }>(
-    "update_shop_settings",
-    { p_shop_id: shop.id, p_changes: changes, p_meta: staffMeta(userId) },
-  );
+  const r = await callDomain<{
+    before: Record<string, unknown>;
+    after: Record<string, unknown>;
+    shop_name: string;
+    card_changed: boolean;
+  }>("update_shop_settings", { p_shop_id: shop.id, p_changes: changes, p_meta: staffMeta(userId) });
   const changed = Object.keys(r.after).filter((k) => k !== "logo_path");
   log.event("settings.update.ok", {
     ...actor,
@@ -112,6 +127,8 @@ export async function updateSettings(
             )
             .join(", "),
   });
+  // template Google subito; le carte con la versione vecchia le riallinea la riconciliazione del cron
+  if (r.card_changed) await notifyShopChanged(shop);
   return getSettings(shop);
 }
 

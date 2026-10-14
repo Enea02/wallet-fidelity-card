@@ -121,18 +121,25 @@ Dentro `apps/web`:
 
 1. Google Cloud Console → nuovo progetto → abilita **Google Wallet API**.
 2. IAM → Service account → crea → Chiavi → aggiungi chiave JSON.
-3. [Google Pay & Wallet Console](https://pay.google.com/business/console) → Google Wallet API → crea l'account
-   emittente, annota l'**Issuer ID**.
-4. Nella console Wallet → Users: aggiungi l'email del service account (ruolo Developer).
+3. [Google Pay & Wallet Console](https://pay.google.com/business/console) → Google Wallet API: annota l'**Issuer ID**
+   (numero di ~19 cifre, non il Merchant ID `BCR2DN…`).
+4. Nella console Wallet → Users: aggiungi l'email del service account con ruolo **Developer**.
 5. Sempre lì, aggiungi come **test user** l'account Google del telefono Android su cui provi.
 6. In `apps/web/.env.local`: `GOOGLE_WALLET_ISSUER_ID=<issuer id>` e
    `GOOGLE_WALLET_SA_KEY_B64=$(base64 -i service-account.json | tr -d '\n')`. Non committare mai la chiave.
-7. Crea il template del negozio (una volta, e a ogni cambio di nome/logo/colore):
+7. Logo: Google scarica il logo del negozio (o `CARD_DEFAULT_LOGO_URL`) da internet; in locale un indirizzo
+   `localhost` non è raggiungibile, quindi per le prove usare un URL pubblico.
 
-```bash
-curl -X POST localhost:3000/api/admin/setup-class \
-  -H "x-admin-token: $ADMIN_SETUP_TOKEN" -H "content-type: application/json" \
-  -d '{"shopSlug":"salone-demo"}'
-```
+Template e carte si creano e si aggiornano da soli (iscrizione, timbri, impostazioni). Per forzare:
+`pnpm wallet:resync --shop <slug> [--card <codice breve>]`.
 
 In Demo mode le carte funzionano davvero ma mostrano "TEST ONLY" e solo i test user possono salvarle.
+
+### Sincronizzazione e cron
+
+- Dopo ogni modifica la carta viene aggiornata **dopo** aver risposto all'app; se Google fallisce si riprova tra 1, 5,
+  15 e 60 minuti. Stato per carta in `wallet_sync_state`, tentativi in `wallet_sync_failures`.
+- Il cron (ogni minuto, `pg_cron` di Supabase) chiama `POST /api/internal/cron/wallet-sync` con `CRON_SECRET`:
+  nuovi tentativi, riallineamento delle carte rimaste indietro, invio delle promozioni.
+- In locale `pnpm dev` lo configura verso `http://localhost:3000`. In produzione, una volta:
+  `pnpm cron:configure --url https://<dominio>/api/internal/cron/wallet-sync` con le variabili di produzione.

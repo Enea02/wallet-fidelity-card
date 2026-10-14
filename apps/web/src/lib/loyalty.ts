@@ -6,8 +6,10 @@ import { getContext, setContext } from "./observability/context";
 import { log } from "./observability/logger";
 import { callDomain, domainMeta, type DomainActor } from "./merchant/domain-call";
 import { supabaseAdmin } from "./supabase";
+import { CUSTOMER_COLS, SHOP_COLS } from "./db-columns";
 import type { Customer, Shop } from "./types";
-import { googleEnabled, saveUrl, upsertLoyaltyObject } from "./wallet/google";
+import { googleEnabled } from "./wallet/google/config";
+import { saveUrl } from "./wallet/google/payload";
 import { notifyCardChanged } from "./wallet/notifier";
 
 export type { DomainActor };
@@ -18,9 +20,6 @@ export type { DomainActor };
  * (supabase/migrations/*_funzioni_dominio.sql); qui si risolvono le carte, si
  * scrivono gli eventi di log e si avvisano i wallet.
  */
-
-const SHOP_COLS = "id, slug, name, stamps_required, reward_label, logo_url, hex_color, stamp_cooldown_minutes, status";
-const CUSTOMER_COLS = "id, shop_id, name, phone, qr_token, short_code, stamps, rewards_available, deleted_at";
 
 const staffActor = (userId: string): DomainActor => ({ type: "staff", userId });
 
@@ -233,9 +232,9 @@ export async function enroll(input: EnrollInput) {
     });
   }
 
-  if (!googleEnabled()) return { googleSaveUrl: null };
-  await upsertLoyaltyObject({ shop, customer });
-  return { googleSaveUrl: saveUrl(customer.id, shop) };
+  // la carta su Google si crea dopo la risposta; il link contiene comunque la carta completa
+  await notifyCardChanged(shop, customer.id, { kind: "enroll" });
+  return { googleSaveUrl: googleEnabled() ? saveUrl(shop, customer) : null };
 }
 
 /* ------------------------------------------------------------------ */
@@ -245,10 +244,13 @@ export async function enroll(input: EnrollInput) {
 export async function addStamp(shopId: string, customerId: string, staffUserId: string) {
   const [customer, shop] = await Promise.all([getCustomerById(shopId, customerId), getShopById(shopId)]);
 
-  const r = await callDomain<CardResult & { stamps_before: number; reward_unlocked: boolean }>("add_stamp", {
-    p_customer_id: customer.id,
-    p_meta: domainMeta(staffActor(staffUserId)),
-  }).catch((e: unknown) =>
+  const r = await callDomain<CardResult & { stamps_before: number; reward_unlocked: boolean; stamp_event_id: number }>(
+    "add_stamp",
+    {
+      p_customer_id: customer.id,
+      p_meta: domainMeta(staffActor(staffUserId)),
+    },
+  ).catch((e: unknown) =>
     onRejected(e, ["E_STAMP_COOLDOWN"], (err) =>
       log.event("stamp.add.rejected_cooldown", {
         ...actorFields(err.context),
@@ -281,7 +283,10 @@ export async function addStamp(shopId: string, customerId: string, staffUserId: 
   }
 
   const updated: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
-  await notifyCardChanged({ shop, customer: updated }, { kind: "stamp", rewardUnlocked: r.reward_unlocked });
+  await notifyCardChanged(shop, customer.id, {
+    kind: "stamp",
+    rewardUnlockedBy: r.reward_unlocked ? r.stamp_event_id : undefined,
+  });
   return { customer: cardView(updated, shop), rewardUnlocked: r.reward_unlocked };
 }
 
@@ -323,7 +328,7 @@ export async function undoLastStamp(shopId: string, customerId: string, staffUse
   });
 
   const updated: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
-  await notifyCardChanged({ shop, customer: updated }, { kind: "undo", rewardUnlocked: false });
+  await notifyCardChanged(shop, customer.id, { kind: "undo" });
   return { customer: cardView(updated, shop) };
 }
 
@@ -354,7 +359,7 @@ export async function redeem(shopId: string, customerId: string, staffUserId: st
   });
 
   const updated: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
-  await notifyCardChanged({ shop, customer: updated }, { kind: "redeem", rewardUnlocked: false });
+  await notifyCardChanged(shop, customer.id, { kind: "redeem" });
   return { customer: cardView(updated, shop) };
 }
 
@@ -390,7 +395,7 @@ export async function adjustBalance(
   });
 
   const updated: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
-  await notifyCardChanged({ shop, customer: updated }, { kind: "adjust", rewardUnlocked: false });
+  await notifyCardChanged(shop, customer.id, { kind: "adjust" });
   return { customer: cardView(updated, shop) };
 }
 
@@ -413,6 +418,7 @@ export async function deleteCustomer(shopId: string, customerId: string, actor: 
     rewards_at_delete: customer.rewards_available,
     audit_rows_pseudonymized: r.audit_rows_pseudonymized,
   });
+  await notifyCardChanged(shop, customer.id, { kind: "delete" });
   return { deleted: true as const, shortCode: customer.short_code };
 }
 

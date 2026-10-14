@@ -40,4 +40,5 @@ Monorepo pnpm + Turborepo (Node 24, pnpm 11). Prerequisiti: Docker avviato, Supa
 - Dominio: timbri, premi e dati dei clienti cambiano solo con le funzioni Postgres (`supabase/migrations/*_funzioni_dominio.sql`), che scrivono `audit_log`; gli errori Postgres `E_…` diventano AppError in `apps/web/src/lib/db-errors.ts`.
 - Log: `log.event("dominio.oggetto.azione", campi)` da `@/lib/observability/logger`; nuovi eventi prima nel catalogo con `msg` ed `examples`, poi `pnpm runbook`.
 - Dopo l'autenticazione o il caricamento di negozio/carta: `setContext({ shop_id, user_id, customer_ref })` così tutte le righe della richiesta li hanno.
-- Chiamate HTTP esterne: `fetchExternal({ provider, operation, url, … })`, che logga da sé.
+- Chiamate HTTP esterne: `fetchExternal({ provider, operation, url, … })`, che logga da sé (`quiet: true` se l'esito lo registra un evento più specifico).
+- Wallet: il dominio chiama solo `notifyCardChanged(shop, customerId, change)` (`apps/web/src/lib/wallet/notifier.ts`); la sincronizzazione (`wallet/sync.ts`) invia sempre lo stato completo, registra ogni tentativo e ritenta da sé. Non chiamare Google da altre parti.

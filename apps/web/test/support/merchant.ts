@@ -2,7 +2,7 @@
  * Supporto agli smoke test delle API esercente: chiama le route vere (stesso codice di
  * produzione, senza server HTTP) a partire dal registro dei contratti.
  */
-import { createHmac } from "node:crypto";
+import { createHmac, randomInt } from "node:crypto";
 import { HEADERS, merchantApi, type MerchantEndpoint } from "@loyalty/shared/api";
 import { createClient } from "@supabase/supabase-js";
 import * as customer from "@/app/api/v1/merchant/customers/[id]/route";
@@ -128,7 +128,8 @@ export async function call(key: MerchantEndpoint, o: CallOptions = {}) {
 
 /** Nuovo cliente nel negozio, creato con la funzione di dominio (telefono univoco). */
 let seq = 0;
-const RUN = `395${String(Date.now()).slice(-4)}`;
+// prefisso casuale per ogni file di test: i worker partono insieme, il timestamp non basta a separarli
+const RUN = `3${randomInt(100_000, 999_999)}`;
 export const testPhone = () => `+39${RUN}${String(seq++).padStart(3, "0")}`;
 export const TEST_PHONE_PREFIX = `+39${RUN}`;
 

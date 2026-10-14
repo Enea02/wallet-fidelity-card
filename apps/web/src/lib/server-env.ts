@@ -54,6 +54,19 @@ export const serverEnvSchema = z
       .describe("URL della web app esercente per i link d'invito (default APP_BASE_URL)"),
     RATE_LIMIT_USER_PER_MIN: z.coerce.number().int().positive().default(120).describe("richieste al minuto per utente"),
     RATE_LIMIT_IP_PER_MIN: z.coerce.number().int().positive().default(300).describe("richieste al minuto per IP"),
+    CRON_SECRET: z
+      .string()
+      .min(32, { message: "troppo corto: usare almeno 32 caratteri casuali (openssl rand -hex 32)" })
+      .describe("segreto con cui pg_cron chiama /api/internal/cron/wallet-sync (anche nel Vault di Supabase)"),
+    UNSUBSCRIBE_SECRET: z
+      .string()
+      .min(32, { message: "troppo corto: usare almeno 32 caratteri casuali (openssl rand -hex 32)" })
+      .describe("segreto che firma i link di disiscrizione dalle promozioni"),
+    CARD_DEFAULT_LOGO_URL: z
+      .url()
+      .optional()
+      .describe("logo PNG pubblico per i negozi senza logo (default APP_BASE_URL/brand/logo-predefinito.png)"),
+    GOOGLE_WALLET_API_BASE: z.url().optional().describe("solo test: base dell'API Google Wallet simulata"),
     ADMIN_SETUP_TOKEN: z
       .string()
       .min(24, { message: "troppo corto: usare almeno 24 caratteri casuali (openssl rand -hex 24)" })

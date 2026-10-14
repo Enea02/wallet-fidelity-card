@@ -19,6 +19,11 @@ export interface ExternalCall {
   /** Id dell'oggetto coinvolto presso il provider (es. id della carta Google). */
   objectId?: string;
   timeoutMs?: number;
+  /**
+   * true = external.call.ok/failed a livello debug: l'esito lo registra chi chiama con un evento
+   * più specifico (es. wallet.google.patch.failed), così un errore produce una sola riga error.
+   */
+  quiet?: boolean;
 }
 
 const alreadyLogged = (e: AppError) => Object.assign(e, { logged: true });
@@ -50,6 +55,7 @@ export async function fetchExternal(call: ExternalCall): Promise<Response> {
   const method = call.method ?? "GET";
   const attempt = call.attempt ?? 1;
   const timeoutMs = call.timeoutMs ?? 10_000;
+  const level = call.quiet ? ({ level: "debug" } as const) : {};
   const endpoint = endpointOf(call.url);
   const base = {
     provider: call.provider,
@@ -90,18 +96,22 @@ export async function fetchExternal(call: ExternalCall): Promise<Response> {
     const reason = timedOut
       ? `timeout dopo ${timeoutMs} ms`
       : `errore di rete: ${e instanceof Error ? e.message : String(e)}`;
-    log.event("external.call.failed", {
-      ...base,
-      http_status: null,
-      duration_ms: duration(),
-      error_code: "E_EXTERNAL_UNAVAILABLE",
-      provider_response: reason,
-    });
+    log.event(
+      "external.call.failed",
+      {
+        ...base,
+        http_status: null,
+        duration_ms: duration(),
+        error_code: "E_EXTERNAL_UNAVAILABLE",
+        provider_response: reason,
+      },
+      level,
+    );
     throw alreadyLogged(
       new AppError(
         "E_EXTERNAL_UNAVAILABLE",
         `${call.provider} non raggiungibile (${call.operation}): ${reason}`,
-        { provider: call.provider, endpoint },
+        { provider: call.provider, endpoint, provider_response: reason, duration_ms: duration() },
         { cause: e },
       ),
     );
@@ -109,23 +119,30 @@ export async function fetchExternal(call: ExternalCall): Promise<Response> {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    log.event("external.call.failed", {
-      ...base,
-      http_status: res.status,
-      duration_ms: duration(),
-      error_code: "E_EXTERNAL_HTTP",
-      provider_response: truncate(redactString(text), MAX_PROVIDER_RESPONSE) || "(risposta vuota)",
-    });
+    const providerResponse = truncate(redactString(text), MAX_PROVIDER_RESPONSE) || "(risposta vuota)";
+    log.event(
+      "external.call.failed",
+      {
+        ...base,
+        http_status: res.status,
+        duration_ms: duration(),
+        error_code: "E_EXTERNAL_HTTP",
+        provider_response: providerResponse,
+      },
+      level,
+    );
     throw alreadyLogged(
       new AppError("E_EXTERNAL_HTTP", `${call.provider} ha risposto ${res.status} (${call.operation})`, {
         provider: call.provider,
         endpoint,
         http_status: res.status,
+        provider_response: providerResponse,
+        duration_ms: duration(),
       }),
     );
   }
 
-  log.event("external.call.ok", { ...base, http_status: res.status, duration_ms: duration() });
+  log.event("external.call.ok", { ...base, http_status: res.status, duration_ms: duration() }, level);
   if (log.isEnabled("debug")) {
     const text = await res
       .clone()

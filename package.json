@@ -22,7 +22,9 @@
     "diag": "pnpm --filter @loyalty/web diag",
     "runbook": "tsx packages/shared/scripts/gen-runbook.ts",
     "runbook:check": "tsx packages/shared/scripts/gen-runbook.ts --check",
-    "api:try": "node scripts/api-try.mjs"
+    "api:try": "node scripts/api-try.mjs",
+    "wallet:resync": "pnpm --filter @loyalty/web wallet:resync",
+    "cron:configure": "pnpm --filter @loyalty/web cron:configure"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

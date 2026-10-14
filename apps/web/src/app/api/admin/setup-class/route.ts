@@ -6,7 +6,8 @@ import { getShopBySlug } from "@/lib/loyalty";
 import { setContext } from "@/lib/observability/context";
 import { parseJsonBody } from "@/lib/observability/validation";
 import { withApi } from "@/lib/observability/with-api";
-import { upsertLoyaltyClass } from "@/lib/wallet/google";
+import { classIdFor, googleEnabled } from "@/lib/wallet/google/config";
+import { syncClass } from "@/lib/wallet/sync";
 
 export const runtime = "nodejs";
 
@@ -22,11 +23,8 @@ function checkAdmin(req: Request) {
 }
 
 /**
- * Crea/aggiorna la LoyaltyClass Google di un negozio.
- * Da chiamare una volta per negozio e dopo ogni cambio di nome/logo/colore:
- *   curl -X POST $APP_BASE_URL/api/admin/setup-class \
- *     -H "x-admin-token: $ADMIN_SETUP_TOKEN" -H "content-type: application/json" \
- *     -d '{"shopSlug":"salone-mario"}'
+ * Crea/aggiorna subito la LoyaltyClass Google di un negozio (di norma lo fa da sé il salvataggio
+ * delle impostazioni). Esito nei log: wallet.google.class.upsert.ok / failed.
  */
 export const POST = withApi(async (req) => {
   checkAdmin(req);
@@ -34,6 +32,6 @@ export const POST = withApi(async (req) => {
   const shop = await getShopBySlug(shopSlug);
   if (!shop) throw new AppError("E_SHOP_NOT_FOUND", `nessun negozio con slug "${shopSlug}"`);
   setContext({ shop_id: shop.id });
-  const classId = await upsertLoyaltyClass(shop);
-  return Response.json({ classId });
+  if (!googleEnabled()) return Response.json({ classId: null, synced: false });
+  return Response.json({ classId: classIdFor(shop.slug), synced: await syncClass(shop) });
 });

@@ -75,6 +75,32 @@ const ago = (n: number) => (n < 1 ? "meno di un minuto fa" : `${minutes(n)} fa`)
 const ROLE_NAME: Record<"owner" | "operator", string> = { owner: "titolare", operator: "operatore" };
 const kb = (n: number) => (n < 1024 ? `${n} byte` : `${Math.round(n / 1024)} KB`);
 
+/** Perché Google ha rifiutato, in parole semplici, e cosa fare (per il msg). */
+const GOOGLE_REASON: Partial<Record<ErrorCode, [string, string]>> = {
+  E_GOOGLE_AUTH: [
+    "credenziali del service account rifiutate",
+    "verificare la chiave GOOGLE_WALLET_SA_KEY_B64 e il ruolo del service account nella Wallet Console",
+  ],
+  E_GOOGLE_NOT_FOUND: [
+    "carta o template non trovati su Google",
+    "risincronizzare il negozio (pnpm wallet:resync --shop)",
+  ],
+  E_GOOGLE_QUOTA: ["limite di richieste di Google superato", "nessuna, riprova da solo"],
+  E_GOOGLE_INVALID_PAYLOAD: ["Google ha rifiutato i dati inviati", "leggere provider_response per il campo rifiutato"],
+  E_GOOGLE_UNAVAILABLE: ["Google non risponde", "nessuna, riprova da solo"],
+};
+const googleWhy = (f: GoogleFailureFields) => {
+  const [why] = GOOGLE_REASON[f.error_code] ?? ["errore imprevisto"];
+  return `${why} (${f.http_status === null ? "nessuna risposta" : f.http_status})`;
+};
+const googleNext = (f: GoogleFailureFields) =>
+  f.retry_in_min === null
+    ? "Tentativi automatici esauriti: dopo aver risolto, risincronizzare a mano con pnpm wallet:resync"
+    : `verrà ritentato tra ${minutes(f.retry_in_min)}`;
+const googleAction = (f: GoogleFailureFields) => (GOOGLE_REASON[f.error_code] ?? ["", "vedi il runbook"])[1];
+const cardBalance = (f: GoogleCardFields) =>
+  `${f.stamps}/${f.stamps_required}, ${f.rewards === 1 ? "1 premio" : `${f.rewards} premi`}`;
+
 /* ------------------------------------------------------------------ */
 /* Campi degli eventi                                                  */
 /* ------------------------------------------------------------------ */
@@ -191,12 +217,6 @@ export interface DiagnosticModeDisabledFields extends DiagnosticModeFields {
 }
 
 export interface DiagnosticModeReadFailedFields {
-  error_message: string;
-}
-
-export interface WalletUpdateFailedFields {
-  provider: "google" | "apple";
-  customer_ref: string;
   error_message: string;
 }
 
@@ -401,6 +421,94 @@ export interface DiagnosticsReceivedFields extends ActorFields {
   events_count: number;
 }
 
+export type WalletCardState = "ACTIVE" | "INACTIVE";
+
+/** Carta su Google Wallet: cosa è stato inviato. */
+export interface GoogleCardFields extends CardFields {
+  stamps: number;
+  stamps_required: number;
+  rewards: number;
+  card_state: WalletCardState;
+  duration_ms: number;
+  attempt: number;
+}
+
+/** Dettagli di un errore di Google Wallet. */
+export interface GoogleFailureFields {
+  http_status: number | null;
+  error_code: ErrorCode;
+  provider_response: string;
+  /** Tra quanti minuti si riprova; null = tentativi esauriti. */
+  retry_in_min: number | null;
+}
+
+export interface GoogleClassFields {
+  shop_name: string;
+  class_id: string;
+  duration_ms: number;
+  attempt: number;
+}
+
+export interface GoogleMessageFields extends CardFields {
+  /** "premio sbloccato" | "promozione" */
+  message_kind: string;
+  message_id: string;
+  duration_ms: number;
+  attempt: number;
+}
+
+export interface WalletRetryScheduledFields {
+  /** "carta" | "template del negozio" | "messaggio" */
+  target_kind: string;
+  /** Codice breve della carta o nome del negozio. */
+  target: string;
+  next_attempt: number;
+  retry_in_min: number;
+  retry_at: string;
+  error_code: ErrorCode;
+}
+
+export interface WalletRetryExhaustedFields {
+  target_kind: string;
+  target: string;
+  attempts: number;
+  error_code: ErrorCode;
+  last_error: string;
+}
+
+export interface WalletCardDeactivatedFields extends CardFields {
+  /** "cliente cancellato" | "negozio sospeso" */
+  reason: string;
+}
+
+export interface WalletSyncReconciledFields extends CardFields {
+  /** "saldo" | "stato" | "impostazioni del negozio" | "mai sincronizzata" */
+  reason: string;
+}
+
+export interface PromoSendCompletedFields {
+  shop_name: string;
+  promotion_id: string;
+  sent: number;
+  skipped: number;
+  failed: number;
+}
+
+export interface CronWalletSyncRunFields {
+  retries: number;
+  retries_ok: number;
+  reconciled: number;
+  promo_sent: number;
+  promo_failed: number;
+  duration_ms: number;
+}
+
+export interface WalletSyncUnexpectedErrorFields {
+  /** Cosa si stava facendo: "sincronizzazione carta", "notifica premio"… */
+  task: string;
+  error_message: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* Catalogo                                                            */
 /* ------------------------------------------------------------------ */
@@ -432,6 +540,22 @@ const diagnostic: DiagnosticModeFields = {
 const giulia: ActorFields = { actor_name: "Giulia", actor_role: "operator", platform: "ios", app_version: "1.4.0" };
 const titolare: ActorFields = { actor_name: "Mario", actor_role: "owner", platform: "web", app_version: "n/d" };
 const cardA: CardFields = { customer_ref: "A3F2C91B", shop_name: "Salone Mario" };
+
+const googleOk: GoogleCardFields = {
+  ...cardA,
+  stamps: 7,
+  stamps_required: 10,
+  rewards: 0,
+  card_state: "ACTIVE",
+  duration_ms: 341,
+  attempt: 1,
+};
+const google401: GoogleFailureFields = {
+  http_status: 401,
+  error_code: "E_GOOGLE_AUTH",
+  provider_response: "Request had invalid authentication credentials.",
+  retry_in_min: 5,
+};
 
 export const events = {
   "server.startup.ok": defineEvent<ServerStartupOkFields>({
@@ -1068,21 +1192,169 @@ export const events = {
     ],
   }),
 
-  "wallet.update.failed": defineEvent<WalletUpdateFailedFields>({
-    level: "error",
+  "wallet.google.class.upsert.ok": defineEvent<GoogleClassFields>({
+    level: "info",
     description:
-      "L'aggiornamento della carta su Google o Apple Wallet è fallito. Il timbro o il riscatto è comunque salvato nel database.",
+      "Template del programma fedeltà del negozio creato o aggiornato su Google Wallet (nome, colore, logo).",
+    msg: (f) => `Template Google Wallet del negozio ${f.shop_name} aggiornato (${f.class_id}) in ${f.duration_ms} ms.`,
+    examples: [
+      { shop_name: "Salone Mario", class_id: "3388000000022.shop-salone-mario", duration_ms: 290, attempt: 1 },
+    ],
+  }),
+
+  "wallet.google.class.upsert.failed": defineEvent<GoogleClassFields & GoogleFailureFields>({
+    level: "error",
+    description: "Creazione o aggiornamento del template del negozio su Google Wallet fallito.",
     msg: (f) =>
-      `Aggiornamento della carta ${f.customer_ref} su ${f.provider === "google" ? "Google" : "Apple"} Wallet fallito: ` +
-      `${f.error_message}. Il dato è salvato nel database ma la carta sul telefono non è allineata. ` +
-      `Azione: verificare le credenziali del wallet e risincronizzare la carta.`,
+      `Aggiornamento del template Google Wallet del negozio ${f.shop_name} fallito: ${googleWhy(f)}; ${googleNext(f)}. ` +
+      `Azione: ${googleAction(f)}.`,
     examples: [
       {
-        provider: "google",
-        customer_ref: "B71D0E44",
-        error_message: "Request failed with status code 401",
+        shop_name: "Salone Mario",
+        class_id: "3388000000022.shop-salone-mario",
+        duration_ms: 120,
+        attempt: 1,
+        ...google401,
       },
     ],
+  }),
+
+  "wallet.google.object.upsert.ok": defineEvent<GoogleCardFields>({
+    level: "info",
+    description: "Carta del cliente creata su Google Wallet (prima volta, o ricreata perché mancante).",
+    msg: (f) =>
+      `Carta ${f.customer_ref} del negozio ${f.shop_name} creata su Google Wallet (${cardBalance(f)}) in ${f.duration_ms} ms.`,
+    examples: [{ ...googleOk, stamps: 0 }],
+  }),
+
+  "wallet.google.object.upsert.failed": defineEvent<GoogleCardFields & GoogleFailureFields>({
+    level: "error",
+    description: "Creazione della carta del cliente su Google Wallet fallita.",
+    msg: (f) =>
+      `Creazione su Google Wallet fallita per la carta ${f.customer_ref}: ${googleWhy(f)}. Il cliente è iscritto e ` +
+      `può comunque salvare la carta dal link; ${googleNext(f)}. Azione: ${googleAction(f)}.`,
+    examples: [{ ...googleOk, stamps: 0, ...google401 }],
+  }),
+
+  "wallet.google.patch.ok": defineEvent<GoogleCardFields>({
+    level: "info",
+    description: "Carta del cliente aggiornata su Google Wallet: Google la propaga da solo al telefono.",
+    msg: (f) =>
+      f.card_state === "INACTIVE"
+        ? `Carta ${f.customer_ref} disattivata su Google Wallet in ${f.duration_ms} ms.`
+        : `Carta ${f.customer_ref} aggiornata su Google Wallet (${cardBalance(f)}) in ${f.duration_ms} ms.`,
+    examples: [googleOk, { ...googleOk, card_state: "INACTIVE" }],
+  }),
+
+  "wallet.google.patch.failed": defineEvent<GoogleCardFields & GoogleFailureFields>({
+    level: "error",
+    description:
+      "Aggiornamento della carta su Google Wallet fallito. Il dato (timbro, premio…) è salvato nel database; la carta sul telefono resta indietro finché un tentativo non riesce.",
+    msg: (f) =>
+      `Aggiornamento su Google Wallet fallito per la carta ${f.customer_ref}: ${googleWhy(f)}. Il dato è salvato; ` +
+      `${googleNext(f)}. Azione: ${googleAction(f)}.`,
+    examples: [
+      { ...googleOk, ...google401 },
+      { ...googleOk, ...google401, attempt: 5, retry_in_min: null },
+    ],
+  }),
+
+  "wallet.google.message.sent": defineEvent<GoogleMessageFields>({
+    level: "info",
+    description: "Messaggio con notifica inviato a una carta su Google Wallet (premio sbloccato o promozione).",
+    msg: (f) =>
+      `Notifica "${f.message_kind}" inviata alla carta ${f.customer_ref} del negozio ${f.shop_name} su Google Wallet in ${f.duration_ms} ms.`,
+    examples: [{ ...cardA, message_kind: "premio sbloccato", message_id: "reward-1842", duration_ms: 280, attempt: 1 }],
+  }),
+
+  "wallet.google.message.failed": defineEvent<GoogleMessageFields & GoogleFailureFields>({
+    level: "error",
+    description: "Invio di un messaggio a una carta su Google Wallet fallito.",
+    msg: (f) =>
+      `Notifica "${f.message_kind}" non inviata alla carta ${f.customer_ref}: ${googleWhy(f)}; ${googleNext(f)}. Azione: ${googleAction(f)}.`,
+    examples: [
+      { ...cardA, message_kind: "promozione", message_id: "promo-7d1e", duration_ms: 140, attempt: 1, ...google401 },
+    ],
+  }),
+
+  "wallet.sync.retry.scheduled": defineEvent<WalletRetryScheduledFields>({
+    level: "info",
+    description: "Pianificato un nuovo tentativo automatico verso il wallet (backoff 1, 5, 15, 60 minuti).",
+    msg: (f) =>
+      `Nuovo tentativo n. ${f.next_attempt} per ${f.target_kind} ${f.target} su Google Wallet tra ${minutes(f.retry_in_min)} ` +
+      `(${when(f.retry_at)}), dopo l'errore ${f.error_code}.`,
+    examples: [
+      {
+        target_kind: "carta",
+        target: "B71D0E44",
+        next_attempt: 2,
+        retry_in_min: 1,
+        retry_at: "2026-11-03T10:06:44.000Z",
+        error_code: "E_GOOGLE_AUTH",
+      },
+    ],
+  }),
+
+  "wallet.sync.retry.exhausted": defineEvent<WalletRetryExhaustedFields>({
+    level: "error",
+    description:
+      "Esauriti i tentativi automatici verso il wallet: la carta (o il template) resta disallineata finché non si risincronizza a mano.",
+    msg: (f) =>
+      `Tentativi esauriti per ${f.target_kind} ${f.target} su Google Wallet dopo ${f.attempts} errori (ultimo ${f.error_code}: ${f.last_error}). ` +
+      `Azione: risolvere la causa e risincronizzare con pnpm wallet:resync.`,
+    examples: [
+      { target_kind: "carta", target: "B71D0E44", attempts: 5, error_code: "E_GOOGLE_AUTH", last_error: "status 401" },
+    ],
+  }),
+
+  "wallet.card.deactivated": defineEvent<WalletCardDeactivatedFields>({
+    level: "info",
+    description: "Carta resa non utilizzabile su Google Wallet (stato INACTIVE): cliente cancellato o negozio sospeso.",
+    msg: (f) => `Carta ${f.customer_ref} del negozio ${f.shop_name} disattivata su Google Wallet: ${f.reason}.`,
+    examples: [{ ...cardA, reason: "cliente cancellato" }],
+  }),
+
+  "wallet.sync.reconciled": defineEvent<WalletSyncReconciledFields>({
+    level: "info",
+    description: "La riconciliazione periodica ha trovato una carta non allineata al database e l'ha riallineata.",
+    msg: (f) =>
+      `Carta ${f.customer_ref} del negozio ${f.shop_name} riallineata su Google Wallet dalla riconciliazione (differenza: ${f.reason}).`,
+    examples: [{ ...cardA, reason: "saldo" }],
+  }),
+
+  "wallet.sync.unexpected_error": defineEvent<WalletSyncUnexpectedErrorFields>({
+    level: "error",
+    description:
+      "Errore imprevisto (non di Google) durante un lavoro verso i wallet: la riga contiene lo stack. La carta verrà riallineata dalla riconciliazione.",
+    msg: (f) =>
+      `Errore imprevisto durante ${f.task} verso i wallet: ${f.error_message}. La carta verrà riallineata dalla riconciliazione; ` +
+      `azione: passare lo stack di questa riga allo sviluppo.`,
+    examples: [{ task: "sincronizzazione carta", error_message: "fetch failed (Supabase non raggiungibile)" }],
+  }),
+
+  "promo.send.completed": defineEvent<PromoSendCompletedFields>({
+    level: "info",
+    description: "Invio di una promozione completato: quanti clienti l'hanno ricevuta, saltati e falliti.",
+    msg: (f) =>
+      `Promozione del negozio ${f.shop_name} inviata: ${f.sent} consegnate, ${f.skipped} saltate (consenso revocato o carta non disponibile), ${f.failed} fallite.`,
+    examples: [
+      {
+        shop_name: "Salone Mario",
+        promotion_id: "7d1e2b3c-4d5e-4f43-9a51-5f1c2a9e0d1b",
+        sent: 40,
+        skipped: 2,
+        failed: 0,
+      },
+    ],
+  }),
+
+  "cron.wallet_sync.run": defineEvent<CronWalletSyncRunFields>({
+    level: "info",
+    description: "Esecuzione del cron dei wallet (ogni minuto): nuovi tentativi, riconciliazione, invio promozioni.",
+    msg: (f) =>
+      `Cron wallet completato in ${f.duration_ms} ms: ${f.retries_ok}/${f.retries} tentativi riusciti, ${f.reconciled} carte riallineate, ` +
+      `${f.promo_sent} promozioni consegnate, ${f.promo_failed} fallite.`,
+    examples: [{ retries: 3, retries_ok: 2, reconciled: 1, promo_sent: 40, promo_failed: 0, duration_ms: 2140 }],
   }),
 } as const;
 
