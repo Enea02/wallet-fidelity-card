@@ -1,0 +1,27 @@
+meta {
+  name: 01 Login titolare
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{supabaseUrl}}/auth/v1/token?grant_type=password
+  body: json
+  auth: none
+}
+
+headers {
+  apikey: {{anonKey}}
+}
+
+body:json {
+  { "email": "staff@salone-demo.test", "password": "password-demo-locale" }
+}
+
+script:post-response {
+  bru.setVar("ownerToken", res.body.access_token);
+}
+
+tests {
+  test("login riuscito", () => expect(res.status).to.equal(200));
+}

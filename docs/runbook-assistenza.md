@@ -73,6 +73,54 @@ motivo; la soluzione è sempre una rettifica del titolare con il motivo.
 La carta nel Wallet del cliente non è più valida: scansionandola si ottiene `E_CARD_DELETED`. Il cliente può
 reiscriversi con lo stesso numero e riceve una carta nuova. Da Fase 4 la carta Google viene anche disattivata.
 
+## App esercente: "dice che non ho i permessi" / "non vedo il negozio"
+
+- `auth.token.invalid`: sessione scaduta o token non valido → far rifare il login nell'app.
+- `auth.forbidden.shop`: l'utente non è nello staff del negozio indicato dall'app (`shop_id` nel log). Verificare la
+  tabella `staff`; se manca, il titolare lo invita dall'app.
+- `auth.forbidden.role`: un operatore ha aperto una funzione del titolare (statistiche, clienti, impostazioni, staff,
+  promozioni). È il comportamento atteso; se deve essere titolare, il titolare cambia il ruolo dall'app.
+
+## "La carta non viene trovata" alla scansione
+
+- `customer.lookup.not_found`: il QR o il codice breve non corrisponde a nessuna carta. Far riscansionare o digitare
+  il codice breve stampato sotto il QR.
+- `customer.lookup.other_shop`: la carta è valida ma di un **altro negozio** (`E_QR_OTHER_SHOP`). Il cliente ha
+  mostrato la carta sbagliata, oppure l'esercente con più negozi ha selezionato quello sbagliato nell'app.
+- `E_CARD_DELETED`: carta di un cliente cancellato (vedi sopra).
+
+## "Troppe richieste" (`E_RATE_LIMITED`)
+
+`ratelimit.hit` indica il limite superato (per utente o per IP) e tra quanti secondi si può riprovare. Limiti di
+default: 120 richieste al minuto per utente, 300 per IP (`RATE_LIMIT_USER_PER_MIN`, `RATE_LIMIT_IP_PER_MIN`).
+Se succede a un esercente in uso normale: probabile app in loop o lettore QR che ripete il codice → raccogliere la
+diagnostica dall'app. I contatori sono nella tabella `rate_limit_counters` (finestre di 60 secondi).
+
+## La web app esercente non riesce a chiamare le API (`E_CORS_ORIGIN`)
+
+Il dominio da cui è aperta la web app non è in `MERCHANT_APP_ORIGINS`. Se è un nostro dominio nuovo, aggiungerlo
+alla variabile nel progetto Vercel (separato da virgola, senza `/` finale) e rifare il deploy.
+
+## L'email d'invito dello staff non arriva
+
+`staff.invite.sent` conferma che l'invito è partito (o che l'utente aveva già un account: in quel caso nessuna
+email, può entrare con le credenziali che ha). `E_INVITE_FAILED` riporta il messaggio di Supabase Auth: di solito
+SMTP non configurato o limite di invio raggiunto (il server email di default di Supabase invia pochissime email
+l'ora). Il link dell'email porta a `MERCHANT_APP_URL/invito`.
+
+## L'esercente ha inviato la diagnostica dall'app
+
+Ci comunica un codice `DIAG-XXXXXXXX`: `diagnostics.received` lo conferma, il pacchetto (informazioni sul
+dispositivo e ultimi eventi dell'app, già redatti) è nella tabella `diagnostic_bundles` (`ticket_code`). Dalla
+Fase 9 si consulta dalla vista Assistenza.
+
+## Logo o impostazioni non salvati
+
+- `E_LOGO_INVALID`: formato (PNG, JPEG o WebP) o dimensione (max 2 MB) non ammessi, oppure il caricamento non è
+  stato completato prima del salvataggio.
+- `settings.update.ok` riporta ogni campo cambiato con il valore prima → dopo; lo storico completo è in `audit_log`
+  (`action = settings_update`).
+
 ## Servizio esterno lento o in errore
 
 Le chiamate passate da `fetchExternal` producono `external.call.ok` / `external.call.failed` con provider,
@@ -180,6 +228,68 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | --- | --- | --- | --- |
 | `customer.delete.ok` | info | Cliente cancellato su richiesta: dati personali rimossi, storico pseudonimizzato, la carta non è più utilizzabile. | Mario (titolare, web) ha cancellato il cliente della carta A3F2C91B del negozio Salone Mario: nome, telefono e consensi rimossi, 7 righe di storico pseudonimizzate (la carta aveva 4 timbri e 0 premi). |
 | `customer.marketing.changed` | info | Il consenso alle promozioni di un cliente è cambiato (dal titolare o dal cliente con il link). | Mario (titolare, web) ha revocato il consenso alle promozioni per la carta A3F2C91B del negozio Salone Mario. |
+| `customer.lookup.ok` | info | Lo staff ha trovato una carta (scansione del QR o codice breve digitato). | Giulia (operatore, iOS 1.4.0) ha aperto la carta A3F2C91B del negozio Salone Mario con la scansione del QR (6/10 timbri, premi disponibili: 0). |
+| `customer.lookup.not_found` | warn | Scansione o codice breve che non corrisponde a nessuna carta. | Giulia (operatore, iOS 1.4.0) ha cercato una carta nel negozio Salone Mario con un codice breve che non corrisponde a nessuna carta: QR non nostro, letto male o codice digitato male. |
+| `customer.lookup.other_shop` | warn | Scansione di una carta valida ma di un altro negozio. | Giulia (operatore, iOS 1.4.0) ha scansionato nel negozio Salone Mario una carta che appartiene a un altro negozio: il cliente ha mostrato la carta sbagliata o l'app ha selezionato il negozio sbagliato. |
+| `customer.search` | info | Il titolare ha consultato o cercato nella lista clienti (il testo cercato non viene registrato). | Mario (titolare, web) ha cercato tra i clienti del negozio Salone Mario per telefono (1 risultati). |
+
+### auth
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `auth.token.invalid` | warn | Richiesta all'API esercente con un token di accesso scaduto o non valido: l'app deve far rifare il login. | Accesso rifiutato a /api/v1/merchant/stamp: token scaduto. L'utente deve rifare il login. |
+| `auth.forbidden.shop` | warn | Un utente autenticato ha chiesto dati o operazioni di un negozio a cui non appartiene. | Accesso a /api/v1/merchant/customers negato: l'utente 55555555-5555-4555-8555-555555555555 non fa parte dello staff del negozio 99999999-9999-4999-8999-999999999999. |
+| `auth.forbidden.role` | warn | Un operatore ha chiesto una funzione riservata al titolare. | Giulia (operatore, iOS 1.4.0) ha chiesto /api/v1/merchant/stats del negozio Salone Mario, riservata al titolare: negato. |
+
+### ratelimit
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `ratelimit.hit` | warn | Superato il limite di richieste al minuto (per utente o per IP): la richiesta è stata rifiutata. | Troppe richieste a /api/v1/merchant/scan/lookup dallo stesso utente: superato il limite di 120 in 60 secondi. Richiesta rifiutata, si può riprovare tra 34 secondi. |
+
+### stats
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `stats.viewed` | info | Il titolare ha aperto la dashboard con le statistiche del negozio. | Mario (titolare, web) ha aperto le statistiche del negozio Salone Mario (148 clienti iscritti). |
+
+### settings
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `settings.update.ok` | info | Il titolare ha modificato le impostazioni del negozio o della carta. | Mario (titolare, web) ha aggiornato le impostazioni del negozio Salone Mario: colore #1f2937 → #7c3aed, timbri richiesti 10 → 8. |
+
+### logo
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `logo.upload_url.issued` | info | Il titolare ha chiesto di caricare un nuovo logo: rilasciato un URL di caricamento firmato. | Mario (titolare, web) sta caricando un nuovo logo per il negozio Salone Mario (image/png, 180 KB): URL di caricamento rilasciato. |
+
+### staff
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `staff.invite.sent` | info | Il titolare ha aggiunto una persona allo staff (con email d'invito se non aveva già un account). | Mario (titolare, web) ha aggiunto Giulia (gi***@salone.it) allo staff del negozio Salone Mario come operatore: inviata l'email d'invito. |
+| `staff.role.changed` | info | Il titolare ha cambiato il ruolo (o il nome) di un membro dello staff. | Mario (titolare, web) ha cambiato il ruolo di Giulia nel negozio Salone Mario: operatore → titolare. |
+| `staff.revoked` | info | Il titolare ha rimosso una persona dallo staff: non può più accedere al negozio. | Mario (titolare, web) ha rimosso Giulia (operatore) dallo staff del negozio Salone Mario. |
+
+### promo
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `promo.send.queued` | info | Il titolare ha prenotato l'invio di una promozione ai clienti con consenso marketing. | Mario (titolare, web) ha prenotato una promozione del negozio Salone Mario (96 caratteri) per 42 clienti con consenso marketing. |
+
+### counter_qr
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `counter_qr.downloaded` | info | Il titolare ha scaricato il PDF del cartello A5 con il QR di iscrizione. | Mario (titolare, web) ha scaricato il cartello A5 del negozio Salone Mario (PDF di 47 KB, generato in 420 ms). |
+
+### diagnostics
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `diagnostics.received` | info | L'app ha inviato il pacchetto "Invia diagnostica all'assistenza": cercarlo per codice ticket. | Giulia (operatore, iOS 1.4.0) ha inviato la diagnostica dell'app per il negozio Salone Mario: ticket DIAG-7K3QXA2M (412 eventi, 37 KB). |
 
 ### Wallet (Google / Apple)
 
@@ -330,6 +440,83 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Operazione su un negozio con stato sospeso.
 - **Causa probabile**: Abbonamento non pagato o sospensione manuale dal pannello interno.
 - **Cosa fare**: Verificare lo stato dell'abbonamento del negozio e riattivarlo se è tutto in regola.
+
+### `E_RATE_LIMITED` (HTTP 429)
+
+- **L'utente vede**: Troppe richieste in poco tempo. Attendi qualche secondo e riprova.
+- **Cosa è successo**: Un utente o un indirizzo IP ha superato il numero massimo di richieste al minuto.
+- **Causa probabile**: App che ripete una richiesta in loop, lettore QR che invia lo stesso codice di continuo, oppure abuso.
+- **Cosa fare**: Cercare ratelimit.hit con lo stesso user_id/ip_hash. Se è un'app in loop raccogliere la diagnostica; se è abuso valutare il blocco dell'IP.
+
+### `E_QR_OTHER_SHOP` (HTTP 404)
+
+- **L'utente vede**: Questa carta appartiene a un altro negozio.
+- **Cosa è successo**: Il QR scansionato è una carta valida, ma di un negozio diverso da quello selezionato nell'app.
+- **Causa probabile**: Il cliente ha mostrato la carta di un altro negozio, oppure l'esercente ha più negozi e ha selezionato quello sbagliato.
+- **Cosa fare**: Verificare il negozio selezionato nell'app; se è giusto, il cliente deve iscriversi a questo negozio.
+
+### `E_LAST_OWNER` (HTTP 409)
+
+- **L'utente vede**: Il negozio deve avere almeno un titolare.
+- **Cosa è successo**: Tentativo di rimuovere o declassare l'unico titolare del negozio.
+- **Causa probabile**: Il titolare prova a togliersi il ruolo o a rimuoversi prima di nominarne un altro.
+- **Cosa fare**: Nominare prima un altro titolare, poi cambiare o rimuovere il precedente.
+
+### `E_STAFF_NOT_FOUND` (HTTP 404)
+
+- **L'utente vede**: Questo utente non fa parte dello staff del negozio.
+- **Cosa è successo**: Operazione su un membro dello staff che non esiste in questo negozio.
+- **Causa probabile**: Utente già rimosso (anche da un altro dispositivo) o lista non aggiornata nell'app.
+- **Cosa fare**: Aggiornare la lista dello staff nell'app.
+
+### `E_STAFF_ALREADY_MEMBER` (HTTP 409)
+
+- **L'utente vede**: Questa persona fa già parte dello staff.
+- **Cosa è successo**: Invito di un utente che è già nello staff del negozio.
+- **Causa probabile**: Invito ripetuto.
+- **Cosa fare**: Nessuna azione; per cambiare il ruolo usare la modifica del membro.
+
+### `E_INVITE_FAILED` (HTTP 502)
+
+- **L'utente vede**: Non è stato possibile inviare l'invito. Riprova tra qualche minuto.
+- **Cosa è successo**: Supabase Auth non ha creato l'utente o non ha inviato l'email d'invito.
+- **Causa probabile**: Server email non configurato o limite di invio raggiunto, oppure indirizzo email rifiutato.
+- **Cosa fare**: Controllare il messaggio di Supabase nel log e la configurazione SMTP del progetto Supabase.
+
+### `E_PROMO_WEEKLY_LIMIT` (HTTP 409)
+
+- **L'utente vede**: Puoi inviare una sola promozione a settimana.
+- **Cosa è successo**: Prenotazione di una promozione prima che siano passati 7 giorni dalla precedente.
+- **Causa probabile**: Seconda promozione nella stessa settimana.
+- **Cosa fare**: Il messaggio indica da quando si può inviare la prossima.
+
+### `E_PROMO_NO_RECIPIENTS` (HTTP 409)
+
+- **L'utente vede**: Nessun cliente ha dato il consenso a ricevere promozioni.
+- **Cosa è successo**: Prenotazione di una promozione senza clienti con consenso marketing.
+- **Causa probabile**: Negozio nuovo o clienti che non hanno spuntato il consenso facoltativo.
+- **Cosa fare**: Nessuna azione tecnica: servono clienti con consenso marketing.
+
+### `E_LOGO_INVALID` (HTTP 400)
+
+- **L'utente vede**: Il logo deve essere un'immagine PNG, JPEG o WebP di massimo 2 MB.
+- **Cosa è successo**: Richiesta di caricamento di un logo di tipo o dimensione non ammessi, o logo non trovato dopo il caricamento.
+- **Causa probabile**: Foto troppo grande o formato HEIC dell'iPhone; oppure caricamento non completato.
+- **Cosa fare**: Far ritagliare/esportare l'immagine in PNG o JPEG; se il caricamento è stato fatto, ripeterlo.
+
+### `E_PAYLOAD_TOO_LARGE` (HTTP 413)
+
+- **L'utente vede**: I dati inviati sono troppo grandi.
+- **Cosa è successo**: Il corpo della richiesta supera la dimensione massima ammessa per l'endpoint.
+- **Causa probabile**: Pacchetto di diagnostica con troppi eventi, o app non aggiornata.
+- **Cosa fare**: Verificare la versione dell'app; il limite è indicato nel log.
+
+### `E_CORS_ORIGIN` (HTTP 403)
+
+- **L'utente vede**: Accesso non consentito da questo sito.
+- **Cosa è successo**: Richiesta dal browser con un'origine non presente in MERCHANT_APP_ORIGINS.
+- **Causa probabile**: Web app esercente pubblicata su un dominio nuovo non ancora configurato, oppure sito di terzi.
+- **Cosa fare**: Se il dominio è nostro, aggiungerlo a MERCHANT_APP_ORIGINS e rifare il deploy.
 
 ### `E_EXTERNAL_UNAVAILABLE` (HTTP 502)
 

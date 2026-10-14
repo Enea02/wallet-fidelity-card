@@ -1,0 +1,29 @@
+meta {
+  name: 25 Diagnostica
+  type: http
+  seq: 25
+}
+
+post {
+  url: {{baseUrl}}/api/v1/merchant/diagnostics
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{operatorToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+body:json {
+  { "device": { "model": "Bruno", "os": "cli" }, "events": [{ "type": "prova" }] }
+}
+
+tests {
+  test("risposta 200", () => expect(res.status).to.equal(200));
+}

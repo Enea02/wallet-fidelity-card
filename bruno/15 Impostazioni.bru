@@ -1,0 +1,25 @@
+meta {
+  name: 15 Impostazioni
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/api/v1/merchant/shop-settings
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+tests {
+  test("risposta 200", () => expect(res.status).to.equal(200));
+}

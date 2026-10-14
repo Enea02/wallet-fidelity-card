@@ -1,0 +1,30 @@
+meta {
+  name: 23 Prenota promozione
+  type: http
+  seq: 23
+}
+
+post {
+  url: {{baseUrl}}/api/v1/merchant/promotions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+body:json {
+  { "text": "Questa settimana piega in omaggio con il taglio!" }
+}
+
+tests {
+  // esito di business atteso (dati di prova): niente 5xx, niente errori di permesso
+  test("esito atteso", () => expect([200, 409]).to.include(res.status));
+}

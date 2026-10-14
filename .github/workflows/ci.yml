@@ -57,6 +57,6 @@ jobs:
         with:
           version: 2.98.2
       - run: pnpm install --frozen-lockfile
-      - name: Supabase locale (applica migrazioni e seed)
-        run: supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - name: Supabase locale (migrazioni e seed; Storage per i loghi, Mailpit per gli inviti)
+        run: supabase start -x realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
       - run: pnpm test:smoke

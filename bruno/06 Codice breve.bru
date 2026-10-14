@@ -1,0 +1,29 @@
+meta {
+  name: 06 Codice breve
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/merchant/scan/lookup
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{operatorToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+body:json {
+  { "code": "{{demoShortCode}}" }
+}
+
+tests {
+  test("risposta 200", () => expect(res.status).to.equal(200));
+}

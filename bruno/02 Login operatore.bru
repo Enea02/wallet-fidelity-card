@@ -1,0 +1,27 @@
+meta {
+  name: 02 Login operatore
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{supabaseUrl}}/auth/v1/token?grant_type=password
+  body: json
+  auth: none
+}
+
+headers {
+  apikey: {{anonKey}}
+}
+
+body:json {
+  { "email": "operatore@salone-demo.test", "password": "password-demo-locale" }
+}
+
+script:post-response {
+  bru.setVar("operatorToken", res.body.access_token);
+}
+
+tests {
+  test("login riuscito", () => expect(res.status).to.equal(200));
+}

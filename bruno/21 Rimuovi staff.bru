@@ -1,0 +1,26 @@
+meta {
+  name: 21 Rimuovi staff
+  type: http
+  seq: 21
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/merchant/staff/{{missingId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+tests {
+  // esito di business atteso (dati di prova): niente 5xx, niente errori di permesso
+  test("esito atteso", () => expect([200, 404]).to.include(res.status));
+}

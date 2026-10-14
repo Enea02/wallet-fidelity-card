@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "Loyalty Wallet - API esercente",
+  "type": "collection",
+  "ignore": ["node_modules", ".git"]
+}

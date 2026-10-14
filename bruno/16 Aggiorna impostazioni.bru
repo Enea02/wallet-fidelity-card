@@ -1,0 +1,29 @@
+meta {
+  name: 16 Aggiorna impostazioni
+  type: http
+  seq: 16
+}
+
+put {
+  url: {{baseUrl}}/api/v1/merchant/shop-settings
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+body:json {
+  { "stampCooldownMinutes": 60 }
+}
+
+tests {
+  test("risposta 200", () => expect(res.status).to.equal(200));
+}

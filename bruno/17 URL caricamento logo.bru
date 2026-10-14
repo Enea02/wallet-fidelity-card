@@ -1,0 +1,29 @@
+meta {
+  name: 17 URL caricamento logo
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseUrl}}/api/v1/merchant/shop-settings/logo-upload-url
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+body:json {
+  { "contentType": "image/png", "sizeBytes": 120000 }
+}
+
+tests {
+  test("risposta 200", () => expect(res.status).to.equal(200));
+}

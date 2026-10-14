@@ -48,11 +48,18 @@ const generated = {
   IP_HASH_SALT: () => randomBytes(16).toString("hex"),
 };
 
+// variabili nuove con un valore fisso per lo sviluppo locale
+const localDefaults = {
+  MERCHANT_APP_ORIGINS: () => "http://localhost:8081",
+  MERCHANT_APP_URL: () => "http://localhost:8081",
+};
+
 if (existsSync(envLocal)) {
   const current = readFileSync(envLocal, "utf8");
-  const missing = Object.keys(generated).filter((k) => !new RegExp(`^${k}=.+`, "m").test(current));
+  const fillable = { ...generated, ...localDefaults };
+  const missing = Object.keys(fillable).filter((k) => !new RegExp(`^${k}=.+`, "m").test(current));
   if (missing.length > 0) {
-    const lines = missing.map((k) => `${k}=${generated[k]()}`).join("\n");
+    const lines = missing.map((k) => `${k}=${fillable[k]()}`).join("\n");
     writeFileSync(envLocal, `${current.replace(/\n*$/, "\n")}${lines}\n`, { mode: 0o600 });
     console.log(`✔ Aggiunte ad apps/web/.env.local le variabili nuove: ${missing.join(", ")}.`);
   }
@@ -63,7 +70,7 @@ if (existsSync(envLocal)) {
     NEXT_PUBLIC_SUPABASE_URL: s.API_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: s.ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: s.SERVICE_ROLE_KEY,
-    ...Object.fromEntries(Object.entries(generated).map(([k, gen]) => [k, gen()])),
+    ...Object.fromEntries(Object.entries({ ...generated, ...localDefaults }).map(([k, gen]) => [k, gen()])),
   };
   // parte da .env.example così commenti e voci facoltative restano documentati
   const content = readFileSync(envExample, "utf8")

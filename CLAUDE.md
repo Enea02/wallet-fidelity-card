@@ -34,7 +34,8 @@ Monorepo pnpm + Turborepo (Node 24, pnpm 11). Prerequisiti: Docker avviato, Supa
 - Prima di dire che una fase è finita: `pnpm format:check && pnpm runbook:check && pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:smoke`
 
 ## Logging (Fase 1) — come si usa
-- Route handler: sempre `export const POST = withApi(async (req) => …)` (`apps/web/src/lib/observability/with-api.ts`); body con `parseJsonBody(req, schema)`.
+- Route handler pubbliche: `export const POST = withApi(async (req) => …)` (`apps/web/src/lib/observability/with-api.ts`); body con `parseJsonBody(req, schema)`.
+- API esercente (`/api/v1/merchant/*`): prima il contratto in `packages/shared/api/` (schemi zod + voce nel registro `merchantApi`), poi la route con `export const POST = merchantRoute("chiave", async ({ shop, staff, body, actor }) => …)` ed `export const OPTIONS = preflight`. `merchantRoute` fa CORS, rate limit, autenticazione, X-Shop-Id, ruolo e validazione; aggiungere la route anche a `apps/web/test/support/merchant.ts` (la matrice dei permessi la prova da sola).
 - Errori: `throw new AppError("E_…", "messaggio tecnico con i valori", contesto)`; codici solo da `packages/shared/errors.ts`. Un errore si logga una volta: se un evento di dominio lo registra (es. `stamp.add.rejected_cooldown`) e poi lo si rilancia, impostare `error.logged = true` (vedi `onRejected` in `loyalty.ts`).
 - Dominio: timbri, premi e dati dei clienti cambiano solo con le funzioni Postgres (`supabase/migrations/*_funzioni_dominio.sql`), che scrivono `audit_log`; gli errori Postgres `E_…` diventano AppError in `apps/web/src/lib/db-errors.ts`.
 - Log: `log.event("dominio.oggetto.azione", campi)` da `@/lib/observability/logger`; nuovi eventi prima nel catalogo con `msg` ed `examples`, poi `pnpm runbook`.
