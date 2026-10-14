@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "e2e": "playwright test",
-    "icons": "node scripts/gen-icons.mjs"
+    "icons": "node scripts/gen-icons.mjs",
+    "sourcemaps:web": "expo export --platform web --output-dir dist --source-maps && sentry-cli sourcemaps upload dist"
   },
   "dependencies": {
     "@expo-google-fonts/bricolage-grotesque": "^0.4.1",
@@ -47,6 +48,7 @@
   },
   "devDependencies": {
     "@playwright/test": "~1.64.0",
+    "@sentry/cli": "2.58.4",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3",
     "vitest": "^5.0.4"

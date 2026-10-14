@@ -1,0 +1,17 @@
+{
+  "name": "Loyalty Wallet Esercente",
+  "short_name": "Esercente",
+  "description": "Timbri, premi e clienti della carta fedeltà del tuo negozio.",
+  "lang": "it",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F7F2EB",
+  "theme_color": "#2A211C",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

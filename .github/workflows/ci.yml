@@ -62,7 +62,7 @@ jobs:
       - run: pnpm test:smoke
 
   e2e:
-    name: Test end-to-end del web pubblico (Playwright)
+    name: Test end-to-end del web pubblico e dell'app esercente (Playwright)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -90,4 +90,37 @@ jobs:
             apps/web/playwright-report
             apps/web/test-results
             apps/web/e2e-logs
+            apps/merchant/playwright-report
+            apps/merchant/test-results
+            apps/merchant/e2e-logs
           retention-days: 7
+
+  sourcemaps:
+    name: Source map della web app esercente su Sentry
+    # solo su main e solo se il token è configurato (Settings → Secrets: SENTRY_AUTH_TOKEN;
+    # Variables: SENTRY_ORG, SENTRY_PROJECT). Le build native le caricano da EAS.
+    if: github.ref == 'refs/heads/main'
+    needs: checks
+    runs-on: ubuntu-latest
+    env:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+    steps:
+      - name: Token Sentry non configurato
+        if: env.SENTRY_AUTH_TOKEN == ''
+        run: echo "SENTRY_AUTH_TOKEN non configurato, caricamento delle source map saltato."
+      - uses: actions/checkout@v7
+        if: env.SENTRY_AUTH_TOKEN != ''
+      - uses: pnpm/action-setup@v6
+        if: env.SENTRY_AUTH_TOKEN != ''
+      - uses: actions/setup-node@v7
+        if: env.SENTRY_AUTH_TOKEN != ''
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        if: env.SENTRY_AUTH_TOKEN != ''
+      - name: Export web con source map e caricamento (Debug ID già nel bundle grazie a Metro + Sentry)
+        if: env.SENTRY_AUTH_TOKEN != ''
+        run: pnpm --filter @loyalty/merchant sourcemaps:web

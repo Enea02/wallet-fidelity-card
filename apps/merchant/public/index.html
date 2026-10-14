@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Loyalty Wallet Esercente</title>
+    <meta name="description" content="Timbri, premi e clienti della carta fedeltà del tuo negozio." />
+    <meta name="robots" content="noindex" />
+    <!-- PWA: installabile su telefono, tablet e computer della cassa -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Esercente" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#F7F2EB" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1C1612" media="(prefers-color-scheme: dark)" />
+    <!-- reset consigliato da react-native-web: pagina a tutta altezza, scorrimento nelle ScrollView -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background: #f7f2eb;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background: #1c1612;
+        }
+      }
+      body {
+        overflow: hidden;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>Per usare l'app esercente serve JavaScript.</noscript>
+    <div id="root"></div>
+    <script>
+      if ("serviceWorker" in navigator && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("/sw.js").catch(function () {});
+        });
+      }
+    </script>
+  </body>
+</html>
