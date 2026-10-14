@@ -1,11 +1,12 @@
+import { StatusScreen } from "./_components/StatusScreen";
+
 export default function Home() {
   return (
-    <main>
-      <h1>Carta fedeltà digitale</h1>
-      <p className="muted">
-        I clienti si iscrivono da <code>/&lt;negozio&gt;</code> (QR al bancone, stampabile da{" "}
-        <code>/&lt;negozio&gt;/qr</code>). Lo staff timbra dall'app esercente.
+    <StatusScreen title="Carta fedeltà digitale">
+      <p className="lw-lead">
+        Per avere la carta di un negozio inquadra il QR al bancone: niente app da scaricare, la carta va nel Wallet del
+        telefono.
       </p>
-    </main>
+    </StatusScreen>
   );
 }

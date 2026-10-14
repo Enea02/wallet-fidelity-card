@@ -15,6 +15,16 @@ values
   ('44444444-4444-4444-8444-444444444444', 'barbiere-demo', 'Barbiere Demo', 10, 'Barba gratis', null, '#0f766e', 0,
    null, null, null);
 
+-- negozio sempre sospeso: pagine e test della sospensione senza toccare gli altri negozi
+insert into shops (id, slug, name, stamps_required, reward_label, hex_color, status)
+values ('77777777-7777-4777-8777-777777777777', 'negozio-sospeso', 'Negozio Sospeso', 10, 'Premio', '#5B1F2E', 'suspended');
+
+-- testi e icona come nel design (preset "salone")
+update shops set program_name = 'Carta Amica', stamp_unit = 'taglio', stamp_unit_plural = 'tagli',
+                 tagline = 'Ogni 10 tagli, uno è gratis.', stamp_icon = 'scissors'
+ where slug = 'salone-demo';
+update shops set stamp_unit = 'barba', stamp_unit_plural = 'barbe', stamp_icon = 'scissors' where slug = 'barbiere-demo';
+
 -- Utenti staff di prova (password per entrambi: password-demo-locale)
 --   staff@salone-demo.test       Giulia Demo, titolare di salone-demo
 --   operatore@salone-demo.test   Marco Demo, operatore di salone-demo e barbiere-demo

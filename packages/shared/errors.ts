@@ -298,6 +298,75 @@ export const errors = {
     action:
       "Riallineare il segreto con `pnpm cron:configure` (vedi README). Se le chiamate non sono nostre, ruotare CRON_SECRET.",
   },
+  E_CAPTCHA_FAILED: {
+    status: 400,
+    userMessage: "Non siamo riusciti a verificare che tu non sia un robot. Ricarica la pagina e riprova.",
+    description: "Il controllo anti-bot (Cloudflare Turnstile) non è stato superato prima dell'invio dell'SMS.",
+    probableCause: "Pagina aperta da troppo tempo (verifica scaduta), blocco di contenuti nel browser, oppure un bot.",
+    action:
+      "Far ricaricare la pagina. Se succede a molti clienti veri, verificare le chiavi Turnstile (NEXT_PUBLIC_TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY).",
+  },
+  E_PHONE_INVALID: {
+    status: 400,
+    userMessage: "Controlla il numero di cellulare.",
+    description: "Numero di telefono non valido per l'iscrizione: serve un cellulare italiano (+39 3…).",
+    probableCause: "Numero incompleto, fisso o estero.",
+    action: "Nessuna azione: il messaggio sotto il campo spiega al cliente cosa correggere.",
+  },
+  E_OTP_SEND_FAILED: {
+    status: 502,
+    userMessage: "Non siamo riusciti a inviare l'SMS. Riprova tra qualche minuto.",
+    description: "Il fornitore SMS (Twilio Verify) non ha inviato il codice di verifica.",
+    probableCause: "Credenziali Twilio errate, credito esaurito, numero rifiutato da Twilio o disservizio.",
+    action:
+      "Leggere la risposta di Twilio nel log (provider_response). Controllare credito e credenziali (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID).",
+  },
+  E_OTP_RESEND_TOO_SOON: {
+    status: 429,
+    userMessage: "Aspetta qualche secondo prima di chiedere un nuovo codice.",
+    description: "Richiesta di un nuovo codice prima dei 60 secondi dal precedente.",
+    probableCause: "Doppio tocco o pagina che non mostra il conto alla rovescia.",
+    action: "Nessuna azione.",
+  },
+  E_OTP_LIMIT: {
+    status: 429,
+    userMessage: "Troppi codici richiesti per questo numero. Riprova più tardi.",
+    description:
+      "Superato il limite di SMS per numero (3 all'ora, 5 al giorno) o per IP (10 all'ora), o numero bloccato.",
+    probableCause:
+      "Cliente che riprova molte volte, numero bloccato dopo 5 codici sbagliati, oppure tentativo di abuso (SMS pumping).",
+    action:
+      "Il log enroll.otp.limited dice quale limite. Se è un cliente vero, può riprovare dopo il tempo indicato; molti blocchi per IP diversi = possibile abuso.",
+  },
+  E_OTP_WRONG_CODE: {
+    status: 400,
+    userMessage: "Codice non corretto.",
+    description: "Il codice di verifica inserito non è quello inviato via SMS.",
+    probableCause: "Errore di battitura o codice di un SMS precedente.",
+    action: "Nessuna azione: il cliente ha altri tentativi (il messaggio dice quanti).",
+  },
+  E_OTP_TOO_MANY_ATTEMPTS: {
+    status: 429,
+    userMessage: "Troppi codici sbagliati: il numero è bloccato per 15 minuti.",
+    description: "Cinque codici sbagliati: iscrizione annullata e numero bloccato per 15 minuti.",
+    probableCause: "Cliente che non trova l'SMS giusto, oppure tentativo di indovinare il codice.",
+    action: "Far riprovare dopo 15 minuti, controllando che il numero sia giusto.",
+  },
+  E_OTP_EXPIRED: {
+    status: 410,
+    userMessage: "La verifica è scaduta. Ricomincia l'iscrizione.",
+    description: "Iscrizione in corso scaduta (15 minuti) o già completata.",
+    probableCause: "Pagina lasciata aperta a lungo, o pulsante premuto due volte dopo il completamento.",
+    action: "Far ricominciare dal QR del bancone.",
+  },
+  E_LINK_INVALID: {
+    status: 410,
+    userMessage: "Questo link non è più valido.",
+    description: "Link firmato (disiscrizione o apertura della carta) scaduto, già usato o manomesso.",
+    probableCause: "Link vecchio, copiato male, oppure link di disiscrizione già usato.",
+    action:
+      "Per la disiscrizione: il cliente è già disiscritto o può chiederlo in negozio. Per la carta: rifare l'iscrizione con lo stesso numero.",
+  },
   E_EXTERNAL_UNAVAILABLE: {
     status: 502,
     userMessage: "Un servizio esterno non risponde. Riprova tra qualche minuto.",

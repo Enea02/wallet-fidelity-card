@@ -30,3 +30,8 @@ supabase/.temp/
 *.p12
 *.key
 service-account*.json
+
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/e2e-logs/

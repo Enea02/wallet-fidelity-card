@@ -29,6 +29,11 @@ function localSupabaseEnv(): Record<string, string> {
     // segreti di prova generati a ogni esecuzione: nel repository niente stringhe con forma di segreto
     CRON_SECRET: randomBytes(32).toString("hex"),
     UNSUBSCRIBE_SECRET: randomBytes(32).toString("hex"),
+    PUBLIC_LINK_SECRET: randomBytes(32).toString("hex"),
+    // iscrizione: codice SMS di prova e chiavi di prova di Turnstile (i test usano una verifica simulata)
+    OTP_PROVIDER: "test",
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+    TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
     // il lavoro verso i wallet (after() di Next) gira subito, prima della risposta: test deterministici
     WALLET_SYNC_INLINE: "1",
     // lo smoke test verifica il percorso senza Google Wallet

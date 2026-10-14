@@ -11,6 +11,9 @@ const base = {
   IP_HASH_SALT: "b".repeat(32),
   MERCHANT_APP_ORIGINS: "http://localhost:8081",
   CRON_SECRET: "c".repeat(40),
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+  TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
+  PUBLIC_LINK_SECRET: "e".repeat(40),
   UNSUBSCRIBE_SECRET: "d".repeat(40),
 };
 const saKey = Buffer.from(JSON.stringify({ client_email: "sa@x.iam", private_key: "-----BEGIN…" })).toString("base64");
@@ -60,5 +63,18 @@ describe("configurazione del server web", () => {
     for (const secret of [base.SUPABASE_SERVICE_ROLE_KEY, base.NEXT_PUBLIC_SUPABASE_ANON_KEY, shortToken]) {
       expect(text).not.toContain(secret);
     }
+  });
+
+  it("in produzione il codice SMS di prova è vietato e Twilio è completo", () => {
+    const prod = problems({ ...base, APP_ENV: "production" });
+    expect([...(prod.context.missing as string[]), ...(prod.context.invalid as string[])]).toContain("OTP_PROVIDER");
+    expect(prod.message).toContain("in produzione deve essere twilio");
+    expect(problems({ ...base, APP_ENV: "production", OTP_PROVIDER: "test" }).context.invalid).toContain(
+      "OTP_PROVIDER",
+    );
+    const twilio = problems({ ...base, OTP_PROVIDER: "twilio" });
+    expect(twilio.context.missing).toEqual(
+      expect.arrayContaining(["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_VERIFY_SERVICE_SID"]),
+    );
   });
 });

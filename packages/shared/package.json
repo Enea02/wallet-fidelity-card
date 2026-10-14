@@ -10,7 +10,9 @@
     "./logging/events": "./logging/events.ts",
     "./logging/request-id": "./logging/request-id.ts",
     "./logger": "./logger/index.ts",
-    "./api": "./api/index.ts"
+    "./api": "./api/index.ts",
+    "./theme": "./theme.ts",
+    "./phone": "./phone.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

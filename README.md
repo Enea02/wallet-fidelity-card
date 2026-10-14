@@ -61,6 +61,28 @@ funzionano lo stesso, senza il pulsante "Aggiungi a Google Wallet".
 La CI (GitHub Actions) esegue su ogni push e pull request: format, allineamento del runbook, typecheck, lint, test,
 build, gitleaks su tutta la storia e uno Supabase locale con migrazioni, seed e smoke test.
 
+## Web pubblico di iscrizione
+
+- `/<slug>`: iscrizione del cliente (design "Cliente"), con verifica del telefono via SMS (Twilio Verify), anti-bot
+  Cloudflare Turnstile e pulsante Wallet giusto per il dispositivo. Tema dal colore del negozio
+  (`packages/shared/theme.ts`, porting di `docs/design/lw-core.js`).
+- `/<slug>/qr` (cartello A5 stampabile) e `/<slug>/qr.pdf`, `/<slug>/privacy` (informativa), `/u/<token>`
+  (disiscrizione dalle promozioni), `/<slug>/c/<token>` (apre la carta dal telefono, QR mostrato sul computer).
+- In locale: `OTP_PROVIDER=test` (nessun SMS, codice **123456**) e chiavi di prova di Turnstile, impostati da `pnpm dev`.
+- Test end-to-end: `pnpm e2e` (build di produzione + Playwright, serve `pnpm db:start`). Lighthouse mobile:
+  `pnpm lighthouse` con il server di produzione avviato sulla porta 3200.
+
+### Da completare con gli account (segnaposto)
+
+| Cosa        | Dove                                                                                        | Variabili                                                                                     |
+| ----------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| SMS veri    | console Twilio: Account SID, Auth Token; Verify → crea un servizio → SID `VA…`              | `OTP_PROVIDER=twilio`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` |
+| Anti-bot    | dash.cloudflare.com → Turnstile → aggiungi widget "Managed" con il dominio                  | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`                                      |
+| Informativa | dati della nostra azienda (responsabile del trattamento); testo da far rivedere a un legale | `PROCESSOR_NAME`, `PROCESSOR_ADDRESS`, `PROCESSOR_VAT`, `PROCESSOR_EMAIL`                     |
+
+Finché mancano, l'informativa mostra "[… da completare]" evidenziato e in produzione il server non parte senza Twilio
+(il codice di prova è vietato con `APP_ENV=production`).
+
 ## API dell'app esercente
 
 - Tutte sotto `/api/v1/merchant/*`, con contratti zod condivisi in `packages/shared/api/` (registro `merchantApi`).

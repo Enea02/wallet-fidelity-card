@@ -26,6 +26,8 @@ export interface LogContext {
   app_version?: string;
   build?: string;
   customer_ref?: string;
+  /** Iscrizione in corso (web pubblico): lega tutte le righe del funnel di un cliente. */
+  enrollment_id?: string;
   /** Hash con salt dell'IP del client (mai l'IP in chiaro). */
   ip_hash?: string;
 }

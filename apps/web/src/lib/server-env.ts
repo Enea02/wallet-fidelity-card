@@ -67,6 +67,39 @@ export const serverEnvSchema = z
       .optional()
       .describe("logo PNG pubblico per i negozi senza logo (default APP_BASE_URL/brand/logo-predefinito.png)"),
     GOOGLE_WALLET_API_BASE: z.url().optional().describe("solo test: base dell'API Google Wallet simulata"),
+    OTP_PROVIDER: z
+      .enum(["twilio", "test"])
+      .default("test")
+      .describe("fornitore del codice SMS: twilio (SMS veri) o test (codice 123456, mai in produzione)"),
+    TWILIO_ACCOUNT_SID: z
+      .string()
+      .regex(/^AC[0-9a-f]{32}$/, { message: "deve iniziare con AC seguito da 32 caratteri esadecimali" })
+      .optional()
+      .describe("Account SID di Twilio (console Twilio → Account Info)"),
+    TWILIO_AUTH_TOKEN: z.string().min(32).optional().describe("Auth Token di Twilio (console Twilio → Account Info)"),
+    TWILIO_VERIFY_SERVICE_SID: z
+      .string()
+      .regex(/^VA[0-9a-f]{32}$/, { message: "deve iniziare con VA seguito da 32 caratteri esadecimali" })
+      .optional()
+      .describe("SID del servizio Twilio Verify (Verify → Services)"),
+    TWILIO_VERIFY_API_BASE: z.url().optional().describe("solo test: API Twilio Verify simulata"),
+    OTP_LIMIT_PER_NUMBER_HOUR: z.coerce.number().int().positive().default(3).describe("SMS all'ora per numero"),
+    OTP_LIMIT_PER_NUMBER_DAY: z.coerce.number().int().positive().default(5).describe("SMS al giorno per numero"),
+    OTP_LIMIT_PER_IP_HOUR: z.coerce.number().int().positive().default(10).describe("SMS all'ora per IP"),
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(10).describe("site key di Cloudflare Turnstile (pubblica)"),
+    TURNSTILE_SECRET_KEY: z.string().min(10).describe("secret key di Cloudflare Turnstile"),
+    TURNSTILE_VERIFY_URL: z.url().optional().describe("solo test: verifica Turnstile simulata"),
+    PUBLIC_LINK_SECRET: z
+      .string()
+      .min(32, { message: "troppo corto: usare almeno 32 caratteri casuali (openssl rand -hex 32)" })
+      .describe("firma dei link brevi per aprire la carta dal telefono"),
+    PROCESSOR_NAME: z
+      .string()
+      .optional()
+      .describe("informativa: ragione sociale del responsabile del trattamento (noi)"),
+    PROCESSOR_ADDRESS: z.string().optional().describe("informativa: sede del responsabile del trattamento"),
+    PROCESSOR_VAT: z.string().optional().describe("informativa: partita IVA del responsabile del trattamento"),
+    PROCESSOR_EMAIL: z.string().optional().describe("informativa: email privacy del responsabile del trattamento"),
     ADMIN_SETUP_TOKEN: z
       .string()
       .min(24, { message: "troppo corto: usare almeno 24 caratteri casuali (openssl rand -hex 24)" })
@@ -83,6 +116,19 @@ export const serverEnvSchema = z
     APPLE_TEAM_ID: z.string().optional().describe("Team ID Apple Developer"),
   })
   .superRefine((env, ctx) => {
+    if (env.APP_ENV === "production" && env.OTP_PROVIDER !== "twilio") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["OTP_PROVIDER"],
+        message: "in produzione deve essere twilio: il fornitore di prova accetta sempre il codice 123456",
+      });
+    }
+    if (env.OTP_PROVIDER === "twilio") {
+      for (const k of ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_VERIFY_SERVICE_SID"] as const) {
+        if (!env[k])
+          ctx.addIssue({ code: "custom", path: [k], message: `${k} è obbligatoria con OTP_PROVIDER=twilio` });
+      }
+    }
     const google = [env.GOOGLE_WALLET_ISSUER_ID, env.GOOGLE_WALLET_SA_KEY_B64];
     if (google.some(Boolean) && !google.every(Boolean)) {
       ctx.addIssue({

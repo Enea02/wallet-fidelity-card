@@ -202,8 +202,8 @@ export interface EnrollInput {
  * Iscrive il cliente (o ritrova quello attivo con lo stesso telefono),
  * crea la carta su Google e restituisce il link "Salva in Wallet".
  */
-export async function enroll(input: EnrollInput) {
-  const shop = await getShopBySlug(input.shopSlug);
+export async function enroll(input: EnrollInput & { shop?: Shop }) {
+  const shop = input.shop ?? (await getShopBySlug(input.shopSlug));
   if (!shop) throw new AppError("E_SHOP_NOT_FOUND", `nessun negozio con slug "${input.shopSlug}"`);
   setContext({ shop_id: shop.id });
 
@@ -232,9 +232,22 @@ export async function enroll(input: EnrollInput) {
     });
   }
 
+  // chi torna e spunta "avvisami di offerte" dà un consenso esplicito: lo si registra (mai il contrario)
+  if (result.returning && input.consentMarketing) {
+    const { data } = await supabaseAdmin().from("customers").select("consent_marketing").eq("id", customer.id).single();
+    if (data && !data.consent_marketing) {
+      await setMarketingConsent(shop.id, customer.id, true, { type: "customer", customerId: customer.id });
+    }
+  }
+
   // la carta su Google si crea dopo la risposta; il link contiene comunque la carta completa
   await notifyCardChanged(shop, customer.id, { kind: "enroll" });
-  return { googleSaveUrl: googleEnabled() ? saveUrl(shop, customer) : null };
+  return {
+    shop,
+    customer,
+    returning: result.returning,
+    googleSaveUrl: googleEnabled() ? saveUrl(shop, customer) : null,
+  };
 }
 
 /* ------------------------------------------------------------------ */
