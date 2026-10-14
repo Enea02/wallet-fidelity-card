@@ -35,7 +35,8 @@ Monorepo pnpm + Turborepo (Node 24, pnpm 11). Prerequisiti: Docker avviato, Supa
 
 ## Logging (Fase 1) — come si usa
 - Route handler: sempre `export const POST = withApi(async (req) => …)` (`apps/web/src/lib/observability/with-api.ts`); body con `parseJsonBody(req, schema)`.
-- Errori: `throw new AppError("E_…", "messaggio tecnico con i valori", contesto)`; codici solo da `packages/shared/errors.ts`. Mai loggare un errore che poi si rilancia.
+- Errori: `throw new AppError("E_…", "messaggio tecnico con i valori", contesto)`; codici solo da `packages/shared/errors.ts`. Un errore si logga una volta: se un evento di dominio lo registra (es. `stamp.add.rejected_cooldown`) e poi lo si rilancia, impostare `error.logged = true` (vedi `onRejected` in `loyalty.ts`).
+- Dominio: timbri, premi e dati dei clienti cambiano solo con le funzioni Postgres (`supabase/migrations/*_funzioni_dominio.sql`), che scrivono `audit_log`; gli errori Postgres `E_…` diventano AppError in `apps/web/src/lib/db-errors.ts`.
 - Log: `log.event("dominio.oggetto.azione", campi)` da `@/lib/observability/logger`; nuovi eventi prima nel catalogo con `msg` ed `examples`, poi `pnpm runbook`.
 - Dopo l'autenticazione o il caricamento di negozio/carta: `setContext({ shop_id, user_id, customer_ref })` così tutte le righe della richiesta li hanno.
 - Chiamate HTTP esterne: `fetchExternal({ provider, operation, url, … })`, che logga da sé.

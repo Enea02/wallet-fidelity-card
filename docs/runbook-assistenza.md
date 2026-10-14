@@ -46,6 +46,33 @@ La riga `http.request.failed` contiene lo stack in `error.stack` (e la causa ori
 3. Dalla Fase 4: stato di sincronizzazione per carta (`wallet_sync_state`), retry automatici e pulsante
    "Risincronizza".
 
+## "Il timbro non è arrivato" / "il saldo è sbagliato"
+
+1. Trovare la carta: il codice breve (8 caratteri, es. `A3F2C91B`) è stampato sotto il QR nel Wallet del cliente
+   ed è il `customer_ref` di tutte le righe di log.
+2. Nei log, filtrare per `customer_ref`: `stamp.add.ok`, `reward.redeem.ok`, `stamp.undo.ok`, `balance.adjust.ok` dicono
+   chi (nome dello staff, ruolo, piattaforma), quando e il saldo prima → dopo.
+3. Lo storico permanente (24 mesi) è nella tabella `audit_log`: `entity_id` = id della carta, con `before`/`after`,
+   `actor_id`, `request_id`, `platform`, `app_version`. Si può incrociare con i log tramite `request_id`.
+4. Casi tipici:
+   - `stamp.add.rejected_cooldown`: timbro rifiutato perché troppo vicino al precedente (tempo minimo del negozio,
+     default 60 minuti). Normale per le doppie scansioni; altrimenti il titolare può rettificare o ridurre il tempo.
+   - `stamp.undo.ok`: l'operatore ha annullato il timbro entro 5 minuti; se aveva completato la carta, il premio è
+     stato tolto.
+   - `balance.adjust.ok`: rettifica manuale del titolare, con il motivo.
+
+## Annullamento dell'ultimo timbro rifiutato
+
+Si annulla solo: entro 5 minuti, da chi ha dato il timbro, se dopo non ci sono state altre operazioni sulla carta e se
+il premio eventualmente sbloccato non è già stato riscattato. Ogni rifiuto è una riga `stamp.undo.rejected` con il
+motivo; la soluzione è sempre una rettifica del titolare con il motivo.
+
+## Cliente cancellato
+
+`customer.delete.ok`: nome, telefono e consensi rimossi, storico di audit pseudonimizzato (restano id, conteggi e date).
+La carta nel Wallet del cliente non è più valida: scansionandola si ottiene `E_CARD_DELETED`. Il cliente può
+reiscriversi con lo stesso numero e riceve una carta nuova. Da Fase 4 la carta Google viene anche disattivata.
+
 ## Servizio esterno lento o in errore
 
 Le chiamate passate da `fetchExternal` producono `external.call.ok` / `external.call.failed` con provider,
@@ -61,7 +88,7 @@ Registra anche i payload delle richieste e delle chiamate esterne (sempre redatt
 pnpm diag list
 pnpm diag enable --shop <slug> --reason "<perché>" --by <chi> [--hours 24] [--level debug|trace]
 pnpm diag enable --staff <email> --reason "…" --by <chi>
-pnpm diag enable --customer <id carta> --reason "…" --by <chi>
+pnpm diag enable --customer <id carta> --reason "…" --by <chi>   # nei log la carta compare col codice breve
 pnpm diag disable <id> --by <chi>
 ```
 
@@ -116,6 +143,43 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | `diagnostic.mode.disabled` | info | La modalità diagnostica è stata spenta a mano prima della scadenza. | Modalità diagnostica per negozio salone-mario disattivata da enea prima della scadenza. Era attiva dal 03/11/2026 10:00 (ora italiana); motivo: Il titolare segnala timbri che non arrivano sulla carta. |
 | `diagnostic.mode.expired` | info | La modalità diagnostica è scaduta da sola: da qui in poi i log tornano al livello normale. | Modalità diagnostica debug per negozio salone-mario scaduta il 04/11/2026 10:00 (ora italiana): i log tornano al livello normale. Era stata attivata da enea il 03/11/2026 10:00 (ora italiana); motivo: Il titolare segnala timbri che non arrivano sulla carta. |
 | `diagnostic.mode.read_failed` | warn | Il server non è riuscito a leggere le modalità diagnostiche attive: i log restano al livello normale finché la lettura non riesce. | Lettura delle modalità diagnostiche fallita: fetch failed (Supabase non raggiungibile). I log restano al livello normale; nuovo tentativo tra 30 secondi. |
+
+### enroll
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `enroll.customer.created` | info | Un nuovo cliente si è iscritto: carta creata con il suo codice breve. | Nuovo cliente iscritto al negozio Salone Mario da web pubblico: carta A3F2C91B creata (consenso marketing: sì). |
+| `enroll.customer.returning` | info | Un cliente già iscritto ha rifatto l'iscrizione con lo stesso telefono: ritrova la stessa carta. | Cliente già iscritto al negozio Salone Mario ha ritrovato la sua carta A3F2C91B (6/10 timbri, premi disponibili: 0). |
+
+### stamp
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `stamp.add.ok` | info | Un membro dello staff ha aggiunto un timbro a una carta. | Giulia (operatore, iOS 1.4.0) ha aggiunto un timbro alla carta A3F2C91B del negozio Salone Mario: 6 → 7 su 10. |
+| `stamp.add.rejected_cooldown` | warn | Timbro rifiutato perché troppo vicino al precedente (tempo minimo tra due timbri impostato dal negozio). | Timbro di Giulia (operatore, iOS 1.4.0) rifiutato sulla carta A3F2C91B del negozio Salone Mario: ultimo timbro 8 minuti fa, il negozio richiede almeno 60 minuti tra due timbri (mancano 52 minuti). |
+| `stamp.undo.ok` | info | Un membro dello staff ha annullato l'ultimo timbro che aveva dato (entro 5 minuti). | Giulia (operatore, iOS 1.4.0) ha annullato l'ultimo timbro della carta A3F2C91B del negozio Salone Mario: 7 → 6 su 10. |
+| `stamp.undo.rejected` | warn | Annullamento dell'ultimo timbro rifiutato: tempo scaduto, altro operatore, carta già modificata. | Annullamento dell'ultimo timbro chiesto da Giulia (operatore, iOS 1.4.0) sulla carta A3F2C91B del negozio Salone Mario rifiutato: il timbro è stato dato 12 minuti fa (limite 5 minuti). |
+
+### reward
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `reward.unlocked` | info | Una carta ha raggiunto i timbri richiesti: il premio è disponibile. | La carta A3F2C91B del negozio Salone Mario ha raggiunto 10 timbri: premio "Taglio gratis" sbloccato (premi disponibili: 1). |
+| `reward.redeem.ok` | info | Un membro dello staff ha riscattato un premio dalla carta del cliente. | Giulia (operatore, iOS 1.4.0) ha riscattato il premio "Taglio gratis" dalla carta A3F2C91B del negozio Salone Mario (premi disponibili: 1 → 0). |
+| `reward.redeem.rejected_none` | warn | Riscatto rifiutato perché la carta non ha premi disponibili. | Riscatto chiesto da Giulia (operatore, iOS 1.4.0) sulla carta A3F2C91B del negozio Salone Mario rifiutato: nessun premio disponibile (la carta ha 4/10 timbri). |
+
+### balance
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `balance.adjust.ok` | info | Il titolare ha corretto a mano timbri e premi di una carta, indicando il motivo. | Mario (titolare, web) ha rettificato la carta A3F2C91B del negozio Salone Mario: timbri 3 → 5 su 10, premi 0 → 0. Motivo: timbri della carta cartacea. |
+
+### customer
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `customer.delete.ok` | info | Cliente cancellato su richiesta: dati personali rimossi, storico pseudonimizzato, la carta non è più utilizzabile. | Mario (titolare, web) ha cancellato il cliente della carta A3F2C91B del negozio Salone Mario: nome, telefono e consensi rimossi, 7 righe di storico pseudonimizzate (la carta aveva 4 timbri e 0 premi). |
+| `customer.marketing.changed` | info | Il consenso alle promozioni di un cliente è cambiato (dal titolare o dal cliente con il link). | Mario (titolare, web) ha revocato il consenso alle promozioni per la carta A3F2C91B del negozio Salone Mario. |
 
 ### Wallet (Google / Apple)
 
@@ -203,6 +267,69 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Richiesta di riscatto su una carta con zero premi disponibili.
 - **Causa probabile**: Premio già riscattato (anche da un altro operatore) o doppio tocco sul pulsante.
 - **Cosa fare**: Controllare lo storico della carta: l'ultimo riscatto indica chi e quando.
+
+### `E_STAMP_COOLDOWN` (HTTP 409)
+
+- **L'utente vede**: Timbro già dato da poco a questa carta. Riprova più tardi.
+- **Cosa è successo**: Timbro rifiutato perché dall'ultimo timbro della carta non è passato il tempo minimo impostato dal negozio.
+- **Causa probabile**: Doppia scansione dello stesso cliente, oppure cliente che torna nello stesso giorno.
+- **Cosa fare**: Normale se era una doppia scansione. Se il cliente ha davvero diritto al timbro, il titolare può rettificare il saldo o ridurre il tempo minimo nelle impostazioni.
+
+### `E_UNDO_EXPIRED` (HTTP 409)
+
+- **L'utente vede**: Il timbro si può annullare solo nei 5 minuti successivi.
+- **Cosa è successo**: Annullamento rifiutato: l'ultimo timbro è stato dato più di 5 minuti fa.
+- **Causa probabile**: Errore accorgersi tardi del timbro sbagliato.
+- **Cosa fare**: Il titolare può correggere con una rettifica del saldo, indicando il motivo.
+
+### `E_UNDO_OTHER_OPERATOR` (HTTP 403)
+
+- **L'utente vede**: Puoi annullare solo un timbro che hai dato tu.
+- **Cosa è successo**: Annullamento rifiutato: l'ultimo timbro della carta è stato dato da un altro operatore.
+- **Causa probabile**: Due operatori sulla stessa carta, o dispositivo condiviso con utenti diversi.
+- **Cosa fare**: Far annullare a chi ha dato il timbro (entro 5 minuti) oppure rettifica del titolare.
+
+### `E_UNDO_NOT_LAST` (HTTP 409)
+
+- **L'utente vede**: Dopo questo timbro la carta è già stata modificata: non si può più annullare.
+- **Cosa è successo**: Annullamento rifiutato: dopo l'ultimo timbro c'è stata un'altra operazione (riscatto o rettifica).
+- **Causa probabile**: Timbro seguito subito da un riscatto o da una rettifica.
+- **Cosa fare**: Il titolare può correggere con una rettifica del saldo, indicando il motivo.
+
+### `E_UNDO_REWARD_REDEEMED` (HTTP 409)
+
+- **L'utente vede**: Questo timbro ha sbloccato un premio già riscattato: non si può annullare.
+- **Cosa è successo**: Annullamento rifiutato: il timbro ha completato la carta e il premio è già stato riscattato.
+- **Causa probabile**: Timbro dato per errore e premio consegnato subito dopo.
+- **Cosa fare**: Valutare con il titolare una rettifica del saldo, indicando il motivo.
+
+### `E_NOTHING_TO_UNDO` (HTTP 409)
+
+- **L'utente vede**: Non ci sono timbri da annullare su questa carta.
+- **Cosa è successo**: Annullamento chiesto su una carta senza timbri annullabili.
+- **Causa probabile**: Doppio tocco su "Annulla" o timbro già annullato.
+- **Cosa fare**: Nessuna azione: controllare lo storico della carta se il cliente contesta il saldo.
+
+### `E_FORBIDDEN_ROLE` (HTTP 403)
+
+- **L'utente vede**: Questa operazione è riservata al titolare del negozio.
+- **Cosa è successo**: Un utente dello staff ha tentato un'operazione permessa solo al titolare (rettifica, cancellazione, consensi).
+- **Causa probabile**: Operatore che usa una funzione del titolare, oppure ruolo assegnato in modo sbagliato.
+- **Cosa fare**: Verificare il ruolo dell'utente nella tabella staff; se deve essere titolare, cambiarlo.
+
+### `E_CARD_DELETED` (HTTP 410)
+
+- **L'utente vede**: Questa carta è stata cancellata su richiesta del cliente.
+- **Cosa è successo**: Operazione su una carta il cui cliente è stato cancellato (dati personali rimossi).
+- **Causa probabile**: Il cliente mostra una carta vecchia ancora nel Wallet dopo la cancellazione.
+- **Cosa fare**: Il cliente può iscriversi di nuovo dal QR del bancone: riceverà una carta nuova.
+
+### `E_SHOP_SUSPENDED` (HTTP 403)
+
+- **L'utente vede**: Il negozio è momentaneamente sospeso: timbri e premi non sono disponibili.
+- **Cosa è successo**: Operazione su un negozio con stato sospeso.
+- **Causa probabile**: Abbonamento non pagato o sospensione manuale dal pannello interno.
+- **Cosa fare**: Verificare lo stato dell'abbonamento del negozio e riattivarlo se è tutto in regola.
 
 ### `E_EXTERNAL_UNAVAILABLE` (HTTP 502)
 
