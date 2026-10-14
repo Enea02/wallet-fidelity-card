@@ -70,6 +70,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 /** "carta A3F2C91B del negozio Salone Mario" (con "del negozio" l'articolo è giusto per qualsiasi nome). */
 const card = (f: CardFields) => `carta ${f.customer_ref} del negozio ${f.shop_name}`;
 const minutes = (n: number) => (n === 1 ? "1 minuto" : `${n} minuti`);
+const ago = (n: number) => (n < 1 ? "meno di un minuto fa" : `${minutes(n)} fa`);
 
 /* ------------------------------------------------------------------ */
 /* Campi degli eventi                                                  */
@@ -615,7 +616,7 @@ export const events = {
     description:
       "Timbro rifiutato perché troppo vicino al precedente (tempo minimo tra due timbri impostato dal negozio).",
     msg: (f) =>
-      `Timbro di ${actor(f)} rifiutato sulla ${card(f)}: ultimo timbro ${minutes(f.minutes_since)} fa, ` +
+      `Timbro di ${actor(f)} rifiutato sulla ${card(f)}: ultimo timbro ${ago(f.minutes_since)}, ` +
       `il negozio richiede almeno ${minutes(f.cooldown_min)} tra due timbri (mancano ${minutes(f.minutes_left)}).`,
     examples: [
       {

@@ -15,12 +15,13 @@ interface PgError {
 type Detail = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" || typeof v === "number" ? String(v) : "?");
 const minutes = (v: unknown) => (Number(v) === 1 ? "1 minuto" : `${str(v)} minuti`);
+const ago = (v: unknown) => (Number(v) < 1 ? "meno di un minuto fa" : `${minutes(v)} fa`);
 const LATER_KIND: Record<string, string> = { redeem: "un riscatto", adjust: "una rettifica", stamp: "un altro timbro" };
 
 const describe: Partial<Record<ErrorCode, (d: Detail) => { message: string; userMessage?: string }>> = {
   E_STAMP_COOLDOWN: (d) => ({
-    message: `ultimo timbro ${minutes(d.minutes_since)} fa, il negozio richiede almeno ${minutes(d.cooldown_min)} tra due timbri`,
-    userMessage: `Ultimo timbro ${minutes(d.minutes_since)} fa: si potrà timbrare di nuovo tra ${minutes(d.minutes_left)}.`,
+    message: `ultimo timbro ${ago(d.minutes_since)}, il negozio richiede almeno ${minutes(d.cooldown_min)} tra due timbri`,
+    userMessage: `Ultimo timbro ${ago(d.minutes_since)}: si potrà timbrare di nuovo tra ${minutes(d.minutes_left)}.`,
   }),
   E_UNDO_EXPIRED: (d) => ({ message: `il timbro è stato dato ${minutes(d.minutes_ago)} fa (limite 5 minuti)` }),
   E_UNDO_OTHER_OPERATOR: (d) => ({

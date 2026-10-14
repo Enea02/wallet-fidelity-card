@@ -112,7 +112,7 @@ describe("timbri", () => {
     await expect(addStamp(SALONE.id, c.qr, GIULIA)).rejects.toMatchObject({
       code: "E_STAMP_COOLDOWN",
       logged: true,
-      userMessage: "Ultimo timbro 0 minuti fa: si potrà timbrare di nuovo tra 60 minuti.",
+      userMessage: "Ultimo timbro meno di un minuto fa: si potrà timbrare di nuovo tra 60 minuti.",
     });
     expect((await audit(c.id)).length).toBe(before);
     expect(await card(c.id)).toMatchObject({ stamps: 1 });
