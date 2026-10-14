@@ -29,6 +29,8 @@ export const ShopSummary = z.object({
   logoUrl: z.string().nullable(),
   stampsRequired: z.number().int(),
   rewardLabel: z.string(),
+  /** Icona dei timbri pieni (packages/shared/theme.ts, STAMP_ICONS). */
+  stampIcon: z.enum(["scissors", "cup", "pizza", "sparkle", "gift", "check"]),
   status: z.enum(["active", "suspended"]),
 });
 export const ShopsResponse = z.object({ shops: z.array(ShopSummary) });

@@ -44,6 +44,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-localization",
     "expo-font",
     [
+      "expo-camera",
+      {
+        cameraPermission: "La fotocamera serve per leggere il QR della carta fedeltà del cliente.",
+        microphonePermission: false,
+        recordAudioAndroid: false,
+        barcodeScannerEnabled: true,
+      },
+    ],
+    [
       "expo-splash-screen",
       {
         backgroundColor: "#F7F2EB",

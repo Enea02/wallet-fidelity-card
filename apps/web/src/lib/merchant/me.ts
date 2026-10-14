@@ -1,5 +1,6 @@
 import "server-only";
 import type { MeResponse, ShopsResponse } from "@loyalty/shared/api";
+import type { StampIcon } from "@loyalty/shared/theme";
 import type { z } from "zod";
 import type { AuthUser } from "../auth";
 import { supabaseAdmin } from "../supabase";
@@ -16,6 +17,7 @@ interface Row {
     logo_url: string | null;
     stamps_required: number;
     reward_label: string;
+    stamp_icon: StampIcon;
     status: "active" | "suspended";
   };
 }
@@ -24,7 +26,7 @@ async function memberships(userId: string): Promise<Row[]> {
   const { data, error } = await supabaseAdmin()
     .from("staff")
     .select(
-      "role, display_name, shops!inner(id, name, slug, hex_color, logo_url, stamps_required, reward_label, status)",
+      "role, display_name, shops!inner(id, name, slug, hex_color, logo_url, stamps_required, reward_label, stamp_icon, status)",
     )
     .eq("user_id", userId)
     .order("display_name");
@@ -58,6 +60,7 @@ export async function myShops(user: AuthUser): Promise<z.input<typeof ShopsRespo
       logoUrl: r.shops.logo_url,
       stampsRequired: r.shops.stamps_required,
       rewardLabel: r.shops.reward_label,
+      stampIcon: r.shops.stamp_icon,
       status: r.shops.status,
     })),
   };

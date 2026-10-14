@@ -16,3 +16,4 @@ e2e-logs/
 # variabili locali (create da pnpm db:start)
 .env*.local
 dist-e2e/
+public/zxing/

@@ -8,6 +8,9 @@ allowBuilds:
   protobufjs: false
   # @sentry/cli (app esercente) scarica il binario per caricare source map e simboli
   "@sentry/cli": true
+  # dipendenze di jest-expo (test dei componenti): usano i binari precompilati, lo script non serve
+  "@parcel/watcher": false
+  unrs-resolver: false
 minimumReleaseAgeExclude:
   - google-auth-library@11.3.0
 overrides:

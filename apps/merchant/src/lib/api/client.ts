@@ -25,8 +25,11 @@ type ParamsOf<K extends MerchantEndpoint> =
   Def<K> extends { params: infer P } ? { params: Input<P> } : { params?: never };
 type QueryOf<K extends MerchantEndpoint> = Def<K> extends { query: infer Q } ? { query?: Input<Q> } : { query?: never };
 type ShopOf<K extends MerchantEndpoint> = Def<K>["auth"] extends "user" ? { shopId?: never } : { shopId: string };
+/** Azioni sul saldo: chiave del tocco (useCardActions la riusa se la rete cade). */
+type KeyOf<K extends MerchantEndpoint> =
+  Def<K> extends { idempotent: true } ? { idempotencyKey: string } : { idempotencyKey?: never };
 
-export type CallOptions<K extends MerchantEndpoint> = BodyOf<K> & ParamsOf<K> & QueryOf<K> & ShopOf<K>;
+export type CallOptions<K extends MerchantEndpoint> = BodyOf<K> & ParamsOf<K> & QueryOf<K> & ShopOf<K> & KeyOf<K>;
 
 export class ApiError extends Error {
   constructor(
@@ -121,6 +124,7 @@ export function createApiClient(deps: ApiDeps) {
       params?: Record<string, unknown>;
       query?: Record<string, unknown>;
       shopId?: string;
+      idempotencyKey?: string;
     };
     const path = buildPath(def.path, o.params, o.query);
     const requestId = makeId();
@@ -150,6 +154,7 @@ export function createApiClient(deps: ApiDeps) {
 
     const init: RequestInit = { method: def.method, headers: {} };
     if (o.shopId) (init.headers as Record<string, string>)[HEADERS.shopId] = o.shopId;
+    if (o.idempotencyKey) (init.headers as Record<string, string>)[HEADERS.idempotencyKey] = o.idempotencyKey;
     if (o.body !== undefined) {
       (init.headers as Record<string, string>)["content-type"] = "application/json";
       init.body = JSON.stringify(o.body);
