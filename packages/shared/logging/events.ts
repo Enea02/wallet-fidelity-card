@@ -6,6 +6,7 @@
  * perché e cosa fare. I campi standard (request_id, shop_id, user_id, …) li aggiunge il logger.
  */
 import type { ErrorCode } from "../errors";
+import { maskEmail } from "../logger/redact";
 
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
@@ -598,6 +599,71 @@ export interface PublicLinkInvalidFields {
   link_kind: string;
   /** "firma non valida" | "scaduto" | "carta cancellata" | "negozio non attivo" */
   reason: string;
+}
+
+/* --- App esercente (eventi del client: buffer locale e Sentry) --- */
+
+export type AppPlatform = "ios" | "android" | "web";
+
+export interface AppStartFields {
+  platform: AppPlatform;
+  app_version: string;
+  build: string;
+  /** Modello del dispositivo o browser, es. "iPhone 15" o "Chrome 141 su macOS". */
+  device: string;
+  os_version: string;
+}
+
+export interface AppLoginOkFields {
+  /** Email dello staff: nel msg e nella riga compare sempre mascherata. */
+  email: string;
+  shops_count: number;
+}
+
+export interface AppLoginFailedFields {
+  email: string;
+  error_code: ErrorCode;
+  /** Motivo tecnico restituito da Supabase Auth (senza dati personali). */
+  reason: string;
+}
+
+export interface AppLogoutFields {
+  reason: "manuale" | "sessione scaduta";
+}
+
+export interface AppShopSelectedFields {
+  shop_name: string;
+  role: "owner" | "operator";
+  how: "unico negozio" | "scelta" | "cambio" | "ricordato";
+}
+
+export interface AppApiErrorFields {
+  request_id: string;
+  method: string;
+  endpoint: string;
+  /** null se il server non ha risposto (rete, timeout). */
+  http_status: number | null;
+  error_code: ErrorCode | string;
+  support_code: string;
+  duration_ms: number;
+}
+
+export interface AppOnlineFields {
+  offline_s: number;
+}
+
+export interface AppDiagnosticsSentFields {
+  ticket_code: string;
+  events_count: number;
+  size_bytes: number;
+}
+
+export interface AppEmailFields {
+  email: string;
+}
+
+export interface AppPasswordChangedFields {
+  via: "recupero" | "invito";
 }
 
 /* ------------------------------------------------------------------ */
@@ -1593,6 +1659,132 @@ export const events = {
       `Cron wallet completato in ${f.duration_ms} ms: ${f.retries_ok}/${f.retries} tentativi riusciti, ${f.reconciled} carte riallineate, ` +
       `${f.promo_sent} promozioni consegnate, ${f.promo_failed} fallite.`,
     examples: [{ retries: 3, retries_ok: 2, reconciled: 1, promo_sent: 40, promo_failed: 0, duration_ms: 2140 }],
+  }),
+  "app.start": defineEvent<AppStartFields>({
+    level: "info",
+    description: "L'app esercente è stata aperta: piattaforma, versione e dispositivo (prima riga della diagnostica).",
+    msg: (f) =>
+      `App esercente avviata su ${PLATFORM_LABEL[f.platform] ?? f.platform} ${f.os_version} (${f.device}), versione ${f.app_version} build ${f.build}.`,
+    examples: [{ platform: "ios", app_version: "1.4.0", build: "12", device: "iPhone 15", os_version: "26.4" }],
+  }),
+  "app.login.ok": defineEvent<AppLoginOkFields>({
+    level: "info",
+    description: "Lo staff ha fatto login nell'app.",
+    msg: (f) =>
+      `Accesso riuscito per ${maskEmail(f.email)}: ${f.shops_count === 1 ? "1 negozio disponibile" : `${f.shops_count} negozi disponibili`}.`,
+    examples: [
+      { email: "giulia@salone-mario.it", shops_count: 1 },
+      { email: "marco@salone-mario.it", shops_count: 0 },
+    ],
+  }),
+  "app.login.failed": defineEvent<AppLoginFailedFields>({
+    level: "warn",
+    description: "Login rifiutato: credenziali errate, invito non accettato o servizio non raggiungibile.",
+    msg: (f) => `Accesso non riuscito per ${maskEmail(f.email)}: ${f.reason} (${f.error_code}).`,
+    examples: [
+      { email: "giulia@salone-mario.it", error_code: "E_LOGIN_FAILED", reason: "email o password non corrette" },
+      {
+        email: "giulia@salone-mario.it",
+        error_code: "E_NETWORK",
+        reason: "server di autenticazione non raggiungibile",
+      },
+    ],
+  }),
+  "app.logout": defineEvent<AppLogoutFields>({
+    level: "info",
+    description: "Uscita dall'app: scelta dall'utente o forzata perché la sessione non si è potuta rinnovare.",
+    msg: (f) =>
+      f.reason === "manuale"
+        ? "L'utente è uscito dall'app con il pulsante Esci."
+        : "Sessione scaduta e non rinnovabile: l'app è tornata alla schermata di accesso.",
+    examples: [{ reason: "manuale" }, { reason: "sessione scaduta" }],
+  }),
+  "app.shop.selected": defineEvent<AppShopSelectedFields>({
+    level: "info",
+    description: "Negozio su cui l'app sta lavorando (scelto, cambiato o ricordato dall'ultima volta).",
+    msg: (f) => {
+      const how = {
+        "unico negozio": "l'unico disponibile",
+        scelta: "scelto",
+        cambio: "cambiato dal menu",
+        ricordato: "ricordato dall'ultima volta",
+      }[f.how];
+      return `Negozio attivo nell'app: ${f.shop_name}, ruolo ${ROLE_NAME[f.role]} (${how}).`;
+    },
+    examples: [
+      { shop_name: "Salone Mario", role: "owner", how: "unico negozio" },
+      { shop_name: "Barbiere Demo", role: "operator", how: "cambio" },
+    ],
+  }),
+  "app.api.error": defineEvent<AppApiErrorFields>({
+    level: "warn",
+    description:
+      "Una chiamata dell'app al server è fallita. Con il request_id si trova la riga corrispondente nei log del backend; se manca, la richiesta non è arrivata.",
+    msg: (f) =>
+      `Chiamata ${f.method} ${f.endpoint} fallita ${f.http_status === null ? "senza risposta dal server" : `con ${f.http_status}`} in ${f.duration_ms} ms: ` +
+      `${f.error_code}, codice assistenza ${f.support_code}.`,
+    examples: [
+      {
+        request_id: "01JB7K3QXM8Z2V4T6R9P0N1C5D",
+        method: "POST",
+        endpoint: "/api/v1/merchant/stamp",
+        http_status: 400,
+        error_code: "E_VALIDATION",
+        support_code: "ERR-K3QXM",
+        duration_ms: 120,
+      },
+      {
+        request_id: "01JB7K3QXM8Z2V4T6R9P0N1C5D",
+        method: "GET",
+        endpoint: "/api/v1/merchant/me",
+        http_status: null,
+        error_code: "E_NETWORK",
+        support_code: "ERR-K3QXM",
+        duration_ms: 15000,
+      },
+    ],
+  }),
+  "app.offline": defineEvent<Record<string, never>>({
+    level: "warn",
+    description:
+      'Il dispositivo ha perso la connessione: l\'app mostra "Sei offline" e blocca le azioni che richiedono il server.',
+    msg: () => 'Il dispositivo è offline: mostrato il banner "Sei offline", azioni che richiedono il server bloccate.',
+    examples: [{}],
+  }),
+  "app.online": defineEvent<AppOnlineFields>({
+    level: "info",
+    description: "La connessione è tornata dopo un periodo offline.",
+    msg: (f) =>
+      `Connessione tornata dopo ${f.offline_s < 60 ? `${f.offline_s} secondi` : minutes(Math.round(f.offline_s / 60))} offline.`,
+    examples: [{ offline_s: 42 }, { offline_s: 600 }],
+  }),
+  "app.diagnostics.sent": defineEvent<AppDiagnosticsSentFields>({
+    level: "info",
+    description: "L'utente ha premuto \"Invia diagnostica all'assistenza\" e il server ha restituito il codice ticket.",
+    msg: (f) =>
+      `Diagnostica inviata all'assistenza: ticket ${f.ticket_code} (${f.events_count} eventi, ${kb(f.size_bytes)}).`,
+    examples: [{ ticket_code: "DIAG-7K3QXA2M", events_count: 412, size_bytes: 38_000 }],
+  }),
+  "app.password.reset_requested": defineEvent<AppEmailFields>({
+    level: "info",
+    description: 'Richiesto il link per reimpostare la password ("Password dimenticata?").',
+    msg: (f) => `Richiesto il link per reimpostare la password di ${maskEmail(f.email)}.`,
+    examples: [{ email: "giulia@salone-mario.it" }],
+  }),
+  "app.password.changed": defineEvent<AppPasswordChangedFields>({
+    level: "info",
+    description: "Lo staff ha impostato una nuova password, dal link di recupero o accettando l'invito.",
+    msg: (f) =>
+      f.via === "invito"
+        ? "Invito accettato: password impostata e accesso eseguito."
+        : "Password reimpostata dal link di recupero e accesso eseguito.",
+    examples: [{ via: "recupero" }, { via: "invito" }],
+  }),
+  "app.invite.accepted": defineEvent<AppEmailFields>({
+    level: "info",
+    description: "Lo staff ha aperto il link d'invito e la sessione è valida: deve solo scegliere la password.",
+    msg: (f) => `Aperto il link d'invito di ${maskEmail(f.email)}: in attesa della scelta della password.`,
+    examples: [{ email: "giulia@salone-mario.it" }],
   }),
 } as const;
 
