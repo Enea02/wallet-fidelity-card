@@ -41,6 +41,19 @@ export const serverEnvSchema = z
     NEXT_PUBLIC_SUPABASE_URL: z.url().describe("URL del progetto Supabase (in locale: pnpm db:start lo stampa)"),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().describe("chiave pubblica (anon) di Supabase, usata dal login staff"),
     SUPABASE_SERVICE_ROLE_KEY: z.string().describe("chiave service role di Supabase, solo lato server"),
+    MERCHANT_APP_ORIGINS: z
+      .string()
+      .refine((v) => v.split(",").every((o) => URL.canParse(o.trim()) && !o.trim().endsWith("/")), {
+        message:
+          "elenco di origini separate da virgola, es. https://app.esempio.it,http://localhost:8081 (senza / finale)",
+      })
+      .describe("origini della web app esercente ammesse da CORS, separate da virgola"),
+    MERCHANT_APP_URL: z
+      .url()
+      .optional()
+      .describe("URL della web app esercente per i link d'invito (default APP_BASE_URL)"),
+    RATE_LIMIT_USER_PER_MIN: z.coerce.number().int().positive().default(120).describe("richieste al minuto per utente"),
+    RATE_LIMIT_IP_PER_MIN: z.coerce.number().int().positive().default(300).describe("richieste al minuto per IP"),
     ADMIN_SETUP_TOKEN: z
       .string()
       .min(24, { message: "troppo corto: usare almeno 24 caratteri casuali (openssl rand -hex 24)" })

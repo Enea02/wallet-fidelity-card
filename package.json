@@ -21,11 +21,13 @@
     "db:new": "supabase migration new",
     "diag": "pnpm --filter @loyalty/web diag",
     "runbook": "tsx packages/shared/scripts/gen-runbook.ts",
-    "runbook:check": "tsx packages/shared/scripts/gen-runbook.ts --check"
+    "runbook:check": "tsx packages/shared/scripts/gen-runbook.ts --check",
+    "api:try": "node scripts/api-try.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@next/eslint-plugin-next": "16.4.0",
+    "@usebruno/cli": "^4.2.1",
     "eslint": "^10.0.0",
     "eslint-plugin-react-hooks": "^7.0.0",
     "globals": "^17.0.0",

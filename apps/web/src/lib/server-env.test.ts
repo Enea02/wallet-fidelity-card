@@ -9,6 +9,7 @@ const base = {
   SUPABASE_SERVICE_ROLE_KEY: "service-role-key-segretissima",
   ADMIN_SETUP_TOKEN: "a".repeat(32),
   IP_HASH_SALT: "b".repeat(32),
+  MERCHANT_APP_ORIGINS: "http://localhost:8081",
 };
 const saKey = Buffer.from(JSON.stringify({ client_email: "sa@x.iam", private_key: "-----BEGIN…" })).toString("base64");
 
