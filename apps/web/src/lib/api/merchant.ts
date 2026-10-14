@@ -120,10 +120,7 @@ async function resolveShop(req: Request, user: AuthUser, def: EndpointDef): Prom
       shop_name: shop.name,
       required_role: "owner",
     });
-    const err = new AppError(
-      "E_FORBIDDEN_ROLE",
-      `${def.path} riservata al titolare (ruolo dell'utente: ${staff.role})`,
-    );
+    const err = new AppError("E_FORBIDDEN_ROLE", `${def.path} è riservata al titolare, l'utente è operatore`);
     err.logged = true;
     throw err;
   }

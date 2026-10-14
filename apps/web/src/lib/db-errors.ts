@@ -47,7 +47,9 @@ const describe: Partial<Record<ErrorCode, (d: Detail) => { message: string; user
     userMessage: `Dati non validi: ${str(d.problem)}.`,
   }),
   E_FORBIDDEN_ROLE: (d) => ({
-    message: d.required ? `operazione riservata al titolare (ruolo dell'utente: ${str(d.role)})` : str(d.reason),
+    message: d.required
+      ? `operazione riservata al titolare, l'utente è ${d.role === "operator" ? "operatore" : str(d.role)}`
+      : str(d.reason),
   }),
   E_FORBIDDEN_SHOP: (d) => ({ message: `l'utente ${str(d.user_id)} non è abilitato sul negozio ${str(d.shop_id)}` }),
   E_CARD_DELETED: (d) => ({ message: `la carta ${str(d.short_code)} è stata cancellata il ${str(d.deleted_at)}` }),
