@@ -93,6 +93,40 @@ Finché mancano, l'informativa mostra "[… da completare]" evidenziato e in pro
 - Raccolta di richieste di esempio in [`bruno/`](bruno/README.md): `pnpm api:try` la esegue tutta con il server avviato.
 - Rate limit in Postgres (120/min per utente, 300/min per IP), CORS solo per `MERCHANT_APP_ORIGINS`.
 
+## App esercente (iOS, Android, Web)
+
+Expo SDK 57 + Expo Router in `apps/merchant`, una sola codebase per le tre piattaforme. Utenti di prova (seed):
+`staff@salone-demo.test` (titolare) e `operatore@salone-demo.test` (operatore di due negozi), password
+`password-demo-locale`.
+
+| Dove              | Comando                                                                         |
+| ----------------- | ------------------------------------------------------------------------------- |
+| Browser           | `pnpm dev:merchant` → <http://localhost:8081> (avvia anche il backend su :3000) |
+| Simulatore iOS    | con il backend avviato (`pnpm dev`): `pnpm --filter @loyalty/merchant ios`      |
+| Emulatore Android | con il backend avviato (`pnpm dev`): `pnpm --filter @loyalty/merchant android`  |
+
+- La prima build nativa genera `ios/` e `android/` (non versionate, si configurano da `app.config.ts`) e richiede
+  Xcode / Android Studio; le successive aprono solo l'app. Sull'emulatore Android `localhost` diventa `10.0.2.2`.
+- `pnpm db:start` crea `apps/merchant/.env.local` (solo valori pubblici, vedi `apps/merchant/.env.example`).
+- Email di invito e "Password dimenticata?" in locale: Mailpit su <http://127.0.0.1:54324>.
+- Struttura: `src/app/` rotte (Expo Router), `src/lib/api/client.ts` client unico delle API,
+  `src/lib/session.tsx` sessione e negozio attivo, `src/lib/diagnostics/` logger, buffer, Sentry e "Invia
+  diagnostica", `src/ui/` componenti del design system.
+- Web app installabile (PWA): `public/manifest.webmanifest` e `public/sw.js` (in cache solo i file dell'app, mai
+  i dati). `pnpm --filter @loyalty/merchant build` esporta in `apps/merchant/dist`.
+- Test: `pnpm --filter @loyalty/merchant test` (unitari), `pnpm e2e` (web pubblico + web app esercente;
+  serve `pnpm db:start`).
+
+### Da completare con gli account (segnaposto)
+
+| Cosa            | Dove                                                                   | Variabili                                                                                           |
+| --------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Crash ed errori | sentry.io → nuovo progetto React Native → DSN; Settings → Auth Tokens  | `EXPO_PUBLIC_SENTRY_DSN`; `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` (EAS secret e GitHub) |
+| Build nel cloud | expo.dev → crea account → `npx eas-cli@latest init` in `apps/merchant` | `EAS_PROJECT_ID`                                                                                    |
+
+Senza DSN Sentry resta spento (il buffer locale e "Invia diagnostica" funzionano comunque); senza account Expo le
+build di sviluppo si fanno in locale con `expo run:ios` / `expo run:android`.
+
 ## Log e diagnostica
 
 - Ogni riga di log è un evento del catalogo `packages/shared/logging/events.ts` con un `msg` in italiano; gli errori
@@ -111,7 +145,7 @@ Finché mancano, l'informativa mostra "[… da completare]" evidenziato e in pro
 ```
 apps/
   web/            Next.js 16: API, pagine pubbliche di iscrizione, (poi) pannello interno
-  merchant/       app esercente Expo (iOS, Android, Web): dalla Fase 6
+  merchant/       app esercente Expo (iOS, Android, Web)
 packages/
   shared/         codice condiviso: catalogo eventi di log, catalogo errori, logger e redazione, request_id, env
 supabase/

@@ -156,6 +156,55 @@ reiscriversi con lo stesso numero e riceve una carta nuova. Da Fase 4 la carta G
 - `auth.forbidden.role`: un operatore ha aperto una funzione del titolare (statistiche, clienti, impostazioni, staff,
   promozioni). È il comportamento atteso; se deve essere titolare, il titolare cambia il ruolo dall'app.
 
+## App esercente: "non riesco ad accedere"
+
+L'app (iOS, Android, web) registra i propri eventi `app.*` in un buffer sul dispositivo e in Sentry, non nei log del
+backend: per vederli serve il pacchetto "Invia diagnostica" (vedi sotto) o Sentry.
+
+- **Email o password non corrette** (`app.login.failed` con `E_LOGIN_FAILED`): far usare "Password dimenticata?".
+  Se l'utente non ha mai accettato l'invito non ha una password: il titolare lo reinvita dalla sezione Staff.
+- **"Server non raggiungibile"** (`E_NETWORK`): il login passa da Supabase Auth, non dal nostro backend. Controllare
+  la rete del negozio e lo stato di Supabase.
+- **"La sessione è scaduta. Accedi di nuovo."** (`app.logout` con motivo "sessione scaduta", `E_SESSION_EXPIRED`):
+  l'app rinnova da sola il token una volta; se il rinnovo fallisce (password cambiata altrove, utente rimosso dallo
+  staff, app chiusa per molto tempo) chiude la sessione. Basta rifare il login.
+- **"Nessun negozio collegato"**: l'account esiste ma non è nella tabella `staff` di nessun negozio. Il titolare lo
+  invita con la stessa email.
+- **Vede il negozio sbagliato**: chi lavora in più negozi sceglie all'accesso ("Dove lavori oggi?"); l'app ricorda
+  l'ultima scelta e si cambia da Profilo → "Cambia negozio" (`app.shop.selected`).
+
+## App esercente: invito e nuova password
+
+- L'email d'invito (template `supabase/templates/invito.html`) porta a `MERCHANT_APP_URL/invito`: la web app legge
+  il link, chiede la password e apre l'app. Il link vale 24 ore e si usa una volta: se è scaduto la pagina lo dice e
+  il titolare reinvia l'invito. Senza dominio i link aprono la web app anche dal telefono; dalla Fase 13 (dominio e
+  Universal/App Links) apriranno direttamente l'app installata.
+- "Password dimenticata?" manda un'email (template `recupero.html`) con un link a `/nuova-password`, valido un'ora.
+  L'app mostra sempre "Controlla la posta" anche se l'email non è registrata (non rivela chi è nello staff).
+- In locale le email non partono davvero: si leggono in Mailpit su http://127.0.0.1:54324.
+- In produzione serve un SMTP configurato in Supabase (Fase 13): il server email di default invia pochissime email
+  all'ora.
+
+## App esercente: codice assistenza mostrato dall'app
+
+Ogni errore dell'app mostra il messaggio e un codice `ERR-XXXXX` copiabile. Si cerca come qualsiasi codice
+assistenza (sezione in cima). Se nel backend **non c'è** nessuna riga con quel codice, la richiesta non è mai
+arrivata al server:
+
+- `E_OFFLINE`: il dispositivo era offline, l'app non ha nemmeno provato (in questo caso il codice non viene mostrato);
+- `E_NETWORK`: l'app ha provato ma il server non ha risposto (rete del negozio, Wi-Fi senza internet, server giù);
+- `E_BAD_RESPONSE`: il server ha risposto qualcosa di inatteso (app non aggiornata o proxy di rete).
+
+Nel pacchetto diagnostica la riga `app.api.error` con lo stesso `support_code` riporta metodo, endpoint, status e
+durata; il `request_id` è lo stesso che il backend scrive nei suoi log.
+
+## App esercente: "Sei offline"
+
+Il banner compare quando il dispositivo perde la connessione (`app.offline`) e sparisce quando torna (`app.online`
+con la durata). Nel frattempo le azioni che richiedono il server sono disattivate. Se l'esercente dice di essere
+online ma vede il banner, il dispositivo non ha una rete attiva (es. Wi-Fi collegato senza internet su alcuni
+Android): far disattivare e riattivare il Wi-Fi.
+
 ## "La carta non viene trovata" alla scansione
 
 - `customer.lookup.not_found`: il QR o il codice breve non corrisponde a nessuna carta. Far riscansionare o digitare
@@ -185,9 +234,19 @@ l'ora). Il link dell'email porta a `MERCHANT_APP_URL/invito`.
 
 ## L'esercente ha inviato la diagnostica dall'app
 
-Ci comunica un codice `DIAG-XXXXXXXX`: `diagnostics.received` lo conferma, il pacchetto (informazioni sul
-dispositivo e ultimi eventi dell'app, già redatti) è nella tabella `diagnostic_bundles` (`ticket_code`). Dalla
-Fase 9 si consulta dalla vista Assistenza.
+Ci comunica un codice `DIAG-XXXXXXXX` (Profilo → "Invia diagnostica all'assistenza"): `diagnostics.received` lo
+conferma, il pacchetto è nella tabella `diagnostic_bundles` (`ticket_code`). Dalla Fase 9 si consulta dalla vista
+Assistenza.
+
+Cosa contiene:
+- `device`: piattaforma, versione e build dell'app, modello o browser, sistema operativo, lingua, fuso orario, tipo
+  di connessione, permessi (la fotocamera dalla Fase 7);
+- `events`: gli ultimi eventi `app.*` (al massimo 500, i più vecchi scartati se il pacchetto supera 256 KB), già
+  redatti come i log del backend: email mascherate, nessun token. Si leggono dal più vecchio al più recente;
+  `app.start` segna ogni apertura dell'app, `app.api.error` ogni chiamata fallita con il suo `request_id`.
+
+Crash ed errori JavaScript dell'app sono anche in **Sentry** (progetto dell'app esercente), con gli stessi campi
+`shop_id`, `role`, `platform`, `app_version` e, per gli errori API, `request_id` ed `error_code` come tag.
 
 ## Logo o impostazioni non salvati
 
