@@ -18,6 +18,7 @@ headers {
   x-platform: web
   x-app-version: bruno
   x-shop-id: {{shopId}}
+  idempotency-key: {{$randomUUID}}
 }
 
 body:json {

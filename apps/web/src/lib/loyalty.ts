@@ -62,6 +62,52 @@ function onRejected(e: unknown, codes: readonly ErrorCode[], write: (err: AppErr
   throw e;
 }
 
+/** Opzioni delle azioni sul saldo chiamate dall'app (header Idempotency-Key). */
+export interface ActionOptions {
+  idempotencyKey?: string | null;
+}
+
+type ActionResult<T> = T & { duplicate: boolean; original_at?: string };
+
+/**
+ * Azione sul saldo tramite card_action: con una chiave di idempotenza già usata il database
+ * restituisce la risposta salvata (duplicate: true) senza toccare il saldo.
+ */
+async function cardAction<T>(
+  action: "stamp" | "undo" | "redeem",
+  customerId: string,
+  staffUserId: string,
+  opts: ActionOptions & { force?: boolean },
+): Promise<ActionResult<T>> {
+  return callDomain<ActionResult<T>>("card_action", {
+    p_action: action,
+    p_customer_id: customerId,
+    p_meta: { ...domainMeta(staffActor(staffUserId)), idempotency_key: opts.idempotencyKey ?? null },
+    p_force: opts.force === true,
+  });
+}
+
+const DUPLICATE_EVENT = {
+  stamp: "stamp.add.duplicate_ignored",
+  undo: "stamp.undo.duplicate_ignored",
+  redeem: "reward.redeem.duplicate_ignored",
+} as const;
+
+function logDuplicate(
+  action: keyof typeof DUPLICATE_EVENT,
+  r: ActionResult<CardResult>,
+  customer: Customer,
+  shop: Shop,
+) {
+  const original = r.original_at ?? new Date().toISOString();
+  log.event(DUPLICATE_EVENT[action], {
+    ...actorFields(r),
+    ...cardFields(customer, shop),
+    original_at: new Date(original).toISOString(),
+    seconds_since: Math.max(0, Math.round((Date.now() - new Date(original).getTime()) / 1000)),
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Lettura                                                             */
 /* ------------------------------------------------------------------ */
@@ -138,7 +184,11 @@ export function cardView(c: Customer, shop: Shop): CardView {
  * Trova la carta scansionata (QR) o digitata (codice breve) nel negozio dello staff.
  * Un QR valido di un altro negozio dà E_QR_OTHER_SHOP, senza dire di quale negozio.
  */
-export async function lookupCard(shop: Shop, code: string, actor: ActorFields): Promise<CardView> {
+export async function lookupCard(
+  shop: Shop,
+  code: string,
+  actor: ActorFields,
+): Promise<{ card: CardView; since: string; visits: number }> {
   const isQr = /^[0-9a-f]{32}$/.test(code);
   const method = isQr ? "QR" : "codice breve";
   const { data, error } = await supabaseAdmin()
@@ -183,7 +233,19 @@ export async function lookupCard(shop: Shop, code: string, actor: ActorFields): 
     stamps_required: shop.stamps_required,
     rewards_available: customer.rewards_available,
   });
-  return cardView(customer, shop);
+  // "Cliente da marzo · 17 visite": iscrizione e timbri ricevuti in tutto (non annullati)
+  const [{ data: since, error: e1 }, { count, error: e2 }] = await Promise.all([
+    supabaseAdmin().from("customers").select("created_at").eq("id", customer.id).single(),
+    supabaseAdmin()
+      .from("stamp_events")
+      .select("id", { count: "exact", head: true })
+      .eq("customer_id", customer.id)
+      .eq("kind", "stamp")
+      .is("undone_at", null),
+  ]);
+  if (e1) throw e1;
+  if (e2) throw e2;
+  return { card: cardView(customer, shop), since: String(since.created_at), visits: count ?? 0 };
 }
 
 /* ------------------------------------------------------------------ */
@@ -254,16 +316,25 @@ export async function enroll(input: EnrollInput & { shop?: Shop }) {
 /* Timbri e premi (staff)                                              */
 /* ------------------------------------------------------------------ */
 
-export async function addStamp(shopId: string, customerId: string, staffUserId: string) {
+export async function addStamp(
+  shopId: string,
+  customerId: string,
+  staffUserId: string,
+  opts: ActionOptions & { force?: boolean } = {},
+) {
   const [customer, shop] = await Promise.all([getCustomerById(shopId, customerId), getShopById(shopId)]);
 
-  const r = await callDomain<CardResult & { stamps_before: number; reward_unlocked: boolean; stamp_event_id: number }>(
-    "add_stamp",
-    {
-      p_customer_id: customer.id,
-      p_meta: domainMeta(staffActor(staffUserId)),
-    },
-  ).catch((e: unknown) =>
+  const r = await cardAction<
+    CardResult & {
+      stamps_before: number;
+      reward_unlocked: boolean;
+      stamp_event_id: number;
+      forced?: boolean;
+      cooldown_minutes_left?: number | null;
+      cooldown_min?: number;
+      last_stamp_at?: string | null;
+    }
+  >("stamp", customer.id, staffUserId, opts).catch((e: unknown) =>
     onRejected(e, ["E_STAMP_COOLDOWN"], (err) =>
       log.event("stamp.add.rejected_cooldown", {
         ...actorFields(err.context),
@@ -276,6 +347,14 @@ export async function addStamp(shopId: string, customerId: string, staffUserId: 
       }),
     ),
   );
+  const updated: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
+  const forced = r.forced === true;
+
+  if (r.duplicate) {
+    // stessa chiave di un tocco già eseguito: stessa risposta, niente secondo timbro né nuovo avviso al wallet
+    logDuplicate("stamp", r, customer, shop);
+    return { customer: cardView(updated, shop), rewardUnlocked: r.reward_unlocked, forced };
+  }
 
   log.event("stamp.add.ok", {
     ...actorFields(r),
@@ -286,6 +365,18 @@ export async function addStamp(shopId: string, customerId: string, staffUserId: 
     rewards_after: r.rewards_available,
     reward_unlocked: r.reward_unlocked,
   });
+  if (forced) {
+    log.event("stamp.add.forced", {
+      ...actorFields(r),
+      ...cardFields(customer, shop),
+      stamps_before: r.stamps_before,
+      stamps_after: r.stamps,
+      stamps_required: r.stamps_required,
+      cooldown_min: Number(r.cooldown_min ?? 0),
+      minutes_left: Number(r.cooldown_minutes_left ?? 0),
+      last_stamp_at: new Date(String(r.last_stamp_at)).toISOString(),
+    });
+  }
   if (r.reward_unlocked) {
     log.event("reward.unlocked", {
       ...cardFields(customer, shop),
@@ -295,12 +386,11 @@ export async function addStamp(shopId: string, customerId: string, staffUserId: 
     });
   }
 
-  const updated: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
   await notifyCardChanged(shop, customer.id, {
     kind: "stamp",
     rewardUnlockedBy: r.reward_unlocked ? r.stamp_event_id : undefined,
   });
-  return { customer: cardView(updated, shop), rewardUnlocked: r.reward_unlocked };
+  return { customer: cardView(updated, shop), rewardUnlocked: r.reward_unlocked, forced };
 }
 
 const UNDO_REJECTIONS = [
@@ -312,12 +402,14 @@ const UNDO_REJECTIONS = [
 ] as const satisfies readonly ErrorCode[];
 
 /** Annulla l'ultimo timbro della carta (entro 5 minuti, solo chi l'ha dato, solo se è l'ultima operazione). */
-export async function undoLastStamp(shopId: string, customerId: string, staffUserId: string) {
+export async function undoLastStamp(shopId: string, customerId: string, staffUserId: string, opts: ActionOptions = {}) {
   const [customer, shop] = await Promise.all([getCustomerById(shopId, customerId), getShopById(shopId)]);
 
-  const r = await callDomain<CardResult & { stamps_before: number; rewards_before: number; reward_removed: boolean }>(
-    "undo_last_stamp",
-    { p_customer_id: customer.id, p_meta: domainMeta(staffActor(staffUserId)) },
+  const r = await cardAction<CardResult & { stamps_before: number; rewards_before: number; reward_removed: boolean }>(
+    "undo",
+    customer.id,
+    staffUserId,
+    opts,
   ).catch((e: unknown) =>
     onRejected(e, UNDO_REJECTIONS, (err) =>
       log.event("stamp.undo.rejected", {
@@ -328,6 +420,12 @@ export async function undoLastStamp(shopId: string, customerId: string, staffUse
       }),
     ),
   );
+
+  const undone: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
+  if (r.duplicate) {
+    logDuplicate("undo", r, customer, shop);
+    return { customer: cardView(undone, shop) };
+  }
 
   log.event("stamp.undo.ok", {
     ...actorFields(r),
@@ -345,23 +443,27 @@ export async function undoLastStamp(shopId: string, customerId: string, staffUse
   return { customer: cardView(updated, shop) };
 }
 
-export async function redeem(shopId: string, customerId: string, staffUserId: string) {
+export async function redeem(shopId: string, customerId: string, staffUserId: string, opts: ActionOptions = {}) {
   const [customer, shop] = await Promise.all([getCustomerById(shopId, customerId), getShopById(shopId)]);
 
-  const r = await callDomain<CardResult & { rewards_before: number }>("redeem_reward", {
-    p_customer_id: customer.id,
-    p_meta: domainMeta(staffActor(staffUserId)),
-  }).catch((e: unknown) =>
-    onRejected(e, ["E_NO_REWARD"], (err) =>
-      log.event("reward.redeem.rejected_none", {
-        ...actorFields(err.context),
-        ...cardFields(customer, shop),
-        error_code: err.code,
-        stamps: customer.stamps,
-        stamps_required: shop.stamps_required,
-      }),
-    ),
+  const r = await cardAction<CardResult & { rewards_before: number }>("redeem", customer.id, staffUserId, opts).catch(
+    (e: unknown) =>
+      onRejected(e, ["E_NO_REWARD"], (err) =>
+        log.event("reward.redeem.rejected_none", {
+          ...actorFields(err.context),
+          ...cardFields(customer, shop),
+          error_code: err.code,
+          stamps: customer.stamps,
+          stamps_required: shop.stamps_required,
+        }),
+      ),
   );
+
+  const redeemed: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
+  if (r.duplicate) {
+    logDuplicate("redeem", r, customer, shop);
+    return { customer: cardView(redeemed, shop) };
+  }
 
   log.event("reward.redeem.ok", {
     ...actorFields(r),

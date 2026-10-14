@@ -28,6 +28,8 @@ export interface MerchantContext<K extends MerchantEndpoint> {
   params: Parsed<Def<K> extends { params: infer P } ? P : undefined>;
   query: Parsed<Def<K> extends { query: infer Q } ? Q : undefined>;
   body: Parsed<Def<K> extends { body: infer B } ? B : undefined>;
+  /** Chiave di idempotenza (header Idempotency-Key) delle azioni sul saldo, altrimenti null. */
+  idempotencyKey: Def<K> extends { idempotent: true } ? string : null;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -83,6 +85,21 @@ function actorFor(staff: Membership | null): ActorFields {
     platform: ctx.platform ?? "sconosciuta",
     app_version: ctx.app_version ?? "n/d",
   };
+}
+
+/** Header Idempotency-Key: obbligatorio (UUID) per le azioni sul saldo. */
+function idempotencyKeyOf(req: Request, def: EndpointDef): string | null {
+  if (!def.idempotent) return null;
+  const key = req.headers.get(HEADERS.idempotencyKey)?.trim() ?? "";
+  if (!UUID_RE.test(key)) {
+    throw new AppError(
+      "E_VALIDATION",
+      `header ${HEADERS.idempotencyKey} assente o non valido per ${def.path}`,
+      { fields: [HEADERS.idempotencyKey] },
+      { userMessage: "Richiesta non valida: aggiorna l'app e riprova." },
+    );
+  }
+  return key.toLowerCase();
 }
 
 /** Negozio indicato da X-Shop-Id e appartenenza dell'utente (con il ruolo richiesto). */
@@ -150,6 +167,7 @@ export function merchantRoute<K extends MerchantEndpoint>(
     const params = parseWith(def.params, (await next?.params) ?? {}, "params");
     const query = parseWith(def.query, Object.fromEntries(new URL(req.url).searchParams), "query");
     const body = parseWith(def.body, await readBody(req, def), "body");
+    const idempotencyKey = idempotencyKeyOf(req, def);
 
     const out = await handler({
       req,
@@ -160,6 +178,7 @@ export function merchantRoute<K extends MerchantEndpoint>(
       params,
       query,
       body,
+      idempotencyKey,
     } as MerchantContext<K>);
     if (out instanceof Response) return out;
     if (def.response !== "pdf" && process.env.NODE_ENV !== "production") {

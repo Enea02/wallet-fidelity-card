@@ -269,6 +269,21 @@ export interface StampRejectedCooldownFields extends ActorFields, CardFields {
   minutes_left: number;
 }
 
+export interface StampForcedFields extends ActorFields, CardFields {
+  stamps_before: number;
+  stamps_after: number;
+  stamps_required: number;
+  cooldown_min: number;
+  minutes_left: number;
+  last_stamp_at: string;
+}
+
+/** Seconda richiesta con la stessa chiave di idempotenza (doppio tocco, rete che ripete). */
+export interface DuplicateIgnoredFields extends ActorFields, CardFields {
+  original_at: string;
+  seconds_since: number;
+}
+
 export interface StampUndoOkFields extends ActorFields, CardFields {
   stamps_before: number;
   stamps_after: number;
@@ -662,6 +677,48 @@ export interface AppEmailFields {
   email: string;
 }
 
+export type ScanMode = "fotocamera" | "lettore" | "manuale";
+const SCAN_MODE_LABEL: Record<ScanMode, string> = {
+  fotocamera: "fotocamera",
+  lettore: "lettore QR esterno",
+  manuale: "codice digitato a mano",
+};
+
+export interface ScanReadOkFields {
+  mode: ScanMode;
+  kind: "QR" | "codice breve";
+}
+
+export interface ScanReadInvalidFields {
+  mode: ScanMode;
+  /** Cosa è stato letto, in breve e senza dati: "testo di 12 caratteri", "URL". */
+  reason: string;
+}
+
+export interface ScanCameraDeniedFields {
+  can_ask_again: boolean;
+}
+
+export interface ScanModeChangedFields {
+  from: ScanMode;
+  to: ScanMode;
+}
+
+export interface ScanCardShownFields {
+  customer_ref: string;
+  mode: ScanMode;
+  /** Dalla lettura del codice alla scheda cliente sullo schermo. */
+  duration_ms: number;
+}
+
+export interface ScanStampConfirmedFields {
+  customer_ref: string;
+  /** Dal tocco su "+1 timbro" alla conferma. */
+  duration_ms: number;
+  /** Dalla lettura del codice alla conferma del timbro (obiettivo: meno di 2 secondi). */
+  since_scan_ms: number;
+}
+
 export interface AppUnexpectedErrorFields {
   /** Dove è successo, in parole semplici (es. "caricamento dei negozi"). */
   where: string;
@@ -1039,6 +1096,51 @@ export const events = {
     examples: [{ ...cardA, stamps_required: 10, reward_label: "Taglio gratis", rewards_available: 1 }],
   }),
 
+  "stamp.add.forced": defineEvent<StampForcedFields>({
+    level: "warn",
+    description:
+      'Timbro dato durante il cooldown con "Aggiungi comunque": resta nell\'audit. Se succede spesso, parlarne con il titolare.',
+    msg: (f) =>
+      `${cap(actor(f))} ha forzato un timbro sulla ${card(f)} durante il cooldown (mancavano ${minutes(f.minutes_left)} ` +
+      `su ${minutes(f.cooldown_min)}): ${f.stamps_before} → ${f.stamps_after} su ${f.stamps_required}, registrato nell'audit.`,
+    examples: [
+      {
+        ...giulia,
+        ...cardA,
+        stamps_before: 6,
+        stamps_after: 7,
+        stamps_required: 10,
+        cooldown_min: 60,
+        minutes_left: 52,
+        last_stamp_at: "2026-11-03T09:32:14.000Z",
+      },
+    ],
+  }),
+  "stamp.add.duplicate_ignored": defineEvent<DuplicateIgnoredFields>({
+    level: "info",
+    description:
+      'Doppio tocco o richiesta ripetuta dalla rete su "+1 timbro": la stessa chiave di idempotenza non dà un secondo timbro.',
+    msg: (f) =>
+      `Richiesta ripetuta di ${actor(f)} (timbro sulla ${card(f)}) ignorata: è la stessa del ${when(f.original_at)} ` +
+      `(${f.seconds_since} s prima), già eseguita una volta sola.`,
+    examples: [{ ...giulia, ...cardA, original_at: "2026-11-03T09:32:14.000Z", seconds_since: 1 }],
+  }),
+  "stamp.undo.duplicate_ignored": defineEvent<DuplicateIgnoredFields>({
+    level: "info",
+    description: "Richiesta di annullamento ripetuta con la stessa chiave: eseguita una volta sola.",
+    msg: (f) =>
+      `Richiesta ripetuta di ${actor(f)} (annullamento del timbro sulla ${card(f)}) ignorata: è la stessa del ${when(f.original_at)} ` +
+      `(${f.seconds_since} s prima), già eseguita una volta sola.`,
+    examples: [{ ...giulia, ...cardA, original_at: "2026-11-03T09:32:14.000Z", seconds_since: 1 }],
+  }),
+  "reward.redeem.duplicate_ignored": defineEvent<DuplicateIgnoredFields>({
+    level: "info",
+    description: "Richiesta di riscatto ripetuta con la stessa chiave: il premio è scalato una volta sola.",
+    msg: (f) =>
+      `Richiesta ripetuta di ${actor(f)} (riscatto del premio sulla ${card(f)}) ignorata: è la stessa del ${when(f.original_at)} ` +
+      `(${f.seconds_since} s prima), già eseguita una volta sola.`,
+    examples: [{ ...giulia, ...cardA, original_at: "2026-11-03T09:32:14.000Z", seconds_since: 1 }],
+  }),
   "stamp.undo.ok": defineEvent<StampUndoOkFields>({
     level: "info",
     description: "Un membro dello staff ha annullato l'ultimo timbro che aveva dato (entro 5 minuti).",
@@ -1786,6 +1888,58 @@ export const events = {
         ? "Invito accettato: password impostata e accesso eseguito."
         : "Password reimpostata dal link di recupero e accesso eseguito.",
     examples: [{ via: "recupero" }, { via: "invito" }],
+  }),
+  "scan.read.ok": defineEvent<ScanReadOkFields>({
+    level: "info",
+    description:
+      "Lo scanner dell'app ha letto un codice valido (QR della carta o codice breve): parte la ricerca della carta.",
+    msg: (f) => `Letto ${f.kind === "QR" ? "il QR di una carta" : "un codice breve"} con ${SCAN_MODE_LABEL[f.mode]}.`,
+    examples: [
+      { mode: "fotocamera", kind: "QR" },
+      { mode: "manuale", kind: "codice breve" },
+    ],
+  }),
+  "scan.read.invalid": defineEvent<ScanReadInvalidFields>({
+    level: "warn",
+    description:
+      "Lo scanner ha letto qualcosa che non è una carta (altro QR, codice incompleto): nessuna chiamata al server.",
+    msg: (f) =>
+      `Lettura scartata (${SCAN_MODE_LABEL[f.mode]}): ${f.reason}, non è un QR della carta né un codice breve.`,
+    examples: [
+      { mode: "fotocamera", reason: "URL di un sito" },
+      { mode: "lettore", reason: "testo di 12 caratteri" },
+    ],
+  }),
+  "scan.camera.denied": defineEvent<ScanCameraDeniedFields>({
+    level: "warn",
+    description:
+      "Permesso della fotocamera negato: lo scanner propone le impostazioni, il lettore esterno o il codice a mano.",
+    msg: (f) =>
+      f.can_ask_again
+        ? "Permesso della fotocamera negato: l'app può chiederlo di nuovo."
+        : "Permesso della fotocamera negato in modo permanente: va riattivato dalle impostazioni del dispositivo.",
+    examples: [{ can_ask_again: true }, { can_ask_again: false }],
+  }),
+  "scan.mode.changed": defineEvent<ScanModeChangedFields>({
+    level: "info",
+    description: "Cambiata la modalità dello scanner (fotocamera, lettore QR esterno, codice a mano); viene ricordata.",
+    msg: (f) => `Scanner passato da ${SCAN_MODE_LABEL[f.from]} a ${SCAN_MODE_LABEL[f.to]}.`,
+    examples: [{ from: "fotocamera", to: "lettore" }],
+  }),
+  "scan.card.shown": defineEvent<ScanCardShownFields>({
+    level: "info",
+    description: "Scheda cliente aperta dopo una lettura: tempo dalla lettura alla scheda.",
+    msg: (f) =>
+      `Scheda della carta ${f.customer_ref} aperta in ${f.duration_ms} ms dalla lettura (${SCAN_MODE_LABEL[f.mode]}).`,
+    examples: [{ customer_ref: "A3F2C91B", mode: "fotocamera", duration_ms: 420 }],
+  }),
+  "scan.stamp.confirmed": defineEvent<ScanStampConfirmedFields>({
+    level: "info",
+    description:
+      "Timbro confermato nell'app: tempo dal tocco alla conferma e dalla lettura del codice (obiettivo sotto i 2 secondi).",
+    msg: (f) =>
+      `Timbro sulla carta ${f.customer_ref} confermato in ${f.duration_ms} ms dal tocco, ${(f.since_scan_ms / 1000).toFixed(1)} s dalla lettura del codice.`,
+    examples: [{ customer_ref: "A3F2C91B", duration_ms: 310, since_scan_ms: 1650 }],
   }),
   "app.error.unexpected": defineEvent<AppUnexpectedErrorFields>({
     level: "error",

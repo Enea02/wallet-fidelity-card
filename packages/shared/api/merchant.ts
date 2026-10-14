@@ -46,8 +46,22 @@ export const LookupBody = z.object({
       message: "non è un QR della carta né un codice breve",
     }),
 });
-export const CardResponse = z.object({ card: CardView });
-export const StampResponse = z.object({ card: CardView, rewardUnlocked: z.boolean() });
+export const CardResponse = z.object({
+  card: CardView,
+  /** Data d'iscrizione (ISO) e numero di timbri ricevuti in tutto: "Cliente da marzo · 17 visite". */
+  since: z.string(),
+  visits: z.number().int().min(0),
+});
+/** Risposta delle azioni che restituiscono solo la carta aggiornata (annullamento, riscatto). */
+export const CardOnlyResponse = z.object({ card: CardView });
+/** Timbro: `force` lo dà anche durante il cooldown (resta nell'audit con chi l'ha dato). */
+export const StampBody = CustomerIdBody.extend({ force: z.literal(true).optional() });
+export const StampResponse = z.object({
+  card: CardView,
+  rewardUnlocked: z.boolean(),
+  /** true se è stato forzato durante il cooldown. */
+  forced: z.boolean(),
+});
 export { CustomerIdBody };
 
 /* ---------- statistiche ---------- */

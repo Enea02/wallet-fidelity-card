@@ -350,6 +350,9 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | --- | --- | --- | --- |
 | `stamp.add.ok` | info | Un membro dello staff ha aggiunto un timbro a una carta. | Giulia (operatore, iOS 1.4.0) ha aggiunto un timbro alla carta A3F2C91B del negozio Salone Mario: 6 → 7 su 10. |
 | `stamp.add.rejected_cooldown` | warn | Timbro rifiutato perché troppo vicino al precedente (tempo minimo tra due timbri impostato dal negozio). | Timbro di Giulia (operatore, iOS 1.4.0) rifiutato sulla carta A3F2C91B del negozio Salone Mario: ultimo timbro 8 minuti fa, il negozio richiede almeno 60 minuti tra due timbri (mancano 52 minuti). |
+| `stamp.add.forced` | warn | Timbro dato durante il cooldown con "Aggiungi comunque": resta nell'audit. Se succede spesso, parlarne con il titolare. | Giulia (operatore, iOS 1.4.0) ha forzato un timbro sulla carta A3F2C91B del negozio Salone Mario durante il cooldown (mancavano 52 minuti su 60 minuti): 6 → 7 su 10, registrato nell'audit. |
+| `stamp.add.duplicate_ignored` | info | Doppio tocco o richiesta ripetuta dalla rete su "+1 timbro": la stessa chiave di idempotenza non dà un secondo timbro. | Richiesta ripetuta di Giulia (operatore, iOS 1.4.0) (timbro sulla carta A3F2C91B del negozio Salone Mario) ignorata: è la stessa del 03/11/2026 10:32 (ora italiana) (1 s prima), già eseguita una volta sola. |
+| `stamp.undo.duplicate_ignored` | info | Richiesta di annullamento ripetuta con la stessa chiave: eseguita una volta sola. | Richiesta ripetuta di Giulia (operatore, iOS 1.4.0) (annullamento del timbro sulla carta A3F2C91B del negozio Salone Mario) ignorata: è la stessa del 03/11/2026 10:32 (ora italiana) (1 s prima), già eseguita una volta sola. |
 | `stamp.undo.ok` | info | Un membro dello staff ha annullato l'ultimo timbro che aveva dato (entro 5 minuti). | Giulia (operatore, iOS 1.4.0) ha annullato l'ultimo timbro della carta A3F2C91B del negozio Salone Mario: 7 → 6 su 10. |
 | `stamp.undo.rejected` | warn | Annullamento dell'ultimo timbro rifiutato: tempo scaduto, altro operatore, carta già modificata. | Annullamento dell'ultimo timbro chiesto da Giulia (operatore, iOS 1.4.0) sulla carta A3F2C91B del negozio Salone Mario rifiutato: il timbro è stato dato 12 minuti fa (limite 5 minuti). |
 
@@ -358,6 +361,7 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
 | `reward.unlocked` | info | Una carta ha raggiunto i timbri richiesti: il premio è disponibile. | La carta A3F2C91B del negozio Salone Mario ha raggiunto 10 timbri: premio "Taglio gratis" sbloccato (premi disponibili: 1). |
+| `reward.redeem.duplicate_ignored` | info | Richiesta di riscatto ripetuta con la stessa chiave: il premio è scalato una volta sola. | Richiesta ripetuta di Giulia (operatore, iOS 1.4.0) (riscatto del premio sulla carta A3F2C91B del negozio Salone Mario) ignorata: è la stessa del 03/11/2026 10:32 (ora italiana) (1 s prima), già eseguita una volta sola. |
 | `reward.redeem.ok` | info | Un membro dello staff ha riscattato un premio dalla carta del cliente. | Giulia (operatore, iOS 1.4.0) ha riscattato il premio "Taglio gratis" dalla carta A3F2C91B del negozio Salone Mario (premi disponibili: 1 → 0). |
 | `reward.redeem.rejected_none` | warn | Riscatto rifiutato perché la carta non ha premi disponibili. | Riscatto chiesto da Giulia (operatore, iOS 1.4.0) sulla carta A3F2C91B del negozio Salone Mario rifiutato: nessun premio disponibile (la carta ha 4/10 timbri). |
 
@@ -491,6 +495,17 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | `app.password.changed` | info | Lo staff ha impostato una nuova password, dal link di recupero o accettando l'invito. | Password reimpostata dal link di recupero e accesso eseguito. |
 | `app.error.unexpected` | error | Errore imprevisto nel codice dell'app (non una risposta del server): va segnalato allo sviluppo con la diagnostica e Sentry. | Errore imprevisto nell'app durante il caricamento dei negozi: TypeError: shops.map is not a function. |
 | `app.invite.accepted` | info | Lo staff ha aperto il link d'invito e la sessione è valida: deve solo scegliere la password. | Aperto il link d'invito di gi***@salone-mario.it: in attesa della scelta della password. |
+
+### scan
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `scan.read.ok` | info | Lo scanner dell'app ha letto un codice valido (QR della carta o codice breve): parte la ricerca della carta. | Letto il QR di una carta con fotocamera. |
+| `scan.read.invalid` | warn | Lo scanner ha letto qualcosa che non è una carta (altro QR, codice incompleto): nessuna chiamata al server. | Lettura scartata (fotocamera): URL di un sito, non è un QR della carta né un codice breve. |
+| `scan.camera.denied` | warn | Permesso della fotocamera negato: lo scanner propone le impostazioni, il lettore esterno o il codice a mano. | Permesso della fotocamera negato: l'app può chiederlo di nuovo. |
+| `scan.mode.changed` | info | Cambiata la modalità dello scanner (fotocamera, lettore QR esterno, codice a mano); viene ricordata. | Scanner passato da fotocamera a lettore QR esterno. |
+| `scan.card.shown` | info | Scheda cliente aperta dopo una lettura: tempo dalla lettura alla scheda. | Scheda della carta A3F2C91B aperta in 420 ms dalla lettura (fotocamera). |
+| `scan.stamp.confirmed` | info | Timbro confermato nell'app: tempo dal tocco alla conferma e dalla lettura del codice (obiettivo sotto i 2 secondi). | Timbro sulla carta A3F2C91B confermato in 310 ms dal tocco, 1.6 s dalla lettura del codice. |
 
 ## Errori
 
