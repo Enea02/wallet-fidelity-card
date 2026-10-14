@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Avvia Supabase in locale (se non è già attivo) e, al primo avvio, crea
-// apps/web/.env.local con le chiavi del Supabase locale. Usato da `pnpm dev` e `pnpm db:start`.
+// Avvia Supabase in locale (se non è già attivo) e, al primo avvio, crea apps/web/.env.local
+// e apps/merchant/.env.local con le chiavi del Supabase locale. Usato da `pnpm dev` e `pnpm db:start`.
 import { execFileSync, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -90,6 +90,33 @@ if (existsSync(envLocal)) {
   writeFileSync(envLocal, content, { mode: 0o600 });
   console.log("✔ Creato apps/web/.env.local con le chiavi del Supabase locale (Google Wallet disattivato).");
 }
+
+// App esercente: solo valori pubblici (finiscono nel bundle dell'app), riscritti a ogni avvio
+// perché seguono il Supabase locale. Sull'emulatore Android l'app sostituisce localhost con 10.0.2.2.
+const merchantEnv = join(root, "apps/merchant/.env.local");
+const merchantValues = {
+  EXPO_PUBLIC_API_URL: "http://localhost:3000",
+  EXPO_PUBLIC_SUPABASE_URL: s.API_URL,
+  EXPO_PUBLIC_SUPABASE_ANON_KEY: s.ANON_KEY,
+  EXPO_PUBLIC_WEB_URL: "http://localhost:8081",
+  EXPO_PUBLIC_APP_ENV: "development",
+};
+const merchantKeep = existsSync(merchantEnv)
+  ? readFileSync(merchantEnv, "utf8")
+      .split("\n")
+      .filter((l) => /^[A-Z0-9_]+=/.test(l) && !(l.split("=")[0] in merchantValues))
+  : [];
+writeFileSync(
+  merchantEnv,
+  [
+    "# Creato da pnpm db:start: valori pubblici del Supabase locale (le altre righe restano).",
+    ...Object.entries(merchantValues).map(([k, v]) => `${k}=${v}`),
+    ...merchantKeep,
+    "",
+  ].join("\n"),
+  { mode: 0o600 },
+);
+console.log("✔ apps/merchant/.env.local allineato al Supabase locale.");
 
 // Cron dei wallet: pg_cron (nel container) chiama il server di sviluppo sull'host ogni minuto.
 // URL e segreto vanno nel Vault di Supabase (configure_wallet_cron).

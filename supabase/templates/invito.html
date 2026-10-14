@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="it">
+  <body
+    style="
+      margin: 0;
+      background: #f7f2eb;
+      font-family: &quot;Bricolage Grotesque&quot;, &quot;Avenir Next&quot;, &quot;Segoe UI&quot;, sans-serif;
+      color: #2a211c;
+    "
+  >
+    <div style="max-width: 520px; margin: 0 auto; padding: 32px 20px">
+      <h1 style="font-size: 26px; line-height: 1.2; margin: 0 0 12px">
+        Ciao {{ .Data.name }}, ti aspettiamo nello staff
+      </h1>
+      <p style="font-size: 16px; line-height: 1.5; margin: 0 0 20px">
+        {{ if .Data.shop_name }}{{ .Data.shop_name }} ti invita{{ else }}Hai ricevuto un invito{{ end }} a usare Loyalty
+        Wallet per dare timbri e premi ai clienti. Scegli la tua password per entrare.
+      </p>
+      <p style="margin: 0 0 24px">
+        <a
+          href="{{ .ConfirmationURL }}"
+          style="
+            display: inline-block;
+            background: #2a211c;
+            color: #fbf8f3;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 17px;
+            padding: 16px 24px;
+            border-radius: 14px;
+          "
+          >Accetta l'invito</a
+        >
+      </p>
+      <p style="font-size: 14px; line-height: 1.5; color: #5e534b; margin: 0">
+        Il link vale 24 ore e si usa una volta sola. Se non aspettavi questo invito puoi ignorare l'email.
+      </p>
+    </div>
+  </body>
+</html>

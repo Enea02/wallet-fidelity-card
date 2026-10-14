@@ -56,7 +56,7 @@ export async function inviteStaff(
     const base = process.env.MERCHANT_APP_URL ?? process.env.APP_BASE_URL ?? "";
     const { data, error: inviteError } = await db.auth.admin.inviteUserByEmail(email, {
       redirectTo: `${base.replace(/\/$/, "")}/invito`,
-      data: { name: input.displayName },
+      data: { name: input.displayName, shop_name: shop.name },
     });
     if (inviteError || !data.user) {
       throw new AppError(
