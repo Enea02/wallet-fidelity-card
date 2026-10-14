@@ -1,47 +1,36 @@
 import "server-only";
-import { log } from "../observability/logger";
-import type { CardState } from "../types";
-import { googleEnabled, notifyLoyaltyObject, patchLoyaltyObject } from "./google";
-import { notifyApple } from "./apple";
+import type { Shop } from "../types";
+import { rewardUnlockedMessage } from "./card-texts";
+import { deferWalletWork } from "./defer";
+import { sendCardMessage, syncCard, syncClass } from "./sync";
+
+/*
+ * Unico punto in cui il dominio parla con i wallet. Il lavoro parte dopo la risposta all'app
+ * (deferWalletWork): un errore di un wallet non annulla mai il timbro, viene registrato e ritentato.
+ * Apple Wallet si aggiunge qui in Fase 12.
+ */
 
 export interface CardChange {
-  kind: "stamp" | "redeem" | "undo" | "adjust";
-  rewardUnlocked: boolean;
+  kind: "enroll" | "stamp" | "redeem" | "undo" | "adjust" | "delete";
+  /** Per il timbro che completa la carta: id dello stamp_event, usato come id della notifica. */
+  rewardUnlockedBy?: number | undefined;
 }
 
-/**
- * Unico punto in cui il dominio parla con i wallet.
- * Aggiungere un wallet = aggiungere un ramo qui, il resto non cambia.
- * Gli errori dei wallet non annullano il timbro: vengono loggati (wallet.update.failed).
- */
-export async function notifyCardChanged(state: CardState, change: CardChange) {
-  const jobs: Array<{ provider: "google" | "apple"; run: Promise<unknown> }> = [
-    { provider: "apple", run: notifyApple(state) },
-  ];
-  if (googleEnabled()) {
-    jobs.push({
-      provider: "google",
-      run: patchLoyaltyObject(state).then(() =>
-        change.rewardUnlocked
-          ? notifyLoyaltyObject(
-              state.customer.id,
-              `${state.shop.reward_label}!`,
-              `Hai raggiunto ${state.shop.stamps_required} timbri da ${state.shop.name}. Il premio ti aspetta.`,
-            )
-          : undefined,
-      ),
-    });
-  }
+export function notifyCardChanged(shop: Shop, customerId: string, change: CardChange): Promise<void> {
+  return deferWalletWork("sincronizzazione carta", async () => {
+    const synced = await syncCard(customerId, { origin: change.kind === "delete" ? "delete" : "change" });
+    if (synced && change.rewardUnlockedBy !== undefined) {
+      const msg = rewardUnlockedMessage(shop);
+      await sendCardMessage(
+        customerId,
+        { id: `reward-${change.rewardUnlockedBy}`, header: msg.header, body: msg.body, kind: "premio sbloccato" },
+        { track: true },
+      );
+    }
+  });
+}
 
-  await Promise.all(
-    jobs.map(({ provider, run }) =>
-      run.catch((e: unknown) =>
-        log.event(
-          "wallet.update.failed",
-          { provider, customer_ref: state.customer.id, error_message: e instanceof Error ? e.message : String(e) },
-          { error: e },
-        ),
-      ),
-    ),
-  );
+/** Dopo un cambio di impostazioni visibile sulla carta: template subito, carte dalla riconciliazione. */
+export function notifyShopChanged(shop: Shop): Promise<void> {
+  return deferWalletWork("aggiornamento template", () => syncClass(shop.id));
 }

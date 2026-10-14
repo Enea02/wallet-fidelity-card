@@ -35,7 +35,10 @@ function parsePayload(text: string): unknown {
  */
 export function withApi<Args extends unknown[]>(
   handler: (req: Request, ...args: Args) => Promise<Response>,
+  /** quiet: inizio e fine richiesta a livello debug (es. il cron, chiamato ogni minuto). */
+  opts: { quiet?: boolean } = {},
 ): (req: Request, ...args: Args) => Promise<Response> {
+  const okLevel = opts.quiet ? ({ level: "debug" } as const) : {};
   return async (req, ...args) => {
     const started = performance.now();
     const incoming = req.headers.get("x-request-id");
@@ -51,7 +54,7 @@ export function withApi<Args extends unknown[]>(
     const ctx = { request_id, route, method, platform, app_version, ip_hash, ...(build !== null && { build }) };
     return runWithContext(ctx, async () => {
       await refreshDiagnosticModes();
-      log.event("http.request.start", { method, route, platform, app_version, ip_hash });
+      log.event("http.request.start", { method, route, platform, app_version, ip_hash }, okLevel);
       // il body serve solo in modalità diagnostica, che si decide quando il contesto è completo
       const requestText =
         method === "GET" || method === "HEAD"
@@ -65,15 +68,19 @@ export function withApi<Args extends unknown[]>(
       let res: Response;
       try {
         res = await handler(req, ...args);
-        log.event("http.request.end", {
-          method,
-          route,
-          status: res.status,
-          duration_ms: duration(),
-          error_code: null,
-          error_message: null,
-          support_code,
-        });
+        log.event(
+          "http.request.end",
+          {
+            method,
+            route,
+            status: res.status,
+            duration_ms: duration(),
+            error_code: null,
+            error_message: null,
+            support_code,
+          },
+          okLevel,
+        );
       } catch (e) {
         const { error, unexpected } = classifyError(e);
         const common = { method, route, status: error.status, duration_ms: duration(), support_code };

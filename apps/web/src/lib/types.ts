@@ -8,6 +8,14 @@ export interface Shop {
   hex_color: string;
   stamp_cooldown_minutes: number;
   status: "active" | "suspended";
+  /** Testi della carta: "Carta Amica", "taglio" / "tagli". */
+  program_name: string;
+  stamp_unit: string;
+  stamp_unit_plural: string;
+  /** Sale quando cambia qualcosa di visibile sulla carta: le carte con versione vecchia vanno riallineate. */
+  card_version: number;
+  legal_name: string | null;
+  privacy_email: string | null;
 }
 
 export interface Customer {

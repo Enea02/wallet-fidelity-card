@@ -11,13 +11,14 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
-    "diag": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/diag.ts"
+    "diag": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/diag.ts",
+    "wallet:resync": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/wallet-resync.ts",
+    "cron:configure": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/cron-configure.ts"
   },
   "dependencies": {
     "@loyalty/shared": "workspace:*",
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/supabase-js": "^2.117.3",
-    "google-auth-library": "^11.3.0",
     "jsonwebtoken": "^9.0.3",
     "next": "^16.4.0",
     "qrcode": "^1.5.4",

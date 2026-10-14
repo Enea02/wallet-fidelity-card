@@ -10,6 +10,8 @@ const base = {
   ADMIN_SETUP_TOKEN: "a".repeat(32),
   IP_HASH_SALT: "b".repeat(32),
   MERCHANT_APP_ORIGINS: "http://localhost:8081",
+  CRON_SECRET: "c".repeat(40),
+  UNSUBSCRIBE_SECRET: "d".repeat(40),
 };
 const saKey = Buffer.from(JSON.stringify({ client_email: "sa@x.iam", private_key: "-----BEGIN…" })).toString("base64");
 

@@ -15,7 +15,7 @@ function gitCommit(): string {
 
 const nextConfig: NextConfig = {
   // google-auth-library usa moduli Node: resta lato server
-  serverExternalPackages: ["google-auth-library", "jsonwebtoken", "@react-pdf/renderer"],
+  serverExternalPackages: ["jsonwebtoken", "@react-pdf/renderer"],
   // font del cartello A5, letti da node_modules a runtime: vanno inclusi nel bundle del deploy
   outputFileTracingIncludes: {
     "/api/v1/merchant/counter-qr.pdf": ["./assets/fonts/*.woff"],
