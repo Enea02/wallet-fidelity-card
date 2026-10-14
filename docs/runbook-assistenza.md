@@ -205,6 +205,60 @@ con la durata). Nel frattempo le azioni che richiedono il server sono disattivat
 online ma vede il banner, il dispositivo non ha una rete attiva (es. Wi-Fi collegato senza internet su alcuni
 Android): far disattivare e riattivare il Wi-Fi.
 
+## Una sessione di timbratura nei log
+
+Ogni passo ha la sua riga. Quelle dell'app (`scan.*`, nel pacchetto "Invia diagnostica" e in Sentry) e quelle del
+backend (`customer.lookup.*`, `stamp.*`, `reward.*`) hanno lo stesso `customer_ref` (codice breve della carta).
+Esempio da una sessione di prova in locale (lettura, timbro, annullamento):
+
+```
+app      scan.read.ok          Letto il QR di una carta con lettore QR esterno.
+backend  customer.lookup.ok    Marco (operatore, web 0.1.0) ha aperto la carta V9Q45RUZ del negozio Barbiere Demo con la scansione del QR (0/10 timbri, premi disponibili: 0).
+app      scan.card.shown       Scheda della carta V9Q45RUZ aperta in 194 ms dalla lettura (lettore QR esterno).
+backend  stamp.add.ok          Marco (operatore, web 0.1.0) ha aggiunto un timbro alla carta V9Q45RUZ del negozio Barbiere Demo: 0 → 1 su 10.
+app      scan.stamp.confirmed  Timbro sulla carta V9Q45RUZ confermato in 104 ms dal tocco, 0.8 s dalla lettura del codice.
+backend  stamp.undo.ok         Marco (operatore, web 0.1.0) ha annullato l'ultimo timbro della carta V9Q45RUZ del negozio Barbiere Demo: 1 → 0 su 10.
+```
+
+`scan.stamp.confirmed` misura il tempo dalla lettura del codice al timbro confermato: con buona rete deve stare sotto
+i 2 secondi. Se è molto più alto, guardare `duration_ms` delle righe `http.request.end` del backend per la stessa
+carta: se il server è veloce, il problema è la rete del negozio.
+
+## "Lo scanner non legge"
+
+- **Fotocamera**: QR troppo piccolo, riflesso dello schermo del cliente, poca luce (c'è la torcia). Far alzare la
+  luminosità del telefono del cliente. Nessuna riga `scan.read.*` = la fotocamera non ha visto un QR.
+- **`scan.read.invalid`**: è stato letto qualcosa che non è una carta (un URL, un codice a barre del prodotto, un
+  codice breve incompleto). Il motivo è nel campo `reason`. Il cliente ha aperto la cosa sbagliata.
+- **Lettore QR esterno**: deve essere configurato come tastiera con Invio finale (impostazione di fabbrica di
+  quasi tutti). Il campo del lettore nell'app deve essere a fuoco ("Pronto: scansiona con il lettore"): se è stato
+  toccato altro, l'app lo rimette a fuoco da sola.
+- **Web su Safari, Firefox o Chrome per Windows**: la decodifica usa il motore ZXing servito dalla web app
+  (`/zxing/zxing_reader.wasm`). Se manca (deploy incompleto) la webcam si vede ma non legge nulla: usare lettore o
+  codice breve e verificare il deploy.
+- In ogni caso il **codice breve** stampato sotto il QR funziona sempre (modalità "Codice").
+
+## Permesso della fotocamera negato (`scan.camera.denied`)
+
+- iOS e Android: con `can_ask_again: false` il permesso va riattivato da Impostazioni → app Loyalty Wallet
+  Esercente → Fotocamera; l'app mostra il pulsante "Apri le impostazioni".
+- Web: icona del lucchetto/fotocamera accanto all'indirizzo del browser → Consenti. Sul sito non in HTTPS il
+  browser non concede mai la fotocamera.
+
+## "Ho dato due timbri con un tocco" / "il timbro c'è due volte"
+
+Ogni tocco su "+1 timbro", "Annulla ultimo timbro" e "Riscatta premio" porta una chiave (`Idempotency-Key`): una
+seconda richiesta con la stessa chiave (doppio tocco, rete che ripete) non agisce e lascia
+`stamp.add.duplicate_ignored` (o `stamp.undo.…`, `reward.redeem.…`). Se ci sono davvero due `stamp.add.ok` per la
+stessa carta, sono due tocchi distinti: con il cooldown attivo il secondo è possibile solo con "Aggiungi comunque"
+(vedi sotto). Si corregge con "Annulla ultimo timbro" entro 5 minuti, poi con la correzione del saldo del titolare.
+
+## Timbro forzato durante il cooldown (`stamp.add.forced`)
+
+Lo staff ha premuto "Aggiungi comunque" sul foglio "Timbro già dato da poco". Il timbro vale, ma resta nell'audit
+(`audit_log.reason = 'timbro forzato durante il cooldown'`, con i minuti mancanti in `after`) e nel log a livello
+warn. Se succede spesso con lo stesso operatore o la stessa carta, segnalarlo al titolare.
+
 ## "La carta non viene trovata" alla scansione
 
 - `customer.lookup.not_found`: il QR o il codice breve non corrisponde a nessuna carta. Far riscansionare o digitare
