@@ -46,6 +46,8 @@ console.log(`✔ Supabase locale attivo: API ${s.API_URL} · Studio ${s.STUDIO_U
 const generated = {
   ADMIN_SETUP_TOKEN: () => randomBytes(24).toString("hex"),
   IP_HASH_SALT: () => randomBytes(16).toString("hex"),
+  CRON_SECRET: () => randomBytes(32).toString("hex"),
+  UNSUBSCRIBE_SECRET: () => randomBytes(32).toString("hex"),
 };
 
 // variabili nuove con un valore fisso per lo sviluppo locale
@@ -82,4 +84,26 @@ if (existsSync(envLocal)) {
     .join("\n");
   writeFileSync(envLocal, content, { mode: 0o600 });
   console.log("✔ Creato apps/web/.env.local con le chiavi del Supabase locale (Google Wallet disattivato).");
+}
+
+// Cron dei wallet: pg_cron (nel container) chiama il server di sviluppo sull'host ogni minuto.
+// URL e segreto vanno nel Vault di Supabase (configure_wallet_cron).
+const cronSecret = readFileSync(envLocal, "utf8")
+  .match(/^CRON_SECRET=(.+)$/m)?.[1]
+  ?.trim();
+if (cronSecret) {
+  const res = await fetch(`${s.API_URL}/rest/v1/rpc/configure_wallet_cron`, {
+    method: "POST",
+    headers: {
+      apikey: s.SERVICE_ROLE_KEY,
+      authorization: `Bearer ${s.SERVICE_ROLE_KEY}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      p_url: "http://host.docker.internal:3000/api/internal/cron/wallet-sync",
+      p_secret: cronSecret,
+    }),
+  });
+  if (res.ok) console.log("✔ Cron dei wallet configurato: ogni minuto verso http://localhost:3000.");
+  else console.error(`✖ Configurazione del cron dei wallet non riuscita (${res.status}): ${await res.text()}`);
 }

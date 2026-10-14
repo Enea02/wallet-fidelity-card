@@ -39,12 +39,51 @@ La riga `http.request.failed` contiene lo stack in `error.stack` (e la causa ori
 
 ## La carta del cliente non si aggiorna sul telefono
 
-1. Cercare per `customer_ref` (oggi l'id della carta) le righe `wallet.update.failed`: indicano wallet e motivo.
-   Il timbro è comunque salvato nel database.
-2. Errori di credenziali (401/403) → controllare `GOOGLE_WALLET_SA_KEY_B64` e i permessi del service account nella
-   Google Pay & Wallet Console.
-3. Dalla Fase 4: stato di sincronizzazione per carta (`wallet_sync_state`), retry automatici e pulsante
-   "Risincronizza".
+Ogni carta ha una riga in `wallet_sync_state` (`wallet = google`): cosa abbiamo inviato (`synced_stamps`,
+`synced_rewards`, `synced_state`, `synced_version`), quando (`last_success_at`) e l'ultimo errore (`last_error_code`,
+`last_error`, `attempts` = errori consecutivi). Se i valori inviati coincidono con quelli del cliente nel database,
+**Google ha la carta giusta**: il telefono si aggiorna da solo (a volte dopo qualche minuto, o riaprendo il Wallet).
+
+1. Cercare nei log per `customer_ref` (codice breve) le righe `wallet.google.*`:
+   - `wallet.google.patch.ok`: carta aggiornata, con saldo e durata;
+   - `wallet.google.patch.failed`: motivo in chiaro (credenziali, quota, dati rifiutati, Google giù), quando si
+     riprova e cosa fare. **Il timbro è comunque salvato.**
+2. I tentativi automatici sono in `wallet_sync_failures`: dopo un errore si riprova tra 1, 5, 15 e 60 minuti
+   (`wallet.sync.retry.scheduled`); al quinto errore `wallet.sync.retry.exhausted` e la carta resta indietro.
+3. Dopo aver risolto la causa: `pnpm wallet:resync --shop <slug> --card <codice breve>` (o solo `--shop` per tutto il
+   negozio). Dalla Fase 9 c'è il pulsante "Risincronizza" nella vista Assistenza.
+4. Carte rimaste indietro senza errori (es. server riavviato durante l'aggiornamento): le riallinea da sola la
+   riconciliazione del cron entro pochi minuti (`wallet.sync.reconciled`, con la differenza trovata).
+
+Errori più comuni:
+- `E_GOOGLE_AUTH`: chiave del service account sbagliata/revocata o service account non utente (Developer)
+  dell'emittente nella Google Pay & Wallet Console. Colpisce **tutte** le carte: molte righe uguali in poco tempo.
+- `E_GOOGLE_INVALID_PAYLOAD`: Google rifiuta i dati; `provider_response` dice il campo (spesso il logo: deve essere
+  PNG/JPEG pubblico, raggiungibile da Google).
+- `E_GOOGLE_NOT_FOUND`: template o carta mancanti (es. Issuer ID cambiato): `pnpm wallet:resync --shop <slug>`.
+
+## Il cron dei wallet
+
+Ogni minuto `pg_cron` (Supabase) chiama `POST /api/internal/cron/wallet-sync`: nuovi tentativi, riconciliazione, invio
+delle promozioni. Una riga `cron.wallet_sync.run` per ogni esecuzione che ha fatto qualcosa.
+- Nessuna riga per molto tempo e tentativi in coda in `wallet_sync_failures` con `next_retry_at` passato: il cron non
+  arriva all'app. Verificare con `select * from cron.job_run_details order by start_time desc limit 5` e le risposte
+  in `net._http_response`; riconfigurare con `pnpm cron:configure --url https://<dominio>/api/internal/cron/wallet-sync`.
+- `E_CRON_UNAUTHORIZED`: `CRON_SECRET` dell'app diverso da quello nel Vault: rieseguire `pnpm cron:configure`.
+
+## Promozioni
+
+`promo.send.queued` (prenotata dal titolare) → il cron prepara le consegne per i clienti con consenso in quel momento
+e le invia a gruppi di 50 → `promo.send.completed` con consegnate, saltate (consenso revocato nel frattempo, carta
+non presente su Google) e fallite. Ogni consegna è in `promotion_deliveries`; il messaggio ha id `promo-<id>` per
+carta, quindi un nuovo tentativo non lo duplica mai. Il link di disiscrizione nel messaggio è firmato
+(`UNSUBSCRIBE_SECRET`); la pagina che lo gestisce arriva in Fase 5.
+
+## Carta disattivata
+
+`wallet.card.deactivated`: la carta su Google è `INACTIVE` perché il cliente è stato cancellato o il negozio è
+sospeso. Alla riattivazione del negozio, `pnpm wallet:resync --shop <slug>` le riattiva tutte (dalla Fase 9 lo fa il
+pannello).
 
 ## "Il timbro non è arrivato" / "il saldo è sbagliato"
 
@@ -278,6 +317,7 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
 | `promo.send.queued` | info | Il titolare ha prenotato l'invio di una promozione ai clienti con consenso marketing. | Mario (titolare, web) ha prenotato una promozione del negozio Salone Mario (96 caratteri) per 42 clienti con consenso marketing. |
+| `promo.send.completed` | info | Invio di una promozione completato: quanti clienti l'hanno ricevuta, saltati e falliti. | Promozione del negozio Salone Mario inviata: 40 consegnate, 2 saltate (consenso revocato o carta non disponibile), 0 fallite. |
 
 ### counter_qr
 
@@ -295,7 +335,25 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
-| `wallet.update.failed` | error | L'aggiornamento della carta su Google o Apple Wallet è fallito. Il timbro o il riscatto è comunque salvato nel database. | Aggiornamento della carta B71D0E44 su Google Wallet fallito: Request failed with status code 401. Il dato è salvato nel database ma la carta sul telefono non è allineata. Azione: verificare le credenziali del wallet e risincronizzare la carta. |
+| `wallet.google.class.upsert.ok` | info | Template del programma fedeltà del negozio creato o aggiornato su Google Wallet (nome, colore, logo). | Template Google Wallet del negozio Salone Mario aggiornato (3388000000022.shop-salone-mario) in 290 ms. |
+| `wallet.google.class.upsert.failed` | error | Creazione o aggiornamento del template del negozio su Google Wallet fallito. | Aggiornamento del template Google Wallet del negozio Salone Mario fallito: credenziali del service account rifiutate (401); verrà ritentato tra 5 minuti. Azione: verificare la chiave GOOGLE_WALLET_SA_KEY_B64 e il ruolo del service account nella Wallet Console. |
+| `wallet.google.object.upsert.ok` | info | Carta del cliente creata su Google Wallet (prima volta, o ricreata perché mancante). | Carta A3F2C91B del negozio Salone Mario creata su Google Wallet (0/10, 0 premi) in 341 ms. |
+| `wallet.google.object.upsert.failed` | error | Creazione della carta del cliente su Google Wallet fallita. | Creazione su Google Wallet fallita per la carta A3F2C91B: credenziali del service account rifiutate (401). Il cliente è iscritto e può comunque salvare la carta dal link; verrà ritentato tra 5 minuti. Azione: verificare la chiave GOOGLE_WALLET_SA_KEY_B64 e il ruolo del service account nella Wallet Console. |
+| `wallet.google.patch.ok` | info | Carta del cliente aggiornata su Google Wallet: Google la propaga da solo al telefono. | Carta A3F2C91B aggiornata su Google Wallet (7/10, 0 premi) in 341 ms. |
+| `wallet.google.patch.failed` | error | Aggiornamento della carta su Google Wallet fallito. Il dato (timbro, premio…) è salvato nel database; la carta sul telefono resta indietro finché un tentativo non riesce. | Aggiornamento su Google Wallet fallito per la carta A3F2C91B: credenziali del service account rifiutate (401). Il dato è salvato; verrà ritentato tra 5 minuti. Azione: verificare la chiave GOOGLE_WALLET_SA_KEY_B64 e il ruolo del service account nella Wallet Console. |
+| `wallet.google.message.sent` | info | Messaggio con notifica inviato a una carta su Google Wallet (premio sbloccato o promozione). | Notifica "premio sbloccato" inviata alla carta A3F2C91B del negozio Salone Mario su Google Wallet in 280 ms. |
+| `wallet.google.message.failed` | error | Invio di un messaggio a una carta su Google Wallet fallito. | Notifica "promozione" non inviata alla carta A3F2C91B: credenziali del service account rifiutate (401); verrà ritentato tra 5 minuti. Azione: verificare la chiave GOOGLE_WALLET_SA_KEY_B64 e il ruolo del service account nella Wallet Console. |
+| `wallet.sync.retry.scheduled` | info | Pianificato un nuovo tentativo automatico verso il wallet (backoff 1, 5, 15, 60 minuti). | Nuovo tentativo n. 2 per carta B71D0E44 su Google Wallet tra 1 minuto (03/11/2026 11:06 (ora italiana)), dopo l'errore E_GOOGLE_AUTH. |
+| `wallet.sync.retry.exhausted` | error | Esauriti i tentativi automatici verso il wallet: la carta (o il template) resta disallineata finché non si risincronizza a mano. | Tentativi esauriti per carta B71D0E44 su Google Wallet dopo 5 errori (ultimo E_GOOGLE_AUTH: status 401). Azione: risolvere la causa e risincronizzare con pnpm wallet:resync. |
+| `wallet.card.deactivated` | info | Carta resa non utilizzabile su Google Wallet (stato INACTIVE): cliente cancellato o negozio sospeso. | Carta A3F2C91B del negozio Salone Mario disattivata su Google Wallet: cliente cancellato. |
+| `wallet.sync.reconciled` | info | La riconciliazione periodica ha trovato una carta non allineata al database e l'ha riallineata. | Carta A3F2C91B del negozio Salone Mario riallineata su Google Wallet dalla riconciliazione (differenza: saldo). |
+| `wallet.sync.unexpected_error` | error | Errore imprevisto (non di Google) durante un lavoro verso i wallet: la riga contiene lo stack. La carta verrà riallineata dalla riconciliazione. | Errore imprevisto durante sincronizzazione carta verso i wallet: fetch failed (Supabase non raggiungibile). La carta verrà riallineata dalla riconciliazione; azione: passare lo stack di questa riga allo sviluppo. |
+
+### cron
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `cron.wallet_sync.run` | info | Esecuzione del cron dei wallet (ogni minuto): nuovi tentativi, riconciliazione, invio promozioni. | Cron wallet completato in 2140 ms: 2/3 tentativi riusciti, 1 carte riallineate, 40 promozioni consegnate, 0 fallite. |
 
 ## Errori
 
@@ -517,6 +575,48 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Richiesta dal browser con un'origine non presente in MERCHANT_APP_ORIGINS.
 - **Causa probabile**: Web app esercente pubblicata su un dominio nuovo non ancora configurato, oppure sito di terzi.
 - **Cosa fare**: Se il dominio è nostro, aggiungerlo a MERCHANT_APP_ORIGINS e rifare il deploy.
+
+### `E_GOOGLE_AUTH` (HTTP 502)
+
+- **L'utente vede**: La carta nel Wallet non si è aggiornata. Il dato è salvato: si aggiornerà da sola appena possibile.
+- **Cosa è successo**: Google Wallet ha rifiutato le credenziali del service account (401/403).
+- **Causa probabile**: Chiave GOOGLE_WALLET_SA_KEY_B64 revocata o sbagliata, oppure il service account non è utente (Developer) dell'emittente nella Google Pay & Wallet Console.
+- **Cosa fare**: Verificare la chiave GOOGLE_WALLET_SA_KEY_B64 e, nella Wallet Console → Users, che l'email del service account abbia il ruolo Developer.
+
+### `E_GOOGLE_NOT_FOUND` (HTTP 502)
+
+- **L'utente vede**: La carta nel Wallet non si è aggiornata. Il dato è salvato: si aggiornerà da sola appena possibile.
+- **Cosa è successo**: Google Wallet non trova la carta o il template del negozio (404).
+- **Causa probabile**: Template del negozio mai creato, oppure GOOGLE_WALLET_ISSUER_ID diverso da quello con cui la carta è stata creata.
+- **Cosa fare**: Risincronizzare il negozio (pnpm wallet:resync --shop <slug>): ricrea template e carte mancanti. Se persiste, verificare l'Issuer ID.
+
+### `E_GOOGLE_QUOTA` (HTTP 502)
+
+- **L'utente vede**: La carta nel Wallet non si è aggiornata. Il dato è salvato: si aggiornerà da sola appena possibile.
+- **Cosa è successo**: Superato il limite di richieste o di notifiche di Google Wallet (429).
+- **Causa probabile**: Troppe richieste in poco tempo (es. risincronizzazione di molti negozi) o troppe notifiche alla stessa carta.
+- **Cosa fare**: Nessuna azione immediata: i tentativi automatici riprovano. Se è frequente, ridurre gli invii o chiedere più quota a Google.
+
+### `E_GOOGLE_INVALID_PAYLOAD` (HTTP 502)
+
+- **L'utente vede**: La carta nel Wallet non si è aggiornata. Il dato è salvato: lo segnaleremo all'assistenza.
+- **Cosa è successo**: Google Wallet ha rifiutato i dati della carta o del template (400).
+- **Causa probabile**: Logo non raggiungibile o non PNG/JPEG, colore o testi non validi per Google, oppure un bug nei dati inviati.
+- **Cosa fare**: Leggere la risposta di Google nel log (provider_response): indica il campo rifiutato. Correggere le impostazioni del negozio o segnalare allo sviluppo.
+
+### `E_GOOGLE_UNAVAILABLE` (HTTP 502)
+
+- **L'utente vede**: La carta nel Wallet non si è aggiornata. Il dato è salvato: si aggiornerà da sola appena possibile.
+- **Cosa è successo**: Google Wallet non risponde o risponde con un errore interno (5xx, timeout, rete).
+- **Causa probabile**: Disservizio temporaneo di Google.
+- **Cosa fare**: Nessuna azione: i tentativi automatici riprovano. Controllare lo stato dei servizi Google se dura più di un'ora.
+
+### `E_CRON_UNAUTHORIZED` (HTTP 401)
+
+- **L'utente vede**: Non autorizzato.
+- **Cosa è successo**: Chiamata all'endpoint del cron senza il segreto corretto.
+- **Causa probabile**: CRON_SECRET diverso tra l'app e il Vault di Supabase, oppure chiamata non nostra.
+- **Cosa fare**: Riallineare il segreto con `pnpm cron:configure` (vedi README). Se le chiamate non sono nostre, ruotare CRON_SECRET.
 
 ### `E_EXTERNAL_UNAVAILABLE` (HTTP 502)
 
