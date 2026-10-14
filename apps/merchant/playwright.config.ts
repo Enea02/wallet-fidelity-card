@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 /*
@@ -52,6 +53,8 @@ const appEnv: Record<string, string> = {
 
 export default defineConfig({
   testDir: "e2e",
+  // video finto con il QR della carta demo, per la fotocamera del browser (progetto "fotocamera")
+  globalSetup: "./e2e/fake-camera.ts",
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,
@@ -67,7 +70,7 @@ export default defineConfig({
       env: serverEnv,
     },
     {
-      command: `sh -c 'node_modules/.bin/expo export --platform web --output-dir dist-e2e > e2e-logs/export.log 2>&1 && exec node e2e/serve.mjs dist-e2e ${APP_PORT}'`,
+      command: `sh -c 'node scripts/copy-zxing.mjs > /dev/null && node_modules/.bin/expo export --platform web --output-dir dist-e2e > e2e-logs/export.log 2>&1 && exec node e2e/serve.mjs dist-e2e ${APP_PORT}'`,
       url: appOrigin,
       reuseExistingServer: false,
       timeout: 300_000,
@@ -75,7 +78,22 @@ export default defineConfig({
     },
   ],
   projects: [
-    { name: "telefono", testMatch: /app\.spec\.ts/, use: { ...devices["Pixel 7"] } },
+    { name: "telefono", testMatch: /(app|scanner)\.spec\.ts/, use: { ...devices["Pixel 7"] } },
+    {
+      name: "fotocamera",
+      testMatch: /camera\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        permissions: ["camera"],
+        launchOptions: {
+          args: [
+            "--use-fake-ui-for-media-stream",
+            "--use-fake-device-for-media-stream",
+            `--use-file-for-fake-video-capture=${resolve("e2e-logs/qr-demo.mjpeg")}`,
+          ],
+        },
+      },
+    },
     {
       name: "desktop",
       testMatch: /desktop\.spec\.ts/,

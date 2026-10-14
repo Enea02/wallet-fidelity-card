@@ -59,9 +59,14 @@ export default tseslint.config(
   },
   {
     // configurazione Metro (CommonJS) e service worker della PWA
-    files: ["apps/merchant/metro.config.js"],
+    files: ["apps/merchant/metro.config.js", "apps/merchant/jest.config.js"],
     languageOptions: { sourceType: "commonjs", globals: { ...globals.node } },
     rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
+    // test dei componenti (jest-expo)
+    files: ["apps/merchant/**/*.component.test.tsx"],
+    languageOptions: { globals: { ...globals.jest } },
   },
   {
     files: ["apps/merchant/public/sw.js"],
