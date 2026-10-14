@@ -18,6 +18,13 @@ function localSupabaseEnv(): Record<string, string> {
     SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY ?? "",
     IP_HASH_SALT: "smoke-test-salt-0123456789",
     LOG_TRANSPORT: "none",
+    MERCHANT_APP_ORIGINS: "http://localhost:8081",
+    MERCHANT_APP_URL: "http://localhost:8081",
+    // i test girano tutti dallo stesso "IP": limiti alti, il test del rate limit usa un IP dedicato
+    RATE_LIMIT_USER_PER_MIN: "100000",
+    RATE_LIMIT_IP_PER_MIN: "100000",
+    JWT_SECRET: status.JWT_SECRET ?? "",
+    MAILPIT_URL: status.MAILPIT_URL ?? status.INBUCKET_URL ?? "",
     // lo smoke test verifica il percorso senza Google Wallet
     GOOGLE_WALLET_ISSUER_ID: "",
     GOOGLE_WALLET_SA_KEY_B64: "",

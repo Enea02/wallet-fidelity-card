@@ -97,7 +97,7 @@ const events = (name: string) => lines.filter((l) => l.event === name);
 describe("timbri", () => {
   it("20 timbri in parallelo producono esattamente 20 incrementi (2 premi, 0 timbri)", async () => {
     const c = await newCard(BARBIERE);
-    await Promise.all(Array.from({ length: 20 }, () => addStamp(BARBIERE.id, c.qr, MARCO)));
+    await Promise.all(Array.from({ length: 20 }, () => addStamp(BARBIERE.id, c.id, MARCO)));
     expect(await card(c.id)).toMatchObject({ stamps: 0, rewards_available: 2 });
     expect((await audit(c.id)).filter((a) => a.action === "stamp")).toHaveLength(20);
     expect(events("stamp.add.ok")).toHaveLength(20);
@@ -106,10 +106,10 @@ describe("timbri", () => {
 
   it("cooldown: secondo timbro rifiutato con i minuti mancanti, nessuna riga di audit", async () => {
     const c = await newCard(SALONE);
-    await addStamp(SALONE.id, c.qr, MARCO);
+    await addStamp(SALONE.id, c.id, MARCO);
     const before = (await audit(c.id)).length;
 
-    await expect(addStamp(SALONE.id, c.qr, GIULIA)).rejects.toMatchObject({
+    await expect(addStamp(SALONE.id, c.id, GIULIA)).rejects.toMatchObject({
       code: "E_STAMP_COOLDOWN",
       logged: true,
       userMessage: "Ultimo timbro meno di un minuto fa: si potrà timbrare di nuovo tra 60 minuti.",
@@ -127,7 +127,7 @@ describe("timbri", () => {
 
   it("una carta di un altro negozio non si trova; il database rifiuta comunque lo staff di un altro negozio", async () => {
     const c = await newCard(BARBIERE);
-    await expect(addStamp(SALONE.id, c.qr, GIULIA)).rejects.toMatchObject({ code: "E_CARD_NOT_FOUND" });
+    await expect(addStamp(SALONE.id, c.id, GIULIA)).rejects.toMatchObject({ code: "E_CARD_NOT_FOUND" });
     const { error } = await db.rpc("add_stamp", {
       p_customer_id: c.id,
       p_meta: { actor_type: "staff", actor_id: GIULIA },
@@ -139,9 +139,9 @@ describe("timbri", () => {
 describe("annullamento dell'ultimo timbro", () => {
   it("riporta il saldo a prima, marca il timbro come annullato e scrive l'audit", async () => {
     const c = await newCard(BARBIERE);
-    await addStamp(BARBIERE.id, c.qr, MARCO);
-    await addStamp(BARBIERE.id, c.qr, MARCO);
-    await undoLastStamp(BARBIERE.id, c.qr, MARCO);
+    await addStamp(BARBIERE.id, c.id, MARCO);
+    await addStamp(BARBIERE.id, c.id, MARCO);
+    await undoLastStamp(BARBIERE.id, c.id, MARCO);
 
     expect(await card(c.id)).toMatchObject({ stamps: 1, rewards_available: 0 });
     const undo = (await audit(c.id)).find((a) => a.action === "undo");
@@ -160,16 +160,16 @@ describe("annullamento dell'ultimo timbro", () => {
 
   it("toglie il premio sbloccato dal timbro annullato (se non è stato riscattato)", async () => {
     const c = await newCard(BARBIERE);
-    for (let i = 0; i < 10; i++) await addStamp(BARBIERE.id, c.qr, MARCO);
+    for (let i = 0; i < 10; i++) await addStamp(BARBIERE.id, c.id, MARCO);
     expect(await card(c.id)).toMatchObject({ stamps: 0, rewards_available: 1 });
-    await undoLastStamp(BARBIERE.id, c.qr, MARCO);
+    await undoLastStamp(BARBIERE.id, c.id, MARCO);
     expect(await card(c.id)).toMatchObject({ stamps: 9, rewards_available: 0 });
   });
 
   it("E_NOTHING_TO_UNDO su una carta senza timbri, nessuna riga di audit", async () => {
     const c = await newCard(BARBIERE);
     const before = (await audit(c.id)).length;
-    await expect(undoLastStamp(BARBIERE.id, c.qr, MARCO)).rejects.toMatchObject({
+    await expect(undoLastStamp(BARBIERE.id, c.id, MARCO)).rejects.toMatchObject({
       code: "E_NOTHING_TO_UNDO",
       logged: true,
     });
@@ -179,9 +179,9 @@ describe("annullamento dell'ultimo timbro", () => {
 
   it("E_UNDO_OTHER_OPERATOR se il timbro l'ha dato un altro, nessuna riga di audit", async () => {
     const c = await newCard(SALONE);
-    await addStamp(SALONE.id, c.qr, MARCO);
+    await addStamp(SALONE.id, c.id, MARCO);
     const before = (await audit(c.id)).length;
-    await expect(undoLastStamp(SALONE.id, c.qr, GIULIA)).rejects.toMatchObject({
+    await expect(undoLastStamp(SALONE.id, c.id, GIULIA)).rejects.toMatchObject({
       code: "E_UNDO_OTHER_OPERATOR",
       userMessage: "Puoi annullare solo un timbro che hai dato tu: questo l'ha dato Marco.",
     });
@@ -190,29 +190,29 @@ describe("annullamento dell'ultimo timbro", () => {
 
   it("E_UNDO_EXPIRED dopo 5 minuti", async () => {
     const c = await newCard(BARBIERE);
-    await addStamp(BARBIERE.id, c.qr, MARCO);
+    await addStamp(BARBIERE.id, c.id, MARCO);
     await db
       .from("stamp_events")
       .update({ created_at: new Date(Date.now() - 6 * 60_000).toISOString() })
       .eq("customer_id", c.id);
     const before = (await audit(c.id)).length;
-    await expect(undoLastStamp(BARBIERE.id, c.qr, MARCO)).rejects.toMatchObject({ code: "E_UNDO_EXPIRED" });
+    await expect(undoLastStamp(BARBIERE.id, c.id, MARCO)).rejects.toMatchObject({ code: "E_UNDO_EXPIRED" });
     expect((await audit(c.id)).length).toBe(before);
     expect(events("stamp.undo.rejected")[0]?.msg).toContain("6 minuti fa (limite 5 minuti)");
   });
 
   it("E_UNDO_REWARD_REDEEMED se il timbro ha sbloccato un premio già riscattato", async () => {
     const c = await newCard(BARBIERE);
-    for (let i = 0; i < 10; i++) await addStamp(BARBIERE.id, c.qr, MARCO);
-    await redeem(BARBIERE.id, c.qr, MARCO);
-    await expect(undoLastStamp(BARBIERE.id, c.qr, MARCO)).rejects.toMatchObject({ code: "E_UNDO_REWARD_REDEEMED" });
+    for (let i = 0; i < 10; i++) await addStamp(BARBIERE.id, c.id, MARCO);
+    await redeem(BARBIERE.id, c.id, MARCO);
+    await expect(undoLastStamp(BARBIERE.id, c.id, MARCO)).rejects.toMatchObject({ code: "E_UNDO_REWARD_REDEEMED" });
   });
 
   it("E_UNDO_NOT_LAST se dopo il timbro c'è stata una rettifica", async () => {
     const c = await newCard(SALONE);
-    await addStamp(SALONE.id, c.qr, GIULIA);
+    await addStamp(SALONE.id, c.id, GIULIA);
     await adjustBalance(SALONE.id, c.id, { stamps: 5, rewards: 0, reason: "carta cartacea" }, GIULIA);
-    await expect(undoLastStamp(SALONE.id, c.qr, GIULIA)).rejects.toMatchObject({ code: "E_UNDO_NOT_LAST" });
+    await expect(undoLastStamp(SALONE.id, c.id, GIULIA)).rejects.toMatchObject({ code: "E_UNDO_NOT_LAST" });
     expect(await card(c.id)).toMatchObject({ stamps: 5 });
   });
 });
@@ -221,15 +221,15 @@ describe("riscatto", () => {
   it("senza premi: E_NO_REWARD, nessuna riga di audit", async () => {
     const c = await newCard(BARBIERE);
     const before = (await audit(c.id)).length;
-    await expect(redeem(BARBIERE.id, c.qr, MARCO)).rejects.toMatchObject({ code: "E_NO_REWARD", logged: true });
+    await expect(redeem(BARBIERE.id, c.id, MARCO)).rejects.toMatchObject({ code: "E_NO_REWARD", logged: true });
     expect((await audit(c.id)).length).toBe(before);
     expect(events("reward.redeem.rejected_none")).toHaveLength(1);
   });
 
   it("con un premio: scala il premio e scrive l'audit", async () => {
     const c = await newCard(BARBIERE);
-    for (let i = 0; i < 10; i++) await addStamp(BARBIERE.id, c.qr, MARCO);
-    await redeem(BARBIERE.id, c.qr, MARCO);
+    for (let i = 0; i < 10; i++) await addStamp(BARBIERE.id, c.id, MARCO);
+    await redeem(BARBIERE.id, c.id, MARCO);
     expect(await card(c.id)).toMatchObject({ stamps: 0, rewards_available: 0 });
     expect((await audit(c.id)).at(-1)).toMatchObject({
       action: "redeem",
@@ -275,7 +275,7 @@ describe("audit", () => {
       app_version: "1.4.0",
       ip_hash: "9f2c4e1ab37d5c08",
     };
-    await runWithContext(ctx, () => addStamp(BARBIERE.id, c.qr, MARCO));
+    await runWithContext(ctx, () => addStamp(BARBIERE.id, c.id, MARCO));
     expect((await audit(c.id)).at(-1)).toMatchObject({
       action: "stamp",
       actor_type: "staff",
@@ -306,7 +306,7 @@ describe("cancellazione del cliente", () => {
   it("rimuove i dati personali, pseudonimizza l'audit e blocca la carta; il numero può reiscriversi", async () => {
     const ph = phone();
     const c = await newCard(SALONE, ph);
-    await addStamp(SALONE.id, c.qr, GIULIA);
+    await addStamp(SALONE.id, c.id, GIULIA);
     expect(JSON.stringify(await audit(c.id))).toContain("Cliente Smoke");
 
     await expect(deleteCustomer(SALONE.id, c.id, { type: "staff", userId: MARCO })).rejects.toMatchObject({
@@ -322,7 +322,7 @@ describe("cancellazione del cliente", () => {
     expect(events("customer.delete.ok")[0]).toMatchObject({ audit_rows_pseudonymized: 2, customer_ref: c.shortCode });
 
     await expect(getCustomerByQr(SALONE.id, c.qr)).rejects.toMatchObject({ code: "E_CARD_DELETED" });
-    await expect(addStamp(SALONE.id, c.qr, GIULIA)).rejects.toMatchObject({ code: "E_CARD_DELETED" });
+    await expect(addStamp(SALONE.id, c.id, GIULIA)).rejects.toMatchObject({ code: "E_CARD_DELETED" });
 
     const again = await newCard(SALONE, ph);
     expect(again.id).not.toBe(c.id);

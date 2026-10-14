@@ -40,5 +40,9 @@ export function errorResponse(error: AppError, requestId: string): Response {
   const body: ErrorBody = {
     error: { code: error.code, message: error.userMessage, support_code: supportCodeFromRequestId(requestId) },
   };
-  return Response.json(body, { status: error.status });
+  const retryAfter = error.code === "E_RATE_LIMITED" ? Number(error.context.retry_after_s) : NaN;
+  return Response.json(body, {
+    status: error.status,
+    ...(Number.isFinite(retryAfter) && { headers: { "retry-after": String(retryAfter) } }),
+  });
 }

@@ -52,6 +52,7 @@ funzionano lo stesso, senza il pulsante "Aggiungi a Google Wallet".
 | `pnpm test:smoke`                 | iscrizione, timbro, permessi e diagnostica sul Supabase locale (richiede `pnpm db:start`) |
 | `pnpm runbook` / `runbook:check`  | rigenera / verifica eventi ed errori in `docs/runbook-assistenza.md`                      |
 | `pnpm diag list\|enable\|disable` | modalità diagnostica per negozio, staff o cliente (vedi runbook)                          |
+| `pnpm api:try`                    | esegue la raccolta Bruno delle API esercente (server avviato)                             |
 | `pnpm db:start` / `db:stop`       | avvia / ferma Supabase locale                                                             |
 | `pnpm db:reset`                   | ricrea il DB locale da migrazioni + seed (**cancella i dati locali**)                     |
 | `pnpm db:new <nome>`              | crea una nuova migrazione in `supabase/migrations/`                                       |
@@ -59,6 +60,16 @@ funzionano lo stesso, senza il pulsante "Aggiungi a Google Wallet".
 
 La CI (GitHub Actions) esegue su ogni push e pull request: format, allineamento del runbook, typecheck, lint, test,
 build, gitleaks su tutta la storia e uno Supabase locale con migrazioni, seed e smoke test.
+
+## API dell'app esercente
+
+- Tutte sotto `/api/v1/merchant/*`, con contratti zod condivisi in `packages/shared/api/` (registro `merchantApi`).
+- Autenticazione: bearer token di Supabase Auth; il negozio su cui si opera va nell'header `X-Shop-Id`.
+  Operatore: scansione, timbri, riscatti, diagnostica. Titolare: anche statistiche, clienti, impostazioni, staff,
+  promozioni, cartello PDF.
+- Documentazione navigabile (solo in sviluppo): <http://localhost:3000/api/v1/docs>.
+- Raccolta di richieste di esempio in [`bruno/`](bruno/README.md): `pnpm api:try` la esegue tutta con il server avviato.
+- Rate limit in Postgres (120/min per utente, 300/min per IP), CORS solo per `MERCHANT_APP_ORIGINS`.
 
 ## Log e diagnostica
 
@@ -98,14 +109,13 @@ Dentro `apps/web`:
 - `src/lib/wallet/apple.ts` — `pass.json` pronto, firma e web service in Fase 12
 - `src/lib/server-env.ts` — variabili d'ambiente validate all'avvio (documentate in `apps/web/.env.example`)
 
-| Percorso                                      | Cosa fa                                            |
-| --------------------------------------------- | -------------------------------------------------- |
-| `/<slug>`                                     | iscrizione cliente                                 |
-| `/<slug>/qr`                                  | cartello con QR da stampare per il bancone         |
-| `/staff`                                      | prototipo PWA staff (rimosso in Fase 3)            |
-| `POST /api/enroll`                            | crea cliente + carta Google, ritorna il link Salva |
-| `POST /api/staff/lookup` · `stamp` · `redeem` | operazioni staff (bearer token Supabase)           |
-| `POST /api/admin/setup-class`                 | crea/aggiorna il template Google del negozio       |
+| Percorso                      | Cosa fa                                            |
+| ----------------------------- | -------------------------------------------------- |
+| `/<slug>`                     | iscrizione cliente                                 |
+| `/<slug>/qr`                  | cartello con QR da stampare per il bancone         |
+| `POST /api/enroll`            | crea cliente + carta Google, ritorna il link Salva |
+| `/api/v1/merchant/*`          | API dell'app esercente (vedi sopra)                |
+| `POST /api/admin/setup-class` | crea/aggiorna il template Google del negozio       |
 
 ## Google Wallet (Demo mode)
 
@@ -126,5 +136,3 @@ curl -X POST localhost:3000/api/admin/setup-class \
 ```
 
 In Demo mode le carte funzionano davvero ma mostrano "TEST ONLY" e solo i test user possono salvarle.
-
-> La fotocamera dello scanner `/staff` richiede HTTPS: in locale usa `pnpm --filter @loyalty/web dev --experimental-https`.

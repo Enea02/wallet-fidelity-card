@@ -1,0 +1,29 @@
+meta {
+  name: 05 Scansione QR
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/merchant/scan/lookup
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{operatorToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+body:json {
+  { "code": "{{demoQr}}" }
+}
+
+tests {
+  test("risposta 200", () => expect(res.status).to.equal(200));
+}

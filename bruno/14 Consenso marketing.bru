@@ -1,0 +1,29 @@
+meta {
+  name: 14 Consenso marketing
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/api/v1/merchant/customers/{{demoCustomerId}}/marketing
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+body:json {
+  { "consent": true }
+}
+
+tests {
+  test("risposta 200", () => expect(res.status).to.equal(200));
+}

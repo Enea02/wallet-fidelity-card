@@ -1,0 +1,30 @@
+meta {
+  name: 07 Timbro
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/merchant/stamp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{operatorToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+body:json {
+  { "customerId": "{{demoCustomerId}}" }
+}
+
+tests {
+  // esito di business atteso (dati di prova): niente 5xx, niente errori di permesso
+  test("esito atteso", () => expect([200, 409]).to.include(res.status));
+}

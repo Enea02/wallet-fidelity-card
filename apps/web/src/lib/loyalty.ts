@@ -1,13 +1,16 @@
 import "server-only";
+import type { CardView } from "@loyalty/shared/api";
 import { AppError, type ErrorCode } from "@loyalty/shared/errors";
 import type { ActorFields, ActorRole, CardFields } from "@loyalty/shared/logging/events";
-import { fromDbError } from "./db-errors";
 import { getContext, setContext } from "./observability/context";
 import { log } from "./observability/logger";
+import { callDomain, domainMeta, type DomainActor } from "./merchant/domain-call";
 import { supabaseAdmin } from "./supabase";
 import type { Customer, Shop } from "./types";
 import { googleEnabled, saveUrl, upsertLoyaltyObject } from "./wallet/google";
 import { notifyCardChanged } from "./wallet/notifier";
+
+export type { DomainActor };
 
 /*
  * Dominio: iscrizione, timbri, premi, dati dei clienti.
@@ -18,10 +21,6 @@ import { notifyCardChanged } from "./wallet/notifier";
 
 const SHOP_COLS = "id, slug, name, stamps_required, reward_label, logo_url, hex_color, stamp_cooldown_minutes, status";
 const CUSTOMER_COLS = "id, shop_id, name, phone, qr_token, short_code, stamps, rewards_available, deleted_at";
-
-/** Chi esegue l'operazione. */
-export type DomainActor =
-  { type: "staff"; userId: string } | { type: "support"; name: string } | { type: "customer"; customerId: string };
 
 const staffActor = (userId: string): DomainActor => ({ type: "staff", userId });
 
@@ -34,25 +33,6 @@ interface CardResult {
   stamps_required: number;
   staff_name: string;
   staff_role: ActorRole;
-}
-
-/** Parametro p_meta delle funzioni Postgres: chi, da dove, con quale richiesta. */
-function meta(actor: DomainActor): Record<string, unknown> {
-  const ctx = getContext() ?? {};
-  return {
-    request_id: ctx.request_id ?? null,
-    actor_type: actor.type,
-    actor_id: actor.type === "staff" ? actor.userId : actor.type === "customer" ? actor.customerId : actor.name,
-    platform: ctx.platform ?? null,
-    app_version: ctx.app_version ?? null,
-    ip_hash: ctx.ip_hash ?? null,
-  };
-}
-
-async function callDomain<T>(fn: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabaseAdmin().rpc(fn, args);
-  if (error) throw fromDbError(error);
-  return data as T;
 }
 
 /** Campi "chi ha agito" per i log, dai dati restituiti dal database. */
@@ -142,16 +122,69 @@ export async function getCustomerById(shopId: string, customerId: string): Promi
   return ensureUsable(data as Customer);
 }
 
-/** Cosa vede lo staff dopo la scansione (niente telefono/id interni). */
-export function publicView(c: Customer, shop: Shop) {
+/** Carta come la vede lo staff (contratto CardView): niente telefono, niente QR. */
+export function cardView(c: Customer, shop: Shop): CardView {
   return {
-    name: c.name,
+    id: c.id,
     shortCode: c.short_code,
+    name: c.name,
     stamps: c.stamps,
     stampsRequired: shop.stamps_required,
     rewardsAvailable: c.rewards_available,
     rewardLabel: shop.reward_label,
   };
+}
+
+/**
+ * Trova la carta scansionata (QR) o digitata (codice breve) nel negozio dello staff.
+ * Un QR valido di un altro negozio dà E_QR_OTHER_SHOP, senza dire di quale negozio.
+ */
+export async function lookupCard(shop: Shop, code: string, actor: ActorFields): Promise<CardView> {
+  const isQr = /^[0-9a-f]{32}$/.test(code);
+  const method = isQr ? "QR" : "codice breve";
+  const { data, error } = await supabaseAdmin()
+    .from("customers")
+    .select(CUSTOMER_COLS)
+    .eq("shop_id", shop.id)
+    .eq(isQr ? "qr_token" : "short_code", isQr ? code : code.toUpperCase())
+    .maybeSingle();
+  if (error) throw error;
+
+  if (!data) {
+    const other = isQr
+      ? await supabaseAdmin().from("customers").select("id").eq("qr_token", code).limit(1).maybeSingle()
+      : { data: null, error: null };
+    if (other.error) throw other.error;
+    const elsewhere = other.data !== null;
+    log.event(elsewhere ? "customer.lookup.other_shop" : "customer.lookup.not_found", {
+      ...actor,
+      shop_name: shop.name,
+      method,
+    });
+    const err = elsewhere
+      ? new AppError(
+          "E_QR_OTHER_SHOP",
+          `il QR scansionato è una carta di un altro negozio (negozio attuale ${shop.id})`,
+        )
+      : new AppError(
+          "E_CARD_NOT_FOUND",
+          `nessuna carta del negozio ${shop.id} con ${method === "QR" ? "il QR" : "il codice breve"} indicato`,
+        );
+    err.logged = true;
+    throw err;
+  }
+
+  const customer = ensureUsable(data as Customer);
+  log.event("customer.lookup.ok", {
+    ...actor,
+    shop_name: shop.name,
+    method,
+    customer_ref: customer.short_code,
+    stamps: customer.stamps,
+    stamps_required: shop.stamps_required,
+    rewards_available: customer.rewards_available,
+  });
+  return cardView(customer, shop);
 }
 
 /* ------------------------------------------------------------------ */
@@ -181,7 +214,7 @@ export async function enroll(input: EnrollInput) {
     p_phone: input.phone,
     p_consent_privacy: input.consentPrivacy,
     p_consent_marketing: input.consentMarketing,
-    p_meta: meta({ type: "customer", customerId: "" }),
+    p_meta: domainMeta({ type: "customer", customerId: "" }),
   });
   const customer = await getCustomerById(shop.id, result.customer_id);
 
@@ -209,12 +242,12 @@ export async function enroll(input: EnrollInput) {
 /* Timbri e premi (staff)                                              */
 /* ------------------------------------------------------------------ */
 
-export async function addStamp(shopId: string, qrToken: string, staffUserId: string) {
-  const [customer, shop] = await Promise.all([getCustomerByQr(shopId, qrToken), getShopById(shopId)]);
+export async function addStamp(shopId: string, customerId: string, staffUserId: string) {
+  const [customer, shop] = await Promise.all([getCustomerById(shopId, customerId), getShopById(shopId)]);
 
   const r = await callDomain<CardResult & { stamps_before: number; reward_unlocked: boolean }>("add_stamp", {
     p_customer_id: customer.id,
-    p_meta: meta(staffActor(staffUserId)),
+    p_meta: domainMeta(staffActor(staffUserId)),
   }).catch((e: unknown) =>
     onRejected(e, ["E_STAMP_COOLDOWN"], (err) =>
       log.event("stamp.add.rejected_cooldown", {
@@ -249,7 +282,7 @@ export async function addStamp(shopId: string, qrToken: string, staffUserId: str
 
   const updated: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
   await notifyCardChanged({ shop, customer: updated }, { kind: "stamp", rewardUnlocked: r.reward_unlocked });
-  return { customer: publicView(updated, shop), rewardUnlocked: r.reward_unlocked };
+  return { customer: cardView(updated, shop), rewardUnlocked: r.reward_unlocked };
 }
 
 const UNDO_REJECTIONS = [
@@ -261,12 +294,12 @@ const UNDO_REJECTIONS = [
 ] as const satisfies readonly ErrorCode[];
 
 /** Annulla l'ultimo timbro della carta (entro 5 minuti, solo chi l'ha dato, solo se è l'ultima operazione). */
-export async function undoLastStamp(shopId: string, qrToken: string, staffUserId: string) {
-  const [customer, shop] = await Promise.all([getCustomerByQr(shopId, qrToken), getShopById(shopId)]);
+export async function undoLastStamp(shopId: string, customerId: string, staffUserId: string) {
+  const [customer, shop] = await Promise.all([getCustomerById(shopId, customerId), getShopById(shopId)]);
 
   const r = await callDomain<CardResult & { stamps_before: number; rewards_before: number; reward_removed: boolean }>(
     "undo_last_stamp",
-    { p_customer_id: customer.id, p_meta: meta(staffActor(staffUserId)) },
+    { p_customer_id: customer.id, p_meta: domainMeta(staffActor(staffUserId)) },
   ).catch((e: unknown) =>
     onRejected(e, UNDO_REJECTIONS, (err) =>
       log.event("stamp.undo.rejected", {
@@ -291,15 +324,15 @@ export async function undoLastStamp(shopId: string, qrToken: string, staffUserId
 
   const updated: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
   await notifyCardChanged({ shop, customer: updated }, { kind: "undo", rewardUnlocked: false });
-  return { customer: publicView(updated, shop) };
+  return { customer: cardView(updated, shop) };
 }
 
-export async function redeem(shopId: string, qrToken: string, staffUserId: string) {
-  const [customer, shop] = await Promise.all([getCustomerByQr(shopId, qrToken), getShopById(shopId)]);
+export async function redeem(shopId: string, customerId: string, staffUserId: string) {
+  const [customer, shop] = await Promise.all([getCustomerById(shopId, customerId), getShopById(shopId)]);
 
   const r = await callDomain<CardResult & { rewards_before: number }>("redeem_reward", {
     p_customer_id: customer.id,
-    p_meta: meta(staffActor(staffUserId)),
+    p_meta: domainMeta(staffActor(staffUserId)),
   }).catch((e: unknown) =>
     onRejected(e, ["E_NO_REWARD"], (err) =>
       log.event("reward.redeem.rejected_none", {
@@ -322,7 +355,7 @@ export async function redeem(shopId: string, qrToken: string, staffUserId: strin
 
   const updated: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
   await notifyCardChanged({ shop, customer: updated }, { kind: "redeem", rewardUnlocked: false });
-  return { customer: publicView(updated, shop) };
+  return { customer: cardView(updated, shop) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -342,7 +375,7 @@ export async function adjustBalance(
     p_stamps: input.stamps,
     p_rewards: input.rewards,
     p_reason: input.reason,
-    p_meta: meta(staffActor(staffUserId)),
+    p_meta: domainMeta(staffActor(staffUserId)),
   });
 
   log.event("balance.adjust.ok", {
@@ -358,7 +391,7 @@ export async function adjustBalance(
 
   const updated: Customer = { ...customer, stamps: r.stamps, rewards_available: r.rewards_available };
   await notifyCardChanged({ shop, customer: updated }, { kind: "adjust", rewardUnlocked: false });
-  return { customer: publicView(updated, shop) };
+  return { customer: cardView(updated, shop) };
 }
 
 /**
@@ -370,7 +403,7 @@ export async function deleteCustomer(shopId: string, customerId: string, actor: 
   const r = await callDomain<CardResult & { audit_rows_pseudonymized: number }>("delete_customer", {
     p_customer_id: customer.id,
     p_reason: reason ?? null,
-    p_meta: meta(actor),
+    p_meta: domainMeta(actor),
   });
 
   log.event("customer.delete.ok", {
@@ -380,7 +413,7 @@ export async function deleteCustomer(shopId: string, customerId: string, actor: 
     rewards_at_delete: customer.rewards_available,
     audit_rows_pseudonymized: r.audit_rows_pseudonymized,
   });
-  return { deleted: true, shortCode: customer.short_code };
+  return { deleted: true as const, shortCode: customer.short_code };
 }
 
 /** Consenso alle promozioni: dal titolare o dal cliente stesso (link di disiscrizione). */
@@ -389,7 +422,7 @@ export async function setMarketingConsent(shopId: string, customerId: string, co
   const r = await callDomain<CardResult & { changed: boolean }>("set_marketing_consent", {
     p_customer_id: customer.id,
     p_consent: consent,
-    p_meta: meta(actor),
+    p_meta: domainMeta(actor),
   });
 
   if (r.changed) {

@@ -10,7 +10,7 @@ import { events, type EventFields, type EventName, type LogLevel } from "../logg
 import { supportCodeFromRequestId } from "../logging/request-id";
 import { redact } from "./redact";
 
-export { maskPhone, maskQrToken, redact, redactString, REDACTED } from "./redact";
+export { maskEmail, maskPhone, maskQrToken, redact, redactString, REDACTED } from "./redact";
 
 export const LEVELS: Record<LogLevel, number> = { trace: 10, debug: 20, info: 30, warn: 40, error: 50 };
 

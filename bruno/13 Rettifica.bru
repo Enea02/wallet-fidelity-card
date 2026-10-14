@@ -1,0 +1,29 @@
+meta {
+  name: 13 Rettifica
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/v1/merchant/customers/{{demoCustomerId}}/adjust
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+body:json {
+  { "stamps": 3, "rewards": 0, "reason": "prova dalla raccolta Bruno" }
+}
+
+tests {
+  test("risposta 200", () => expect(res.status).to.equal(200));
+}

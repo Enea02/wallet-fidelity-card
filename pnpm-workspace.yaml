@@ -4,5 +4,7 @@ packages:
 allowBuilds:
   # esbuild (usato da tsx) verifica il binario della piattaforma all'installazione
   esbuild: true
+  # protobufjs (dipendenza di @usebruno/cli): lo script di installazione non serve
+  protobufjs: false
 minimumReleaseAgeExclude:
   - google-auth-library@11.3.0

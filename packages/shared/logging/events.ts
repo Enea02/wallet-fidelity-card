@@ -72,6 +72,9 @@ const card = (f: CardFields) => `carta ${f.customer_ref} del negozio ${f.shop_na
 const minutes = (n: number) => (n === 1 ? "1 minuto" : `${n} minuti`);
 const ago = (n: number) => (n < 1 ? "meno di un minuto fa" : `${minutes(n)} fa`);
 
+const ROLE_NAME: Record<"owner" | "operator", string> = { owner: "titolare", operator: "operatore" };
+const kb = (n: number) => (n < 1024 ? `${n} byte` : `${Math.round(n / 1024)} KB`);
+
 /* ------------------------------------------------------------------ */
 /* Campi degli eventi                                                  */
 /* ------------------------------------------------------------------ */
@@ -290,6 +293,112 @@ export interface EnrollCustomerReturningFields extends CardFields {
   stamps: number;
   stamps_required: number;
   rewards_available: number;
+}
+
+export interface AuthTokenInvalidFields {
+  route: string;
+  /** "scaduto" | "non valido" | "utente inesistente" */
+  reason: string;
+}
+
+export interface AuthForbiddenShopFields {
+  route: string;
+  user_id: string;
+  shop_id: string;
+}
+
+export interface AuthForbiddenRoleFields extends ActorFields {
+  route: string;
+  shop_name: string;
+  required_role: "owner";
+}
+
+export interface RateLimitHitFields {
+  route: string;
+  /** "utente" | "IP" */
+  scope: string;
+  limit: number;
+  window_s: number;
+  retry_after_s: number;
+}
+
+export interface CustomerLookupFields extends ActorFields {
+  shop_name: string;
+  /** "QR" | "codice breve" */
+  method: string;
+}
+
+export interface CustomerLookupOkFields extends CustomerLookupFields {
+  customer_ref: string;
+  stamps: number;
+  stamps_required: number;
+  rewards_available: number;
+}
+
+export interface CustomerSearchFields extends ActorFields {
+  shop_name: string;
+  /** "nome" | "telefono" | "codice breve" | "tutti": mai il testo cercato (può essere un telefono) */
+  query_kind: string;
+  results: number;
+}
+
+export interface StatsViewedFields extends ActorFields {
+  shop_name: string;
+  customers_total: number;
+}
+
+export interface SettingsUpdateOkFields extends ActorFields {
+  shop_name: string;
+  changed_fields: string[];
+  /** Riepilogo leggibile: "colore #1f2937 → #7c3aed, timbri richiesti 10 → 8". */
+  changes: string;
+}
+
+export interface LogoUploadUrlIssuedFields extends ActorFields {
+  shop_name: string;
+  content_type: string;
+  size_bytes: number;
+}
+
+export interface StaffInviteSentFields extends ActorFields {
+  shop_name: string;
+  member_name: string;
+  member_email: string;
+  member_role: "owner" | "operator";
+  existing_account: boolean;
+}
+
+export interface StaffRoleChangedFields extends ActorFields {
+  shop_name: string;
+  member_name: string;
+  role_before: "owner" | "operator";
+  role_after: "owner" | "operator";
+}
+
+export interface StaffRevokedFields extends ActorFields {
+  shop_name: string;
+  member_name: string;
+  member_role: "owner" | "operator";
+}
+
+export interface PromoSendQueuedFields extends ActorFields {
+  shop_name: string;
+  promotion_id: string;
+  recipients: number;
+  chars: number;
+}
+
+export interface CounterQrDownloadedFields extends ActorFields {
+  shop_name: string;
+  size_bytes: number;
+  duration_ms: number;
+}
+
+export interface DiagnosticsReceivedFields extends ActorFields {
+  shop_name: string;
+  ticket_code: string;
+  size_bytes: number;
+  events_count: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -764,6 +873,198 @@ export const events = {
         ...cardA,
         consent_marketing: false,
       },
+    ],
+  }),
+
+  "auth.token.invalid": defineEvent<AuthTokenInvalidFields>({
+    level: "warn",
+    description:
+      "Richiesta all'API esercente con un token di accesso scaduto o non valido: l'app deve far rifare il login.",
+    msg: (f) => `Accesso rifiutato a ${f.route}: token ${f.reason}. L'utente deve rifare il login.`,
+    examples: [{ route: "/api/v1/merchant/stamp", reason: "scaduto" }],
+  }),
+
+  "auth.forbidden.shop": defineEvent<AuthForbiddenShopFields>({
+    level: "warn",
+    description: "Un utente autenticato ha chiesto dati o operazioni di un negozio a cui non appartiene.",
+    msg: (f) => `Accesso a ${f.route} negato: l'utente ${f.user_id} non fa parte dello staff del negozio ${f.shop_id}.`,
+    examples: [
+      {
+        route: "/api/v1/merchant/customers",
+        user_id: "55555555-5555-4555-8555-555555555555",
+        shop_id: "99999999-9999-4999-8999-999999999999",
+      },
+    ],
+  }),
+
+  "auth.forbidden.role": defineEvent<AuthForbiddenRoleFields>({
+    level: "warn",
+    description: "Un operatore ha chiesto una funzione riservata al titolare.",
+    msg: (f) => `${cap(actor(f))} ha chiesto ${f.route} del negozio ${f.shop_name}, riservata al titolare: negato.`,
+    examples: [{ ...giulia, route: "/api/v1/merchant/stats", shop_name: "Salone Mario", required_role: "owner" }],
+  }),
+
+  "ratelimit.hit": defineEvent<RateLimitHitFields>({
+    level: "warn",
+    description: "Superato il limite di richieste al minuto (per utente o per IP): la richiesta è stata rifiutata.",
+    msg: (f) =>
+      `Troppe richieste a ${f.route} dallo stesso ${f.scope}: superato il limite di ${f.limit} in ${f.window_s} secondi. ` +
+      `Richiesta rifiutata, si può riprovare tra ${f.retry_after_s} secondi.`,
+    examples: [{ route: "/api/v1/merchant/scan/lookup", scope: "utente", limit: 120, window_s: 60, retry_after_s: 34 }],
+  }),
+
+  "customer.lookup.ok": defineEvent<CustomerLookupOkFields>({
+    level: "info",
+    description: "Lo staff ha trovato una carta (scansione del QR o codice breve digitato).",
+    msg: (f) =>
+      `${cap(actor(f))} ha aperto la carta ${f.customer_ref} del negozio ${f.shop_name} con ${f.method === "QR" ? "la scansione del QR" : "il codice breve"} ` +
+      `(${f.stamps}/${f.stamps_required} timbri, premi disponibili: ${f.rewards_available}).`,
+    examples: [
+      {
+        ...giulia,
+        shop_name: "Salone Mario",
+        method: "QR",
+        customer_ref: "A3F2C91B",
+        stamps: 6,
+        stamps_required: 10,
+        rewards_available: 0,
+      },
+    ],
+  }),
+
+  "customer.lookup.not_found": defineEvent<CustomerLookupFields>({
+    level: "warn",
+    description: "Scansione o codice breve che non corrisponde a nessuna carta.",
+    msg: (f) =>
+      `${cap(actor(f))} ha cercato una carta nel negozio ${f.shop_name} con ${f.method === "QR" ? "un QR" : "un codice breve"} ` +
+      `che non corrisponde a nessuna carta: QR non nostro, letto male o codice digitato male.`,
+    examples: [{ ...giulia, shop_name: "Salone Mario", method: "codice breve" }],
+  }),
+
+  "customer.lookup.other_shop": defineEvent<CustomerLookupFields>({
+    level: "warn",
+    description: "Scansione di una carta valida ma di un altro negozio.",
+    msg: (f) =>
+      `${cap(actor(f))} ha scansionato nel negozio ${f.shop_name} una carta che appartiene a un altro negozio: ` +
+      `il cliente ha mostrato la carta sbagliata o l'app ha selezionato il negozio sbagliato.`,
+    examples: [{ ...giulia, shop_name: "Salone Mario", method: "QR" }],
+  }),
+
+  "customer.search": defineEvent<CustomerSearchFields>({
+    level: "info",
+    description: "Il titolare ha consultato o cercato nella lista clienti (il testo cercato non viene registrato).",
+    msg: (f) =>
+      f.query_kind === "tutti"
+        ? `${cap(actor(f))} ha consultato la lista clienti del negozio ${f.shop_name} (${f.results} risultati).`
+        : `${cap(actor(f))} ha cercato tra i clienti del negozio ${f.shop_name} per ${f.query_kind} (${f.results} risultati).`,
+    examples: [
+      { ...titolare, shop_name: "Salone Mario", query_kind: "telefono", results: 1 },
+      { ...titolare, shop_name: "Salone Mario", query_kind: "tutti", results: 25 },
+    ],
+  }),
+
+  "stats.viewed": defineEvent<StatsViewedFields>({
+    level: "info",
+    description: "Il titolare ha aperto la dashboard con le statistiche del negozio.",
+    msg: (f) =>
+      `${cap(actor(f))} ha aperto le statistiche del negozio ${f.shop_name} (${f.customers_total} clienti iscritti).`,
+    examples: [{ ...titolare, shop_name: "Salone Mario", customers_total: 148 }],
+  }),
+
+  "settings.update.ok": defineEvent<SettingsUpdateOkFields>({
+    level: "info",
+    description: "Il titolare ha modificato le impostazioni del negozio o della carta.",
+    msg: (f) => `${cap(actor(f))} ha aggiornato le impostazioni del negozio ${f.shop_name}: ${f.changes}.`,
+    examples: [
+      {
+        ...titolare,
+        shop_name: "Salone Mario",
+        changed_fields: ["hex_color", "stamps_required"],
+        changes: "colore #1f2937 → #7c3aed, timbri richiesti 10 → 8",
+      },
+    ],
+  }),
+
+  "logo.upload_url.issued": defineEvent<LogoUploadUrlIssuedFields>({
+    level: "info",
+    description: "Il titolare ha chiesto di caricare un nuovo logo: rilasciato un URL di caricamento firmato.",
+    msg: (f) =>
+      `${cap(actor(f))} sta caricando un nuovo logo per il negozio ${f.shop_name} (${f.content_type}, ${kb(f.size_bytes)}): ` +
+      `URL di caricamento rilasciato.`,
+    examples: [{ ...titolare, shop_name: "Salone Mario", content_type: "image/png", size_bytes: 184_320 }],
+  }),
+
+  "staff.invite.sent": defineEvent<StaffInviteSentFields>({
+    level: "info",
+    description: "Il titolare ha aggiunto una persona allo staff (con email d'invito se non aveva già un account).",
+    msg: (f) =>
+      `${cap(actor(f))} ha aggiunto ${f.member_name} (${f.member_email}) allo staff del negozio ${f.shop_name} come ${ROLE_NAME[f.member_role]}` +
+      (f.existing_account ? ": aveva già un account, nessuna email inviata." : ": inviata l'email d'invito."),
+    examples: [
+      {
+        ...titolare,
+        shop_name: "Salone Mario",
+        member_name: "Giulia",
+        member_email: "gi***@salone.it",
+        member_role: "operator",
+        existing_account: false,
+      },
+    ],
+  }),
+
+  "staff.role.changed": defineEvent<StaffRoleChangedFields>({
+    level: "info",
+    description: "Il titolare ha cambiato il ruolo (o il nome) di un membro dello staff.",
+    msg: (f) =>
+      f.role_before === f.role_after
+        ? `${cap(actor(f))} ha modificato i dati di ${f.member_name} nello staff del negozio ${f.shop_name} (ruolo invariato: ${ROLE_NAME[f.role_after]}).`
+        : `${cap(actor(f))} ha cambiato il ruolo di ${f.member_name} nel negozio ${f.shop_name}: ${ROLE_NAME[f.role_before]} → ${ROLE_NAME[f.role_after]}.`,
+    examples: [
+      { ...titolare, shop_name: "Salone Mario", member_name: "Giulia", role_before: "operator", role_after: "owner" },
+    ],
+  }),
+
+  "staff.revoked": defineEvent<StaffRevokedFields>({
+    level: "info",
+    description: "Il titolare ha rimosso una persona dallo staff: non può più accedere al negozio.",
+    msg: (f) =>
+      `${cap(actor(f))} ha rimosso ${f.member_name} (${ROLE_NAME[f.member_role]}) dallo staff del negozio ${f.shop_name}.`,
+    examples: [{ ...titolare, shop_name: "Salone Mario", member_name: "Giulia", member_role: "operator" }],
+  }),
+
+  "promo.send.queued": defineEvent<PromoSendQueuedFields>({
+    level: "info",
+    description: "Il titolare ha prenotato l'invio di una promozione ai clienti con consenso marketing.",
+    msg: (f) =>
+      `${cap(actor(f))} ha prenotato una promozione del negozio ${f.shop_name} (${f.chars} caratteri) ` +
+      `per ${f.recipients} clienti con consenso marketing.`,
+    examples: [
+      {
+        ...titolare,
+        shop_name: "Salone Mario",
+        promotion_id: "7d1e2b3c-4d5e-4f43-9a51-5f1c2a9e0d1b",
+        recipients: 42,
+        chars: 96,
+      },
+    ],
+  }),
+
+  "counter_qr.downloaded": defineEvent<CounterQrDownloadedFields>({
+    level: "info",
+    description: "Il titolare ha scaricato il PDF del cartello A5 con il QR di iscrizione.",
+    msg: (f) =>
+      `${cap(actor(f))} ha scaricato il cartello A5 del negozio ${f.shop_name} (PDF di ${kb(f.size_bytes)}, generato in ${f.duration_ms} ms).`,
+    examples: [{ ...titolare, shop_name: "Salone Mario", size_bytes: 48_000, duration_ms: 420 }],
+  }),
+
+  "diagnostics.received": defineEvent<DiagnosticsReceivedFields>({
+    level: "info",
+    description: "L'app ha inviato il pacchetto \"Invia diagnostica all'assistenza\": cercarlo per codice ticket.",
+    msg: (f) =>
+      `${cap(actor(f))} ha inviato la diagnostica dell'app per il negozio ${f.shop_name}: ticket ${f.ticket_code} ` +
+      `(${f.events_count} eventi, ${kb(f.size_bytes)}).`,
+    examples: [
+      { ...giulia, shop_name: "Salone Mario", ticket_code: "DIAG-7K3QXA2M", size_bytes: 38_000, events_count: 412 },
     ],
   }),
 

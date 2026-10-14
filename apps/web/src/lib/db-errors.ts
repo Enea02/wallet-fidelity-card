@@ -16,6 +16,14 @@ type Detail = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" || typeof v === "number" ? String(v) : "?");
 const minutes = (v: unknown) => (Number(v) === 1 ? "1 minuto" : `${str(v)} minuti`);
 const ago = (v: unknown) => (Number(v) < 1 ? "meno di un minuto fa" : `${minutes(v)} fa`);
+const dayIt = (v: unknown) =>
+  new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(str(v))); // "21 ottobre alle ore 10:49"
 const LATER_KIND: Record<string, string> = { redeem: "un riscatto", adjust: "una rettifica", stamp: "un altro timbro" };
 
 const describe: Partial<Record<ErrorCode, (d: Detail) => { message: string; userMessage?: string }>> = {
@@ -39,11 +47,23 @@ const describe: Partial<Record<ErrorCode, (d: Detail) => { message: string; user
     userMessage: `Dati non validi: ${str(d.problem)}.`,
   }),
   E_FORBIDDEN_ROLE: (d) => ({
-    message: d.required ? `operazione riservata al titolare (ruolo dell'utente: ${str(d.role)})` : str(d.reason),
+    message: d.required
+      ? `operazione riservata al titolare, l'utente è ${d.role === "operator" ? "operatore" : str(d.role)}`
+      : str(d.reason),
   }),
   E_FORBIDDEN_SHOP: (d) => ({ message: `l'utente ${str(d.user_id)} non è abilitato sul negozio ${str(d.shop_id)}` }),
   E_CARD_DELETED: (d) => ({ message: `la carta ${str(d.short_code)} è stata cancellata il ${str(d.deleted_at)}` }),
   E_SHOP_SUSPENDED: (d) => ({ message: `il negozio ${str(d.shop_id)} è sospeso` }),
+  E_LAST_OWNER: (d) => ({
+    message: `${str(d.display_name)} è l'unico titolare del negozio: non può essere rimosso né declassato`,
+  }),
+  E_STAFF_NOT_FOUND: (d) => ({ message: `l'utente ${str(d.user_id)} non fa parte dello staff del negozio` }),
+  E_STAFF_ALREADY_MEMBER: (d) => ({ message: `l'utente ${str(d.user_id)} fa già parte dello staff del negozio` }),
+  E_PROMO_WEEKLY_LIMIT: (d) => ({
+    message: `ultima promozione il ${str(d.last_at)}, la prossima è possibile dal ${str(d.next_allowed_at)}`,
+    userMessage: `Puoi inviare una sola promozione a settimana: la prossima dal ${dayIt(d.next_allowed_at)}.`,
+  }),
+  E_PROMO_NO_RECIPIENTS: () => ({ message: "nessun cliente attivo con consenso marketing" }),
 };
 
 const isCatalogCode = (s: string): s is ErrorCode => Object.hasOwn(errors, s);

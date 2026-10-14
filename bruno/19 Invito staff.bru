@@ -1,0 +1,30 @@
+meta {
+  name: 19 Invito staff
+  type: http
+  seq: 19
+}
+
+post {
+  url: {{baseUrl}}/api/v1/merchant/staff/invite
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+headers {
+  x-platform: web
+  x-app-version: bruno
+  x-shop-id: {{shopId}}
+}
+
+body:json {
+  { "email": "operatore@salone-demo.test", "displayName": "Marco", "role": "operator" }
+}
+
+tests {
+  // esito di business atteso (dati di prova): niente 5xx, niente errori di permesso
+  test("esito atteso", () => expect([200, 409]).to.include(res.status));
+}

@@ -4,7 +4,7 @@ export default function Home() {
       <h1>Carta fedeltà digitale</h1>
       <p className="muted">
         I clienti si iscrivono da <code>/&lt;negozio&gt;</code> (QR al bancone, stampabile da{" "}
-        <code>/&lt;negozio&gt;/qr</code>). Lo staff timbra da <code>/staff</code>.
+        <code>/&lt;negozio&gt;/qr</code>). Lo staff timbra dall'app esercente.
       </p>
     </main>
   );
