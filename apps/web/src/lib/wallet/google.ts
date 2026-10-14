@@ -81,7 +81,7 @@ function objectBody({ shop, customer }: CardState) {
     id: objectIdFor(customer.id),
     classId: classIdFor(shop),
     state: "ACTIVE",
-    accountId: customer.qr_token.slice(0, 8).toUpperCase(),
+    accountId: customer.short_code,
     accountName: customer.name,
     loyaltyPoints: {
       label: "Timbri",
@@ -94,7 +94,8 @@ function objectBody({ shop, customer }: CardState) {
     barcode: {
       type: "QR_CODE",
       value: customer.qr_token,
-      alternateText: customer.qr_token.slice(0, 8).toUpperCase(),
+      // codice breve sotto il QR: lo staff può digitarlo se la scansione non va
+      alternateText: customer.short_code,
     },
     textModulesData: [
       {

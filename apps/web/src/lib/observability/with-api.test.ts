@@ -80,6 +80,15 @@ describe("withApi", () => {
     });
   });
 
+  it("errore già registrato da un evento di dominio: la riga di fine è a livello info, nessun warn", async () => {
+    await withApi(async () => {
+      throw Object.assign(new AppError("E_STAMP_COOLDOWN", "ultimo timbro 8 minuti fa"), { logged: true });
+    })(req());
+    const end = lines.find((l) => l.event === "http.request.end");
+    expect(end).toMatchObject({ level: "info", status: 409, error_code: "E_STAMP_COOLDOWN" });
+    expect(lines.filter((l) => l.level === "warn" || l.level === "error")).toHaveLength(0);
+  });
+
   it("errore non gestito: UNA sola riga error con stack, request_id e support_code, e un 500 standard", async () => {
     const res = await withApi(async () => {
       throw new TypeError("Cannot read properties of undefined (reading 'stamps')");

@@ -44,6 +44,34 @@ const SCOPE_LABEL: Record<DiagnosticScopeType, string> = {
 const scope = (f: { scope_type: DiagnosticScopeType; scope_label: string }) =>
   `${SCOPE_LABEL[f.scope_type]} ${f.scope_label}`;
 
+const ROLE_LABEL: Record<ActorRole, string> = {
+  owner: "titolare",
+  operator: "operatore",
+  support: "assistenza",
+  customer: "cliente",
+};
+const PLATFORM_LABEL: Record<string, string> = {
+  ios: "iOS",
+  android: "Android",
+  web: "web",
+  "public-web": "web pubblico",
+};
+
+/** "Giulia (operatore, iOS 1.4.0)"; "il cliente" se ha agito il cliente stesso. */
+const actor = (f: ActorFields): string => {
+  if (f.actor_role === "customer") return "il cliente";
+  const where =
+    f.platform === "sconosciuta"
+      ? ""
+      : `, ${PLATFORM_LABEL[f.platform] ?? f.platform}${f.app_version === "n/d" ? "" : ` ${f.app_version}`}`;
+  return `${f.actor_name} (${ROLE_LABEL[f.actor_role]}${where})`;
+};
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** "carta A3F2C91B del negozio Salone Mario" (con "del negozio" l'articolo è giusto per qualsiasi nome). */
+const card = (f: CardFields) => `carta ${f.customer_ref} del negozio ${f.shop_name}`;
+const minutes = (n: number) => (n === 1 ? "1 minuto" : `${n} minuti`);
+const ago = (n: number) => (n < 1 ? "meno di un minuto fa" : `${minutes(n)} fa`);
+
 /* ------------------------------------------------------------------ */
 /* Campi degli eventi                                                  */
 /* ------------------------------------------------------------------ */
@@ -169,6 +197,101 @@ export interface WalletUpdateFailedFields {
   error_message: string;
 }
 
+export type ActorRole = "owner" | "operator" | "support" | "customer";
+
+/** Chi ha fatto l'operazione: nome dello staff (mai del cliente), ruolo, piattaforma e versione dell'app. */
+export interface ActorFields {
+  actor_name: string;
+  actor_role: ActorRole;
+  platform: string;
+  app_version: string;
+}
+
+/** Carta coinvolta: codice breve (mai nome o telefono del cliente) e negozio. */
+export interface CardFields {
+  customer_ref: string;
+  shop_name: string;
+}
+
+export interface StampAddOkFields extends ActorFields, CardFields {
+  stamps_before: number;
+  stamps_after: number;
+  stamps_required: number;
+  rewards_after: number;
+  reward_unlocked: boolean;
+}
+
+export interface RewardUnlockedFields extends CardFields {
+  stamps_required: number;
+  reward_label: string;
+  rewards_available: number;
+}
+
+export interface StampRejectedCooldownFields extends ActorFields, CardFields {
+  error_code: ErrorCode;
+  last_stamp_at: string;
+  minutes_since: number;
+  cooldown_min: number;
+  minutes_left: number;
+}
+
+export interface StampUndoOkFields extends ActorFields, CardFields {
+  stamps_before: number;
+  stamps_after: number;
+  rewards_before: number;
+  rewards_after: number;
+  stamps_required: number;
+  reward_removed: boolean;
+}
+
+export interface StampUndoRejectedFields extends ActorFields, CardFields {
+  error_code: ErrorCode;
+  /** Perché, in italiano (es. "il timbro è stato dato da Marco"). */
+  rejection_reason: string;
+}
+
+export interface RewardRedeemOkFields extends ActorFields, CardFields {
+  reward_label: string;
+  rewards_before: number;
+  rewards_after: number;
+}
+
+export interface RewardRedeemRejectedFields extends ActorFields, CardFields {
+  error_code: ErrorCode;
+  stamps: number;
+  stamps_required: number;
+}
+
+export interface BalanceAdjustOkFields extends ActorFields, CardFields {
+  stamps_before: number;
+  stamps_after: number;
+  rewards_before: number;
+  rewards_after: number;
+  stamps_required: number;
+  reason: string;
+}
+
+export interface CustomerDeleteOkFields extends ActorFields, CardFields {
+  stamps_at_delete: number;
+  rewards_at_delete: number;
+  audit_rows_pseudonymized: number;
+}
+
+export interface CustomerMarketingChangedFields extends ActorFields, CardFields {
+  consent_marketing: boolean;
+}
+
+export interface EnrollCustomerCreatedFields extends CardFields {
+  platform: string;
+  consent_marketing: boolean;
+}
+
+export interface EnrollCustomerReturningFields extends CardFields {
+  stamps: number;
+  stamps_required: number;
+  rewards_available: number;
+}
+
 /* ------------------------------------------------------------------ */
 /* Catalogo                                                            */
 /* ------------------------------------------------------------------ */
@@ -196,6 +319,10 @@ const diagnostic: DiagnosticModeFields = {
   enabled_at: "2026-11-03T09:00:00.000Z",
   expires_at: "2026-11-04T09:00:00.000Z",
 };
+
+const giulia: ActorFields = { actor_name: "Giulia", actor_role: "operator", platform: "ios", app_version: "1.4.0" };
+const titolare: ActorFields = { actor_name: "Mario", actor_role: "owner", platform: "web", app_version: "n/d" };
+const cardA: CardFields = { customer_ref: "A3F2C91B", shop_name: "Salone Mario" };
 
 export const events = {
   "server.startup.ok": defineEvent<ServerStartupOkFields>({
@@ -434,6 +561,210 @@ export const events = {
       `Lettura delle modalità diagnostiche fallita: ${f.error_message}. I log restano al livello normale; ` +
       `nuovo tentativo tra 30 secondi.`,
     examples: [{ error_message: "fetch failed (Supabase non raggiungibile)" }],
+  }),
+
+  "enroll.customer.created": defineEvent<EnrollCustomerCreatedFields>({
+    level: "info",
+    description: "Un nuovo cliente si è iscritto: carta creata con il suo codice breve.",
+    msg: (f) =>
+      `Nuovo cliente iscritto al negozio ${f.shop_name}${f.platform === "sconosciuta" ? "" : ` da ${PLATFORM_LABEL[f.platform] ?? f.platform}`}: ` +
+      `carta ${f.customer_ref} creata (consenso marketing: ${f.consent_marketing ? "sì" : "no"}).`,
+    examples: [{ ...cardA, platform: "public-web", consent_marketing: true }],
+  }),
+
+  "enroll.customer.returning": defineEvent<EnrollCustomerReturningFields>({
+    level: "info",
+    description: "Un cliente già iscritto ha rifatto l'iscrizione con lo stesso telefono: ritrova la stessa carta.",
+    msg: (f) =>
+      `Cliente già iscritto al negozio ${f.shop_name} ha ritrovato la sua carta ${f.customer_ref} ` +
+      `(${f.stamps}/${f.stamps_required} timbri, premi disponibili: ${f.rewards_available}).`,
+    examples: [{ ...cardA, stamps: 6, stamps_required: 10, rewards_available: 0 }],
+  }),
+
+  "stamp.add.ok": defineEvent<StampAddOkFields>({
+    level: "info",
+    description: "Un membro dello staff ha aggiunto un timbro a una carta.",
+    msg: (f) =>
+      f.reward_unlocked
+        ? `${cap(actor(f))} ha aggiunto un timbro alla ${card(f)}: ${f.stamps_before} → ${f.stamps_required} su ${f.stamps_required}, ` +
+          `carta completata e premio sbloccato (premi disponibili: ${f.rewards_after}).`
+        : `${cap(actor(f))} ha aggiunto un timbro alla ${card(f)}: ${f.stamps_before} → ${f.stamps_after} su ${f.stamps_required}.`,
+    examples: [
+      {
+        ...giulia,
+        ...cardA,
+        stamps_before: 6,
+        stamps_after: 7,
+        stamps_required: 10,
+        rewards_after: 0,
+        reward_unlocked: false,
+      },
+      {
+        ...giulia,
+        ...cardA,
+        stamps_before: 9,
+        stamps_after: 0,
+        stamps_required: 10,
+        rewards_after: 1,
+        reward_unlocked: true,
+      },
+    ],
+  }),
+
+  "stamp.add.rejected_cooldown": defineEvent<StampRejectedCooldownFields>({
+    level: "warn",
+    description:
+      "Timbro rifiutato perché troppo vicino al precedente (tempo minimo tra due timbri impostato dal negozio).",
+    msg: (f) =>
+      `Timbro di ${actor(f)} rifiutato sulla ${card(f)}: ultimo timbro ${ago(f.minutes_since)}, ` +
+      `il negozio richiede almeno ${minutes(f.cooldown_min)} tra due timbri (mancano ${minutes(f.minutes_left)}).`,
+    examples: [
+      {
+        ...giulia,
+        ...cardA,
+        error_code: "E_STAMP_COOLDOWN",
+        last_stamp_at: "2026-11-03T09:32:14.000Z",
+        minutes_since: 8,
+        cooldown_min: 60,
+        minutes_left: 52,
+      },
+    ],
+  }),
+
+  "reward.unlocked": defineEvent<RewardUnlockedFields>({
+    level: "info",
+    description: "Una carta ha raggiunto i timbri richiesti: il premio è disponibile.",
+    msg: (f) =>
+      `La ${card(f)} ha raggiunto ${f.stamps_required} timbri: ` +
+      `premio "${f.reward_label}" sbloccato (premi disponibili: ${f.rewards_available}).`,
+    examples: [{ ...cardA, stamps_required: 10, reward_label: "Taglio gratis", rewards_available: 1 }],
+  }),
+
+  "stamp.undo.ok": defineEvent<StampUndoOkFields>({
+    level: "info",
+    description: "Un membro dello staff ha annullato l'ultimo timbro che aveva dato (entro 5 minuti).",
+    msg: (f) =>
+      `${cap(actor(f))} ha annullato l'ultimo timbro della ${card(f)}: ` +
+      (f.reward_removed
+        ? `il premio sbloccato da quel timbro è stato tolto, timbri tornati a ${f.stamps_after} su ${f.stamps_required} ` +
+          `(premi disponibili: ${f.rewards_before} → ${f.rewards_after}).`
+        : `${f.stamps_before} → ${f.stamps_after} su ${f.stamps_required}.`),
+    examples: [
+      {
+        ...giulia,
+        ...cardA,
+        stamps_before: 7,
+        stamps_after: 6,
+        rewards_before: 0,
+        rewards_after: 0,
+        stamps_required: 10,
+        reward_removed: false,
+      },
+      {
+        ...giulia,
+        ...cardA,
+        stamps_before: 0,
+        stamps_after: 9,
+        rewards_before: 1,
+        rewards_after: 0,
+        stamps_required: 10,
+        reward_removed: true,
+      },
+    ],
+  }),
+
+  "stamp.undo.rejected": defineEvent<StampUndoRejectedFields>({
+    level: "warn",
+    description: "Annullamento dell'ultimo timbro rifiutato: tempo scaduto, altro operatore, carta già modificata.",
+    msg: (f) =>
+      `Annullamento dell'ultimo timbro chiesto da ${actor(f)} sulla ${card(f)} rifiutato: ${f.rejection_reason}.`,
+    examples: [
+      {
+        ...giulia,
+        ...cardA,
+        error_code: "E_UNDO_EXPIRED",
+        rejection_reason: "il timbro è stato dato 12 minuti fa (limite 5 minuti)",
+      },
+      { ...giulia, ...cardA, error_code: "E_UNDO_OTHER_OPERATOR", rejection_reason: "il timbro è stato dato da Marco" },
+    ],
+  }),
+
+  "reward.redeem.ok": defineEvent<RewardRedeemOkFields>({
+    level: "info",
+    description: "Un membro dello staff ha riscattato un premio dalla carta del cliente.",
+    msg: (f) =>
+      `${cap(actor(f))} ha riscattato il premio "${f.reward_label}" dalla ${card(f)} ` +
+      `(premi disponibili: ${f.rewards_before} → ${f.rewards_after}).`,
+    examples: [{ ...giulia, ...cardA, reward_label: "Taglio gratis", rewards_before: 1, rewards_after: 0 }],
+  }),
+
+  "reward.redeem.rejected_none": defineEvent<RewardRedeemRejectedFields>({
+    level: "warn",
+    description: "Riscatto rifiutato perché la carta non ha premi disponibili.",
+    msg: (f) =>
+      `Riscatto chiesto da ${actor(f)} sulla ${card(f)} rifiutato: nessun premio disponibile ` +
+      `(la carta ha ${f.stamps}/${f.stamps_required} timbri).`,
+    examples: [{ ...giulia, ...cardA, error_code: "E_NO_REWARD", stamps: 4, stamps_required: 10 }],
+  }),
+
+  "balance.adjust.ok": defineEvent<BalanceAdjustOkFields>({
+    level: "info",
+    description: "Il titolare ha corretto a mano timbri e premi di una carta, indicando il motivo.",
+    msg: (f) =>
+      `${cap(actor(f))} ha rettificato la ${card(f)}: timbri ${f.stamps_before} → ${f.stamps_after} su ${f.stamps_required}, ` +
+      `premi ${f.rewards_before} → ${f.rewards_after}. Motivo: ${f.reason}.`,
+    examples: [
+      {
+        ...titolare,
+        ...cardA,
+        stamps_before: 3,
+        stamps_after: 5,
+        rewards_before: 0,
+        rewards_after: 0,
+        stamps_required: 10,
+        reason: "timbri della carta cartacea",
+      },
+    ],
+  }),
+
+  "customer.delete.ok": defineEvent<CustomerDeleteOkFields>({
+    level: "info",
+    description:
+      "Cliente cancellato su richiesta: dati personali rimossi, storico pseudonimizzato, la carta non è più utilizzabile.",
+    msg: (f) =>
+      `${cap(actor(f))} ha cancellato il cliente della ${card(f)}: nome, telefono e consensi rimossi, ` +
+      `${f.audit_rows_pseudonymized} righe di storico pseudonimizzate (la carta aveva ${f.stamps_at_delete} timbri e ${f.rewards_at_delete} premi).`,
+    examples: [
+      { ...titolare, ...cardA, stamps_at_delete: 4, rewards_at_delete: 0, audit_rows_pseudonymized: 7 },
+      {
+        actor_name: "assistenza",
+        actor_role: "support",
+        platform: "sconosciuta",
+        app_version: "n/d",
+        ...cardA,
+        stamps_at_delete: 0,
+        rewards_at_delete: 1,
+        audit_rows_pseudonymized: 12,
+      },
+    ],
+  }),
+
+  "customer.marketing.changed": defineEvent<CustomerMarketingChangedFields>({
+    level: "info",
+    description: "Il consenso alle promozioni di un cliente è cambiato (dal titolare o dal cliente con il link).",
+    msg: (f) =>
+      `${cap(actor(f))} ha ${f.consent_marketing ? "attivato" : "revocato"} il consenso alle promozioni per la ${card(f)}.`,
+    examples: [
+      { ...titolare, ...cardA, consent_marketing: false },
+      {
+        actor_name: "cliente",
+        actor_role: "customer",
+        platform: "public-web",
+        app_version: "n/d",
+        ...cardA,
+        consent_marketing: false,
+      },
+    ],
   }),
 
   "wallet.update.failed": defineEvent<WalletUpdateFailedFields>({

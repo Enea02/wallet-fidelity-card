@@ -21,6 +21,8 @@ export interface ExternalCall {
   timeoutMs?: number;
 }
 
+const alreadyLogged = (e: AppError) => Object.assign(e, { logged: true });
+
 const truncate = (s: string, max: number) => (s.length > max ? `${s.slice(0, max)}… [troncato]` : s);
 
 /** URL senza query string: i parametri possono contenere token. */
@@ -95,11 +97,13 @@ export async function fetchExternal(call: ExternalCall): Promise<Response> {
       error_code: "E_EXTERNAL_UNAVAILABLE",
       provider_response: reason,
     });
-    throw new AppError(
-      "E_EXTERNAL_UNAVAILABLE",
-      `${call.provider} non raggiungibile (${call.operation}): ${reason}`,
-      { provider: call.provider, endpoint },
-      { cause: e },
+    throw alreadyLogged(
+      new AppError(
+        "E_EXTERNAL_UNAVAILABLE",
+        `${call.provider} non raggiungibile (${call.operation}): ${reason}`,
+        { provider: call.provider, endpoint },
+        { cause: e },
+      ),
     );
   }
 
@@ -112,11 +116,13 @@ export async function fetchExternal(call: ExternalCall): Promise<Response> {
       error_code: "E_EXTERNAL_HTTP",
       provider_response: truncate(redactString(text), MAX_PROVIDER_RESPONSE) || "(risposta vuota)",
     });
-    throw new AppError("E_EXTERNAL_HTTP", `${call.provider} ha risposto ${res.status} (${call.operation})`, {
-      provider: call.provider,
-      endpoint,
-      http_status: res.status,
-    });
+    throw alreadyLogged(
+      new AppError("E_EXTERNAL_HTTP", `${call.provider} ha risposto ${res.status} (${call.operation})`, {
+        provider: call.provider,
+        endpoint,
+        http_status: res.status,
+      }),
+    );
   }
 
   log.event("external.call.ok", { ...base, http_status: res.status, duration_ms: duration() });

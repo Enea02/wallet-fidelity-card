@@ -27,12 +27,14 @@ servizi attivi (`server.startup.ok`); se manca una variabile il server non parte
 
 Dati di prova (`supabase/seed.sql`, **solo locale**):
 
-| Cosa                 | Valore                                               |
-| -------------------- | ---------------------------------------------------- |
-| Negozio              | `salone-demo` → <http://localhost:3000/salone-demo>  |
-| Utente staff         | `staff@salone-demo.test` / `password-demo-locale`    |
-| Cliente con QR fisso | contenuto del QR: `0123456789abcdef0123456789abcdef` |
-| Supabase Studio      | <http://127.0.0.1:54323>                             |
+| Cosa                 | Valore                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------ |
+| Negozio              | `salone-demo` → <http://localhost:3000/salone-demo>                                        |
+| Titolare             | `staff@salone-demo.test` / `password-demo-locale` (Giulia, salone-demo)                    |
+| Operatore            | `operatore@salone-demo.test` / `password-demo-locale` (Marco, salone-demo e barbiere-demo) |
+| Secondo negozio      | `barbiere-demo`, senza tempo minimo tra due timbri (test)                                  |
+| Cliente con QR fisso | contenuto del QR: `0123456789abcdef0123456789abcdef`, codice breve `DEMA2345`              |
+| Supabase Studio      | <http://127.0.0.1:54323>                                                                   |
 
 Google Wallet è disattivato finché non si compilano `GOOGLE_WALLET_*` in `apps/web/.env.local`: iscrizioni e timbri
 funzionano lo stesso, senza il pulsante "Aggiungi a Google Wallet".

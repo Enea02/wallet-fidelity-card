@@ -99,6 +99,72 @@ export const errors = {
     probableCause: "Premio già riscattato (anche da un altro operatore) o doppio tocco sul pulsante.",
     action: "Controllare lo storico della carta: l'ultimo riscatto indica chi e quando.",
   },
+  E_STAMP_COOLDOWN: {
+    status: 409,
+    userMessage: "Timbro già dato da poco a questa carta. Riprova più tardi.",
+    description:
+      "Timbro rifiutato perché dall'ultimo timbro della carta non è passato il tempo minimo impostato dal negozio.",
+    probableCause: "Doppia scansione dello stesso cliente, oppure cliente che torna nello stesso giorno.",
+    action:
+      "Normale se era una doppia scansione. Se il cliente ha davvero diritto al timbro, il titolare può rettificare il saldo o ridurre il tempo minimo nelle impostazioni.",
+  },
+  E_UNDO_EXPIRED: {
+    status: 409,
+    userMessage: "Il timbro si può annullare solo nei 5 minuti successivi.",
+    description: "Annullamento rifiutato: l'ultimo timbro è stato dato più di 5 minuti fa.",
+    probableCause: "Errore accorgersi tardi del timbro sbagliato.",
+    action: "Il titolare può correggere con una rettifica del saldo, indicando il motivo.",
+  },
+  E_UNDO_OTHER_OPERATOR: {
+    status: 403,
+    userMessage: "Puoi annullare solo un timbro che hai dato tu.",
+    description: "Annullamento rifiutato: l'ultimo timbro della carta è stato dato da un altro operatore.",
+    probableCause: "Due operatori sulla stessa carta, o dispositivo condiviso con utenti diversi.",
+    action: "Far annullare a chi ha dato il timbro (entro 5 minuti) oppure rettifica del titolare.",
+  },
+  E_UNDO_NOT_LAST: {
+    status: 409,
+    userMessage: "Dopo questo timbro la carta è già stata modificata: non si può più annullare.",
+    description: "Annullamento rifiutato: dopo l'ultimo timbro c'è stata un'altra operazione (riscatto o rettifica).",
+    probableCause: "Timbro seguito subito da un riscatto o da una rettifica.",
+    action: "Il titolare può correggere con una rettifica del saldo, indicando il motivo.",
+  },
+  E_UNDO_REWARD_REDEEMED: {
+    status: 409,
+    userMessage: "Questo timbro ha sbloccato un premio già riscattato: non si può annullare.",
+    description: "Annullamento rifiutato: il timbro ha completato la carta e il premio è già stato riscattato.",
+    probableCause: "Timbro dato per errore e premio consegnato subito dopo.",
+    action: "Valutare con il titolare una rettifica del saldo, indicando il motivo.",
+  },
+  E_NOTHING_TO_UNDO: {
+    status: 409,
+    userMessage: "Non ci sono timbri da annullare su questa carta.",
+    description: "Annullamento chiesto su una carta senza timbri annullabili.",
+    probableCause: 'Doppio tocco su "Annulla" o timbro già annullato.',
+    action: "Nessuna azione: controllare lo storico della carta se il cliente contesta il saldo.",
+  },
+  E_FORBIDDEN_ROLE: {
+    status: 403,
+    userMessage: "Questa operazione è riservata al titolare del negozio.",
+    description:
+      "Un utente dello staff ha tentato un'operazione permessa solo al titolare (rettifica, cancellazione, consensi).",
+    probableCause: "Operatore che usa una funzione del titolare, oppure ruolo assegnato in modo sbagliato.",
+    action: "Verificare il ruolo dell'utente nella tabella staff; se deve essere titolare, cambiarlo.",
+  },
+  E_CARD_DELETED: {
+    status: 410,
+    userMessage: "Questa carta è stata cancellata su richiesta del cliente.",
+    description: "Operazione su una carta il cui cliente è stato cancellato (dati personali rimossi).",
+    probableCause: "Il cliente mostra una carta vecchia ancora nel Wallet dopo la cancellazione.",
+    action: "Il cliente può iscriversi di nuovo dal QR del bancone: riceverà una carta nuova.",
+  },
+  E_SHOP_SUSPENDED: {
+    status: 403,
+    userMessage: "Il negozio è momentaneamente sospeso: timbri e premi non sono disponibili.",
+    description: "Operazione su un negozio con stato sospeso.",
+    probableCause: "Abbonamento non pagato o sospensione manuale dal pannello interno.",
+    action: "Verificare lo stato dell'abbonamento del negozio e riattivarlo se è tutto in regola.",
+  },
   E_EXTERNAL_UNAVAILABLE: {
     status: 502,
     userMessage: "Un servizio esterno non risponde. Riprova tra qualche minuto.",
@@ -143,6 +209,8 @@ export class AppError extends Error {
   readonly code: ErrorCode;
   readonly context: Readonly<Record<string, unknown>>;
   readonly userMessage: string;
+  /** true se l'errore è già stato registrato da un evento (di dominio o external.call.failed). */
+  logged = false;
 
   constructor(code: ErrorCode, message: string, context: Record<string, unknown> = {}, opts: AppErrorOptions = {}) {
     super(message, opts.cause === undefined ? undefined : { cause: opts.cause });

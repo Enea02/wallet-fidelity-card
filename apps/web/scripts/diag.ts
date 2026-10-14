@@ -49,9 +49,9 @@ async function resolveScope(): Promise<{ type: DiagnosticScopeType; id: string; 
     return { type: "staff_user", id: user.id, label: user.email ?? user.id };
   }
   if (values.customer) {
-    const { data } = await db.from("customers").select("id").eq("id", values.customer).maybeSingle();
+    const { data } = await db.from("customers").select("id, short_code").eq("id", values.customer).maybeSingle();
     if (!data) fail(`cliente "${values.customer}" non trovato`);
-    return { type: "customer", id: data.id as string, label: data.id as string };
+    return { type: "customer", id: data.id as string, label: data.short_code as string };
   }
   return fail("indicare --shop <slug>, --staff <email> o --customer <id>");
 }

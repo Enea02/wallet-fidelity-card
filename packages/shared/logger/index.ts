@@ -26,6 +26,8 @@ export interface LogContext {
   app_version?: string;
   build?: string;
   customer_ref?: string;
+  /** Hash con salt dell'IP del client (mai l'IP in chiaro). */
+  ip_hash?: string;
 }
 
 export interface LogLine {
