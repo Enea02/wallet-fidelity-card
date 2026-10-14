@@ -156,6 +156,55 @@ reiscriversi con lo stesso numero e riceve una carta nuova. Da Fase 4 la carta G
 - `auth.forbidden.role`: un operatore ha aperto una funzione del titolare (statistiche, clienti, impostazioni, staff,
   promozioni). È il comportamento atteso; se deve essere titolare, il titolare cambia il ruolo dall'app.
 
+## App esercente: "non riesco ad accedere"
+
+L'app (iOS, Android, web) registra i propri eventi `app.*` in un buffer sul dispositivo e in Sentry, non nei log del
+backend: per vederli serve il pacchetto "Invia diagnostica" (vedi sotto) o Sentry.
+
+- **Email o password non corrette** (`app.login.failed` con `E_LOGIN_FAILED`): far usare "Password dimenticata?".
+  Se l'utente non ha mai accettato l'invito non ha una password: il titolare lo reinvita dalla sezione Staff.
+- **"Server non raggiungibile"** (`E_NETWORK`): il login passa da Supabase Auth, non dal nostro backend. Controllare
+  la rete del negozio e lo stato di Supabase.
+- **"La sessione è scaduta. Accedi di nuovo."** (`app.logout` con motivo "sessione scaduta", `E_SESSION_EXPIRED`):
+  l'app rinnova da sola il token una volta; se il rinnovo fallisce (password cambiata altrove, utente rimosso dallo
+  staff, app chiusa per molto tempo) chiude la sessione. Basta rifare il login.
+- **"Nessun negozio collegato"**: l'account esiste ma non è nella tabella `staff` di nessun negozio. Il titolare lo
+  invita con la stessa email.
+- **Vede il negozio sbagliato**: chi lavora in più negozi sceglie all'accesso ("Dove lavori oggi?"); l'app ricorda
+  l'ultima scelta e si cambia da Profilo → "Cambia negozio" (`app.shop.selected`).
+
+## App esercente: invito e nuova password
+
+- L'email d'invito (template `supabase/templates/invito.html`) porta a `MERCHANT_APP_URL/invito`: la web app legge
+  il link, chiede la password e apre l'app. Il link vale 24 ore e si usa una volta: se è scaduto la pagina lo dice e
+  il titolare reinvia l'invito. Senza dominio i link aprono la web app anche dal telefono; dalla Fase 13 (dominio e
+  Universal/App Links) apriranno direttamente l'app installata.
+- "Password dimenticata?" manda un'email (template `recupero.html`) con un link a `/nuova-password`, valido un'ora.
+  L'app mostra sempre "Controlla la posta" anche se l'email non è registrata (non rivela chi è nello staff).
+- In locale le email non partono davvero: si leggono in Mailpit su http://127.0.0.1:54324.
+- In produzione serve un SMTP configurato in Supabase (Fase 13): il server email di default invia pochissime email
+  all'ora.
+
+## App esercente: codice assistenza mostrato dall'app
+
+Ogni errore dell'app mostra il messaggio e un codice `ERR-XXXXX` copiabile. Si cerca come qualsiasi codice
+assistenza (sezione in cima). Se nel backend **non c'è** nessuna riga con quel codice, la richiesta non è mai
+arrivata al server:
+
+- `E_OFFLINE`: il dispositivo era offline, l'app non ha nemmeno provato (in questo caso il codice non viene mostrato);
+- `E_NETWORK`: l'app ha provato ma il server non ha risposto (rete del negozio, Wi-Fi senza internet, server giù);
+- `E_BAD_RESPONSE`: il server ha risposto qualcosa di inatteso (app non aggiornata o proxy di rete).
+
+Nel pacchetto diagnostica la riga `app.api.error` con lo stesso `support_code` riporta metodo, endpoint, status e
+durata; il `request_id` è lo stesso che il backend scrive nei suoi log.
+
+## App esercente: "Sei offline"
+
+Il banner compare quando il dispositivo perde la connessione (`app.offline`) e sparisce quando torna (`app.online`
+con la durata). Nel frattempo le azioni che richiedono il server sono disattivate. Se l'esercente dice di essere
+online ma vede il banner, il dispositivo non ha una rete attiva (es. Wi-Fi collegato senza internet su alcuni
+Android): far disattivare e riattivare il Wi-Fi.
+
 ## "La carta non viene trovata" alla scansione
 
 - `customer.lookup.not_found`: il QR o il codice breve non corrisponde a nessuna carta. Far riscansionare o digitare
@@ -185,9 +234,19 @@ l'ora). Il link dell'email porta a `MERCHANT_APP_URL/invito`.
 
 ## L'esercente ha inviato la diagnostica dall'app
 
-Ci comunica un codice `DIAG-XXXXXXXX`: `diagnostics.received` lo conferma, il pacchetto (informazioni sul
-dispositivo e ultimi eventi dell'app, già redatti) è nella tabella `diagnostic_bundles` (`ticket_code`). Dalla
-Fase 9 si consulta dalla vista Assistenza.
+Ci comunica un codice `DIAG-XXXXXXXX` (Profilo → "Invia diagnostica all'assistenza"): `diagnostics.received` lo
+conferma, il pacchetto è nella tabella `diagnostic_bundles` (`ticket_code`). Dalla Fase 9 si consulta dalla vista
+Assistenza.
+
+Cosa contiene:
+- `device`: piattaforma, versione e build dell'app, modello o browser, sistema operativo, lingua, fuso orario, tipo
+  di connessione, permessi (la fotocamera dalla Fase 7);
+- `events`: gli ultimi eventi `app.*` (al massimo 500, i più vecchi scartati se il pacchetto supera 256 KB), già
+  redatti come i log del backend: email mascherate, nessun token. Si leggono dal più vecchio al più recente;
+  `app.start` segna ogni apertura dell'app, `app.api.error` ogni chiamata fallita con il suo `request_id`.
+
+Crash ed errori JavaScript dell'app sono anche in **Sentry** (progetto dell'app esercente), con gli stessi campi
+`shop_id`, `role`, `platform`, `app_version` e, per gli errori API, `request_id` ed `error_code` come tag.
 
 ## Logo o impostazioni non salvati
 
@@ -414,6 +473,23 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
 | `cron.wallet_sync.run` | info | Esecuzione del cron dei wallet (ogni minuto): nuovi tentativi, riconciliazione, invio promozioni. | Cron wallet completato in 2140 ms: 2/3 tentativi riusciti, 1 carte riallineate, 40 promozioni consegnate, 0 fallite. |
+
+### app
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `app.start` | info | L'app esercente è stata aperta: piattaforma, versione e dispositivo (prima riga della diagnostica). | App esercente avviata su iOS 26.4 (iPhone 15), versione 1.4.0 build 12. |
+| `app.login.ok` | info | Lo staff ha fatto login nell'app. | Accesso riuscito per gi***@salone-mario.it: 1 negozio disponibile. |
+| `app.login.failed` | warn | Login rifiutato: credenziali errate, invito non accettato o servizio non raggiungibile. | Accesso non riuscito per gi***@salone-mario.it: email o password non corrette (E_LOGIN_FAILED). |
+| `app.logout` | info | Uscita dall'app: scelta dall'utente o forzata perché la sessione non si è potuta rinnovare. | L'utente è uscito dall'app con il pulsante Esci. |
+| `app.shop.selected` | info | Negozio su cui l'app sta lavorando (scelto, cambiato o ricordato dall'ultima volta). | Negozio attivo nell'app: Salone Mario, ruolo titolare (l'unico disponibile). |
+| `app.api.error` | warn | Una chiamata dell'app al server è fallita. Con il request_id si trova la riga corrispondente nei log del backend; se manca, la richiesta non è arrivata. | Chiamata POST /api/v1/merchant/stamp fallita con 400 in 120 ms: E_VALIDATION, codice assistenza ERR-K3QXM. |
+| `app.offline` | warn | Il dispositivo ha perso la connessione: l'app mostra "Sei offline" e blocca le azioni che richiedono il server. | Il dispositivo è offline: mostrato il banner "Sei offline", azioni che richiedono il server bloccate. |
+| `app.online` | info | La connessione è tornata dopo un periodo offline. | Connessione tornata dopo 42 secondi offline. |
+| `app.diagnostics.sent` | info | L'utente ha premuto "Invia diagnostica all'assistenza" e il server ha restituito il codice ticket. | Diagnostica inviata all'assistenza: ticket DIAG-7K3QXA2M (412 eventi, 37 KB). |
+| `app.password.reset_requested` | info | Richiesto il link per reimpostare la password ("Password dimenticata?"). | Richiesto il link per reimpostare la password di gi***@salone-mario.it. |
+| `app.password.changed` | info | Lo staff ha impostato una nuova password, dal link di recupero o accettando l'invito. | Password reimpostata dal link di recupero e accesso eseguito. |
+| `app.invite.accepted` | info | Lo staff ha aperto il link d'invito e la sessione è valida: deve solo scegliere la password. | Aperto il link d'invito di gi***@salone-mario.it: in attesa della scelta della password. |
 
 ## Errori
 
@@ -740,6 +816,41 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Link firmato (disiscrizione o apertura della carta) scaduto, già usato o manomesso.
 - **Causa probabile**: Link vecchio, copiato male, oppure link di disiscrizione già usato.
 - **Cosa fare**: Per la disiscrizione: il cliente è già disiscritto o può chiederlo in negozio. Per la carta: rifare l'iscrizione con lo stesso numero.
+
+### `E_NETWORK` (HTTP 503)
+
+- **L'utente vede**: Il server non risponde. Controlla la connessione e riprova.
+- **Cosa è successo**: L'app non è riuscita a contattare il server (nessuna risposta, timeout o DNS).
+- **Causa probabile**: Rete del negozio instabile, Wi-Fi senza internet, oppure server non raggiungibile.
+- **Cosa fare**: Chiedere se altri siti funzionano. Se la rete va, cercare nei log del backend il request_id dell'evento app.api.error: se manca, la richiesta non è mai arrivata.
+
+### `E_OFFLINE` (HTTP 503)
+
+- **L'utente vede**: Sei offline: questa azione richiede la connessione.
+- **Cosa è successo**: Azione bloccata dall'app perché il dispositivo risulta senza rete.
+- **Causa probabile**: Dispositivo senza connessione (modalità aereo, Wi-Fi spento o senza segnale).
+- **Cosa fare**: Far riconnettere il dispositivo. Gli eventi app.offline e app.online nella diagnostica dicono quando e per quanto.
+
+### `E_BAD_RESPONSE` (HTTP 502)
+
+- **L'utente vede**: Il server ha risposto in modo inatteso. Aggiorna l'app e riprova.
+- **Cosa è successo**: La risposta del server non rispetta il contratto dell'API (schema zod) atteso dall'app.
+- **Causa probabile**: App non aggiornata rispetto al backend, oppure un proxy o una rete che restituisce una pagina diversa.
+- **Cosa fare**: Verificare la versione dell'app nella diagnostica e aggiornarla. Se è all'ultima versione, segnalare allo sviluppo con il request_id.
+
+### `E_LOGIN_FAILED` (HTTP 401)
+
+- **L'utente vede**: Email o password non corrette.
+- **Cosa è successo**: Il login dello staff è stato rifiutato da Supabase Auth.
+- **Causa probabile**: Password sbagliata, email diversa da quella dell'invito, oppure invito mai accettato.
+- **Cosa fare**: Far usare "Password dimenticata?". Se l'invito non è mai stato accettato, il titolare può reinviarlo dalla sezione Staff.
+
+### `E_SESSION_EXPIRED` (HTTP 401)
+
+- **L'utente vede**: La sessione è scaduta. Accedi di nuovo.
+- **Cosa è successo**: L'app non è riuscita a rinnovare il token di accesso e ha chiuso la sessione.
+- **Causa probabile**: App rimasta chiusa a lungo, password cambiata su un altro dispositivo o utente rimosso dallo staff.
+- **Cosa fare**: Far rifare il login. Se succede subito dopo ogni login, raccogliere la diagnostica dell'app.
 
 ### `E_EXTERNAL_UNAVAILABLE` (HTTP 502)
 

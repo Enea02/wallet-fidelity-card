@@ -6,3 +6,12 @@ node_modules/
 supabase/.temp/
 docs/
 CLAUDE.md
+# app esercente: export web, cartelle native generate, risultati dei test
+apps/merchant/dist/
+apps/merchant/dist-e2e/
+apps/merchant/.expo/
+apps/merchant/ios/
+apps/merchant/android/
+apps/merchant/e2e-logs/
+apps/merchant/test-results/
+apps/merchant/playwright-report/

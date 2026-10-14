@@ -367,6 +367,49 @@ export const errors = {
     action:
       "Per la disiscrizione: il cliente è già disiscritto o può chiederlo in negozio. Per la carta: rifare l'iscrizione con lo stesso numero.",
   },
+
+  // --- App esercente (errori nati nell'app, senza risposta del server) ---
+  E_NETWORK: {
+    status: 503,
+    userMessage: "Il server non risponde. Controlla la connessione e riprova.",
+    description: "L'app non è riuscita a contattare il server (nessuna risposta, timeout o DNS).",
+    probableCause: "Rete del negozio instabile, Wi-Fi senza internet, oppure server non raggiungibile.",
+    action:
+      "Chiedere se altri siti funzionano. Se la rete va, cercare nei log del backend il request_id dell'evento app.api.error: se manca, la richiesta non è mai arrivata.",
+  },
+  E_OFFLINE: {
+    status: 503,
+    userMessage: "Sei offline: questa azione richiede la connessione.",
+    description: "Azione bloccata dall'app perché il dispositivo risulta senza rete.",
+    probableCause: "Dispositivo senza connessione (modalità aereo, Wi-Fi spento o senza segnale).",
+    action:
+      "Far riconnettere il dispositivo. Gli eventi app.offline e app.online nella diagnostica dicono quando e per quanto.",
+  },
+  E_BAD_RESPONSE: {
+    status: 502,
+    userMessage: "Il server ha risposto in modo inatteso. Aggiorna l'app e riprova.",
+    description: "La risposta del server non rispetta il contratto dell'API (schema zod) atteso dall'app.",
+    probableCause:
+      "App non aggiornata rispetto al backend, oppure un proxy o una rete che restituisce una pagina diversa.",
+    action:
+      "Verificare la versione dell'app nella diagnostica e aggiornarla. Se è all'ultima versione, segnalare allo sviluppo con il request_id.",
+  },
+  E_LOGIN_FAILED: {
+    status: 401,
+    userMessage: "Email o password non corrette.",
+    description: "Il login dello staff è stato rifiutato da Supabase Auth.",
+    probableCause: "Password sbagliata, email diversa da quella dell'invito, oppure invito mai accettato.",
+    action:
+      'Far usare "Password dimenticata?". Se l\'invito non è mai stato accettato, il titolare può reinviarlo dalla sezione Staff.',
+  },
+  E_SESSION_EXPIRED: {
+    status: 401,
+    userMessage: "La sessione è scaduta. Accedi di nuovo.",
+    description: "L'app non è riuscita a rinnovare il token di accesso e ha chiuso la sessione.",
+    probableCause:
+      "App rimasta chiusa a lungo, password cambiata su un altro dispositivo o utente rimosso dallo staff.",
+    action: "Far rifare il login. Se succede subito dopo ogni login, raccogliere la diagnostica dell'app.",
+  },
   E_EXTERNAL_UNAVAILABLE: {
     status: 502,
     userMessage: "Un servizio esterno non risponde. Riprova tra qualche minuto.",

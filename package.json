@@ -26,7 +26,8 @@
     "wallet:resync": "pnpm --filter @loyalty/web wallet:resync",
     "cron:configure": "pnpm --filter @loyalty/web cron:configure",
     "lighthouse": "node scripts/lighthouse.mjs",
-    "e2e": "pnpm --filter @loyalty/web e2e"
+    "e2e": "pnpm --filter @loyalty/web e2e && pnpm --filter @loyalty/merchant e2e",
+    "dev:merchant": "pnpm db:start && turbo run dev --filter=@loyalty/web --filter=@loyalty/merchant"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

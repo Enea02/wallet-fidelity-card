@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="it">
+  <body
+    style="
+      margin: 0;
+      background: #f7f2eb;
+      font-family: &quot;Bricolage Grotesque&quot;, &quot;Avenir Next&quot;, &quot;Segoe UI&quot;, sans-serif;
+      color: #2a211c;
+    "
+  >
+    <div style="max-width: 520px; margin: 0 auto; padding: 32px 20px">
+      <h1 style="font-size: 26px; line-height: 1.2; margin: 0 0 12px">Nuova password</h1>
+      <p style="font-size: 16px; line-height: 1.5; margin: 0 0 20px">
+        Hai chiesto di reimpostare la password di Loyalty Wallet per {{ .Email }}.
+      </p>
+      <p style="margin: 0 0 24px">
+        <a
+          href="{{ .ConfirmationURL }}"
+          style="
+            display: inline-block;
+            background: #2a211c;
+            color: #fbf8f3;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 17px;
+            padding: 16px 24px;
+            border-radius: 14px;
+          "
+          >Scegli la nuova password</a
+        >
+      </p>
+      <p style="font-size: 14px; line-height: 1.5; color: #5e534b; margin: 0">
+        Il link vale un'ora e si usa una volta sola. Se non l'hai chiesto tu, ignora l'email: la password resta quella
+        di prima.
+      </p>
+    </div>
+  </body>
+</html>
