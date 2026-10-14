@@ -30,13 +30,15 @@ const SECRET_KEYS = new Set([
 const SECRET_SUFFIXES = ["token", "secret", "password", "apikey", "privatekey", "keyb64", "salt"];
 const QR_KEYS = new Set(["qrtoken", "qr"]);
 const PHONE_KEYS = new Set(["phone", "telefono", "phonenumber", "tel", "mobile"]);
+const EMAIL_KEYS = new Set(["email", "mail"]);
 
 const normalizeKey = (k: string) => k.toLowerCase().replace(/[_-]/g, "");
 
-function keyKind(key: string): "secret" | "qr" | "phone" | null {
+function keyKind(key: string): "secret" | "qr" | "phone" | "email" | null {
   const k = normalizeKey(key);
   if (QR_KEYS.has(k)) return "qr";
   if (PHONE_KEYS.has(k)) return "phone";
+  if (EMAIL_KEYS.has(k)) return "email";
   if (SECRET_KEYS.has(k) || SECRET_SUFFIXES.some((s) => k.endsWith(s))) return "secret";
   return null;
 }
@@ -48,6 +50,13 @@ export function maskPhone(phone: string): string {
   const last4 = digits.slice(-4);
   if (digits.startsWith("39") && digits.length >= 11) return `+39 ${digits.slice(2, 5)} ***${last4}`;
   return `+${digits.slice(0, 2)} ***${last4}`;
+}
+
+/** "giulia.rossi@salone.it" → "gi***@salone.it". */
+export function maskEmail(email: string): string {
+  const at = email.indexOf("@");
+  if (at < 1) return "***";
+  return `${email.slice(0, Math.min(2, at))}***${email.slice(at)}`;
 }
 
 export const maskQrToken = (token: string): string => `${token.slice(0, 4)}…`;
@@ -94,6 +103,7 @@ function redactValue(value: unknown, depth: number, seen: WeakSet<object>): unkn
     if (kind === "secret" && v !== null && v !== undefined && v !== "") out[k] = REDACTED;
     else if (kind === "qr" && typeof v === "string") out[k] = maskQrToken(v);
     else if (kind === "phone" && typeof v === "string") out[k] = maskPhone(v);
+    else if (kind === "email" && typeof v === "string") out[k] = maskEmail(v);
     else out[k] = redactValue(v, depth + 1, seen);
   }
   return out;

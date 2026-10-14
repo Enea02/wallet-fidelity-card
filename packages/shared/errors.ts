@@ -165,6 +165,87 @@ export const errors = {
     probableCause: "Abbonamento non pagato o sospensione manuale dal pannello interno.",
     action: "Verificare lo stato dell'abbonamento del negozio e riattivarlo se è tutto in regola.",
   },
+  E_RATE_LIMITED: {
+    status: 429,
+    userMessage: "Troppe richieste in poco tempo. Attendi qualche secondo e riprova.",
+    description: "Un utente o un indirizzo IP ha superato il numero massimo di richieste al minuto.",
+    probableCause:
+      "App che ripete una richiesta in loop, lettore QR che invia lo stesso codice di continuo, oppure abuso.",
+    action:
+      "Cercare ratelimit.hit con lo stesso user_id/ip_hash. Se è un'app in loop raccogliere la diagnostica; se è abuso valutare il blocco dell'IP.",
+  },
+  E_QR_OTHER_SHOP: {
+    status: 404,
+    userMessage: "Questa carta appartiene a un altro negozio.",
+    description: "Il QR scansionato è una carta valida, ma di un negozio diverso da quello selezionato nell'app.",
+    probableCause:
+      "Il cliente ha mostrato la carta di un altro negozio, oppure l'esercente ha più negozi e ha selezionato quello sbagliato.",
+    action: "Verificare il negozio selezionato nell'app; se è giusto, il cliente deve iscriversi a questo negozio.",
+  },
+  E_LAST_OWNER: {
+    status: 409,
+    userMessage: "Il negozio deve avere almeno un titolare.",
+    description: "Tentativo di rimuovere o declassare l'unico titolare del negozio.",
+    probableCause: "Il titolare prova a togliersi il ruolo o a rimuoversi prima di nominarne un altro.",
+    action: "Nominare prima un altro titolare, poi cambiare o rimuovere il precedente.",
+  },
+  E_STAFF_NOT_FOUND: {
+    status: 404,
+    userMessage: "Questo utente non fa parte dello staff del negozio.",
+    description: "Operazione su un membro dello staff che non esiste in questo negozio.",
+    probableCause: "Utente già rimosso (anche da un altro dispositivo) o lista non aggiornata nell'app.",
+    action: "Aggiornare la lista dello staff nell'app.",
+  },
+  E_STAFF_ALREADY_MEMBER: {
+    status: 409,
+    userMessage: "Questa persona fa già parte dello staff.",
+    description: "Invito di un utente che è già nello staff del negozio.",
+    probableCause: "Invito ripetuto.",
+    action: "Nessuna azione; per cambiare il ruolo usare la modifica del membro.",
+  },
+  E_INVITE_FAILED: {
+    status: 502,
+    userMessage: "Non è stato possibile inviare l'invito. Riprova tra qualche minuto.",
+    description: "Supabase Auth non ha creato l'utente o non ha inviato l'email d'invito.",
+    probableCause: "Server email non configurato o limite di invio raggiunto, oppure indirizzo email rifiutato.",
+    action: "Controllare il messaggio di Supabase nel log e la configurazione SMTP del progetto Supabase.",
+  },
+  E_PROMO_WEEKLY_LIMIT: {
+    status: 409,
+    userMessage: "Puoi inviare una sola promozione a settimana.",
+    description: "Prenotazione di una promozione prima che siano passati 7 giorni dalla precedente.",
+    probableCause: "Seconda promozione nella stessa settimana.",
+    action: "Il messaggio indica da quando si può inviare la prossima.",
+  },
+  E_PROMO_NO_RECIPIENTS: {
+    status: 409,
+    userMessage: "Nessun cliente ha dato il consenso a ricevere promozioni.",
+    description: "Prenotazione di una promozione senza clienti con consenso marketing.",
+    probableCause: "Negozio nuovo o clienti che non hanno spuntato il consenso facoltativo.",
+    action: "Nessuna azione tecnica: servono clienti con consenso marketing.",
+  },
+  E_LOGO_INVALID: {
+    status: 400,
+    userMessage: "Il logo deve essere un'immagine PNG, JPEG o WebP di massimo 2 MB.",
+    description:
+      "Richiesta di caricamento di un logo di tipo o dimensione non ammessi, o logo non trovato dopo il caricamento.",
+    probableCause: "Foto troppo grande o formato HEIC dell'iPhone; oppure caricamento non completato.",
+    action: "Far ritagliare/esportare l'immagine in PNG o JPEG; se il caricamento è stato fatto, ripeterlo.",
+  },
+  E_PAYLOAD_TOO_LARGE: {
+    status: 413,
+    userMessage: "I dati inviati sono troppo grandi.",
+    description: "Il corpo della richiesta supera la dimensione massima ammessa per l'endpoint.",
+    probableCause: "Pacchetto di diagnostica con troppi eventi, o app non aggiornata.",
+    action: "Verificare la versione dell'app; il limite è indicato nel log.",
+  },
+  E_CORS_ORIGIN: {
+    status: 403,
+    userMessage: "Accesso non consentito da questo sito.",
+    description: "Richiesta dal browser con un'origine non presente in MERCHANT_APP_ORIGINS.",
+    probableCause: "Web app esercente pubblicata su un dominio nuovo non ancora configurato, oppure sito di terzi.",
+    action: "Se il dominio è nostro, aggiungerlo a MERCHANT_APP_ORIGINS e rifare il deploy.",
+  },
   E_EXTERNAL_UNAVAILABLE: {
     status: 502,
     userMessage: "Un servizio esterno non risponde. Riprova tra qualche minuto.",
