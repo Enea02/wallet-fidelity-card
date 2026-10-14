@@ -1,0 +1,18 @@
+# Expo
+.expo/
+dist/
+expo-env.d.ts
+.metro-health-check*
+
+# cartelle native generate (Continuous Native Generation): si configurano da app.config.ts
+/ios
+/android
+
+# Playwright
+test-results/
+playwright-report/
+e2e-logs/
+
+# variabili locali (create da pnpm db:start)
+.env*.local
+dist-e2e/

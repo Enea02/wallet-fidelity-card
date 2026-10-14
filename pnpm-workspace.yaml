@@ -6,5 +6,11 @@ allowBuilds:
   esbuild: true
   # protobufjs (dipendenza di @usebruno/cli): lo script di installazione non serve
   protobufjs: false
+  # @sentry/cli (app esercente) scarica il binario per caricare source map e simboli
+  "@sentry/cli": true
 minimumReleaseAgeExclude:
   - google-auth-library@11.3.0
+overrides:
+  # la CLI di Expo risolveva expo-router con un react-native-screens più nuovo di quello di SDK 57:
+  # una sola versione dei moduli nativi nel monorepo (requisito di Expo)
+  react-native-screens: ~4.26.0

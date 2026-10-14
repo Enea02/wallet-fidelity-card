@@ -7,7 +7,21 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["**/node_modules/**", "**/.next/**", "**/.turbo/**", "**/dist/**", "**/coverage/**", "docs/design/**"],
+    ignores: [
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/.turbo/**",
+      "**/dist/**",
+      "**/coverage/**",
+      "docs/design/**",
+      "apps/merchant/.expo/**",
+      "apps/merchant/dist-e2e/**",
+      "apps/merchant/playwright-report/**",
+      "apps/merchant/test-results/**",
+      "apps/merchant/ios/**",
+      "apps/merchant/android/**",
+      "apps/merchant/expo-env.d.ts",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -32,6 +46,26 @@ export default tseslint.config(
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
     },
+  },
+  {
+    // app esercente (Expo: React Native + web)
+    files: ["apps/merchant/**/*.{ts,tsx}"],
+    languageOptions: { globals: { ...globals.browser, __DEV__: "readonly" } },
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  {
+    // configurazione Metro (CommonJS) e service worker della PWA
+    files: ["apps/merchant/metro.config.js"],
+    languageOptions: { sourceType: "commonjs", globals: { ...globals.node } },
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
+    files: ["apps/merchant/public/sw.js"],
+    languageOptions: { globals: { ...globals.serviceworker } },
   },
   {
     // script di supporto eseguiti da riga di comando: l'output a terminale è voluto
