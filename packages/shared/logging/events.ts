@@ -662,6 +662,13 @@ export interface AppEmailFields {
   email: string;
 }
 
+export interface AppUnexpectedErrorFields {
+  /** Dove è successo, in parole semplici (es. "caricamento dei negozi"). */
+  where: string;
+  error_name: string;
+  error_message: string;
+}
+
 export interface AppPasswordChangedFields {
   via: "recupero" | "invito";
 }
@@ -1779,6 +1786,15 @@ export const events = {
         ? "Invito accettato: password impostata e accesso eseguito."
         : "Password reimpostata dal link di recupero e accesso eseguito.",
     examples: [{ via: "recupero" }, { via: "invito" }],
+  }),
+  "app.error.unexpected": defineEvent<AppUnexpectedErrorFields>({
+    level: "error",
+    description:
+      "Errore imprevisto nel codice dell'app (non una risposta del server): va segnalato allo sviluppo con la diagnostica e Sentry.",
+    msg: (f) => `Errore imprevisto nell'app durante ${f.where}: ${f.error_name}: ${f.error_message}.`,
+    examples: [
+      { where: "il caricamento dei negozi", error_name: "TypeError", error_message: "shops.map is not a function" },
+    ],
   }),
   "app.invite.accepted": defineEvent<AppEmailFields>({
     level: "info",

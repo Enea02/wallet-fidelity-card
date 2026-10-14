@@ -5,7 +5,8 @@
  * Il codice assistenza è `ERR-` + i caratteri 5–9 del request_id (es. 01JB7K3QX… → ERR-7K3QX):
  * fissano l'istante con una precisione di 32 ms dentro un ciclo di ~12,4 giorni, quindi nella
  * retention dei log (30 giorni) corrisponde a 3-4 prefissi di request_id, uno per ciclo.
- * Funziona ovunque (server, browser, React Native): usa solo crypto.getRandomValues.
+ * Funziona ovunque (server, browser, React Native): usa crypto.getRandomValues se c'è; dove manca
+ * (Hermes, il motore di React Native) Math.random, sufficiente perché l'id deve essere unico, non segreto.
  */
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const TIME_LEN = 10;
@@ -36,7 +37,9 @@ function decodeTime(chars: string): number {
 
 export function newRequestId(now: number = Date.now()): string {
   const bytes = new Uint8Array(RANDOM_LEN);
-  crypto.getRandomValues(bytes);
+  const c = (globalThis as { crypto?: { getRandomValues?: (a: Uint8Array) => Uint8Array } }).crypto;
+  if (typeof c?.getRandomValues === "function") c.getRandomValues(bytes);
+  else for (let i = 0; i < RANDOM_LEN; i++) bytes[i] = Math.floor(Math.random() * 256);
   let random = "";
   for (const b of bytes) random += ALPHABET.charAt(b % 32);
   return encodeTime(now) + random;

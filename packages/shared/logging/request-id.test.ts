@@ -63,3 +63,17 @@ describe("codice assistenza", () => {
     expect(requestIdCandidatesFromSupportCode("ciao")).toEqual([]);
   });
 });
+
+describe("request_id senza crypto (Hermes)", () => {
+  it("usa un generatore di riserva e resta un ULID valido", () => {
+    const original = globalThis.crypto;
+    Object.defineProperty(globalThis, "crypto", { value: undefined, configurable: true });
+    try {
+      const ids = new Set(Array.from({ length: 50 }, () => newRequestId()));
+      expect(ids.size).toBe(50);
+      for (const id of ids) expect(isRequestId(id)).toBe(true);
+    } finally {
+      Object.defineProperty(globalThis, "crypto", { value: original, configurable: true });
+    }
+  });
+});

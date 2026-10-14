@@ -1,4 +1,5 @@
 import type { Role, ShopSummary } from "@loyalty/shared/api";
+import { errors } from "@loyalty/shared/errors";
 import type { z } from "zod";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError, setSessionExpiredHandler } from "./api";
@@ -93,7 +94,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         reset();
         return 0;
       }
-      setError(e instanceof ApiError ? e : null);
+      if (!(e instanceof ApiError)) {
+        log.event("app.error.unexpected", {
+          where: "il caricamento dei negozi",
+          error_name: e instanceof Error ? e.name : typeof e,
+          error_message: e instanceof Error ? e.message : String(e),
+        });
+      }
+      // errore imprevisto: messaggio generico del catalogo, senza codice (la richiesta non è partita)
+      setError(e instanceof ApiError ? e : new ApiError("E_INTERNAL", errors.E_INTERNAL.userMessage, "", "", null));
       setStatus("error");
       return 0;
     } finally {
