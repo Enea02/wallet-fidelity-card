@@ -389,11 +389,14 @@ describe("diagnostica e cartello", () => {
 });
 
 describe("rate limit e CORS", () => {
-  it("oltre il limite per IP: 429 E_RATE_LIMITED con Retry-After", async () => {
+  it("oltre il limite per IP: 429 E_RATE_LIMITED con Retry-After", { timeout: 30_000 }, async () => {
     const before = process.env.RATE_LIMIT_IP_PER_MIN;
     process.env.RATE_LIMIT_IP_PER_MIN = "3";
     try {
       const headers = { "x-forwarded-for": `198.51.100.${Math.floor(Math.random() * 250)}${Date.now() % 1000}` };
+      // le finestre del limite sono allineate al minuto: le 4 chiamate non devono attraversarne il cambio
+      const leftInWindow = 60_000 - (Date.now() % 60_000);
+      if (leftInWindow < 10_000) await new Promise((r) => setTimeout(r, leftInWindow + 200));
       const statuses: number[] = [];
       for (let i = 0; i < 4; i++) statuses.push((await call("me", { token: M, headers })).status);
       expect(statuses).toEqual([200, 200, 200, 429]);
