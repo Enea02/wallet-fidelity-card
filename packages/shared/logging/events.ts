@@ -105,6 +105,12 @@ const googleAction = (f: GoogleFailureFields) =>
 const cardBalance = (f: GoogleCardFields) =>
   `${f.stamps}/${f.stamps_required}, ${f.rewards === 1 ? "1 premio" : `${f.rewards} premi`}`;
 
+const WALLET_LABEL: Record<string, string> = {
+  google: "il pulsante Aggiungi a Google Wallet",
+  "apple-in-arrivo": "il QR da mostrare in cassa (Apple Wallet in arrivo)",
+  "qr-da-computer": "il QR per aprire la carta dal telefono",
+};
+
 /* ------------------------------------------------------------------ */
 /* Campi degli eventi                                                  */
 /* ------------------------------------------------------------------ */
@@ -513,6 +519,87 @@ export interface WalletSyncUnexpectedErrorFields {
   error_message: string;
 }
 
+export interface EnrollFunnelFields {
+  enrollment_id: string;
+  shop_name: string;
+}
+
+export interface EnrollFormSubmittedFields {
+  shop_name: string;
+  /** Mascherato automaticamente nei log: +39 333 ***4567. */
+  phone: string;
+  consent_marketing: boolean;
+  platform: string;
+}
+
+export interface EnrollCaptchaFailedFields {
+  shop_name: string;
+  /** Codici d'errore di Turnstile (es. timeout-or-duplicate). */
+  reason: string;
+}
+
+export interface EnrollOtpSentFields extends EnrollFunnelFields {
+  phone: string;
+  /** 1 = primo SMS, 2+ = nuovo codice chiesto dal cliente. */
+  send_number: number;
+  duration_ms: number;
+}
+
+export interface EnrollOtpSendFailedFields extends EnrollFunnelFields {
+  http_status: number | null;
+  error_code: ErrorCode;
+  provider_response: string;
+  duration_ms: number;
+}
+
+export interface EnrollOtpLimitedFields {
+  shop_name: string;
+  /** "numero" | "numero (giornaliero)" | "IP" | "numero bloccato" */
+  scope: string;
+  retry_after_min: number;
+}
+
+export interface EnrollOtpVerifiedFields extends EnrollFunnelFields {
+  attempts: number;
+}
+
+export interface EnrollOtpWrongCodeFields extends EnrollFunnelFields {
+  attempts_left: number;
+}
+
+export interface EnrollOtpBlockedFields extends EnrollFunnelFields {
+  blocked_min: number;
+}
+
+export interface EnrollWalletLinkFields extends EnrollFunnelFields {
+  customer_ref: string;
+  /** "google" | "apple-in-arrivo" | "qr-da-computer" */
+  wallet: string;
+}
+
+export interface EnrollShopUnavailableFields {
+  slug: string;
+  /** "inesistente" | "sospeso" */
+  reason: string;
+}
+
+export interface MarketingUnsubscribeFields extends CardFields {
+  already_unsubscribed: boolean;
+}
+
+export interface CounterQrPublicFields {
+  shop_name: string;
+  size_bytes: number;
+  duration_ms: number;
+}
+
+export interface PublicLinkInvalidFields {
+  /** "carta" (link breve dal computer) | "disiscrizione" */
+  link_kind: string;
+  /** "firma non valida" | "scaduto" | "carta cancellata" | "negozio non attivo" */
+  reason: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* Catalogo                                                            */
 /* ------------------------------------------------------------------ */
@@ -560,6 +647,8 @@ const google401: GoogleFailureFields = {
   provider_response: "Request had invalid authentication credentials.",
   retry_in_min: 5,
 };
+
+const funnel: EnrollFunnelFields = { enrollment_id: "8a1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d", shop_name: "Salone Mario" };
 
 export const events = {
   "server.startup.ok": defineEvent<ServerStartupOkFields>({
@@ -1334,6 +1423,151 @@ export const events = {
       `Errore imprevisto durante ${f.task} verso i wallet: ${f.error_message}. La carta verrà riallineata dalla riconciliazione; ` +
       `azione: passare lo stack di questa riga allo sviluppo.`,
     examples: [{ task: "sincronizzazione carta", error_message: "fetch failed (Supabase non raggiungibile)" }],
+  }),
+
+  "enroll.form.submitted": defineEvent<EnrollFormSubmittedFields>({
+    level: "info",
+    description: "Funnel di iscrizione, passo 1: il cliente ha compilato il form (nome, telefono, consensi).",
+    msg: (f) =>
+      `Iscrizione avviata al negozio ${f.shop_name} ${f.platform === "public-web" ? "dal web pubblico" : `da ${PLATFORM_LABEL[f.platform] ?? "un browser"}`}: ` +
+      `form compilato (consenso marketing: ${f.consent_marketing ? "sì" : "no"}).`,
+    examples: [{ shop_name: "Salone Mario", phone: "+393331234567", consent_marketing: true, platform: "public-web" }],
+  }),
+
+  "enroll.captcha.failed": defineEvent<EnrollCaptchaFailedFields>({
+    level: "warn",
+    description: "Funnel di iscrizione: il controllo anti-bot non è stato superato, nessun SMS inviato.",
+    msg: (f) =>
+      `Iscrizione al negozio ${f.shop_name} fermata dal controllo anti-bot (${f.reason}): nessun SMS inviato.`,
+    examples: [{ shop_name: "Salone Mario", reason: "timeout-or-duplicate" }],
+  }),
+
+  "enroll.otp.sent": defineEvent<EnrollOtpSentFields>({
+    level: "info",
+    description: "Funnel di iscrizione, passo 2: SMS con il codice inviato (o nuovo codice chiesto dal cliente).",
+    msg: (f) =>
+      `${f.send_number === 1 ? "SMS con il codice inviato" : `Nuovo codice inviato (SMS n. ${f.send_number})`} per l'iscrizione al negozio ${f.shop_name} in ${f.duration_ms} ms.`,
+    examples: [
+      { ...funnel, phone: "+393331234567", send_number: 1, duration_ms: 640 },
+      { ...funnel, phone: "+393331234567", send_number: 2, duration_ms: 590 },
+    ],
+  }),
+
+  "enroll.otp.send_failed": defineEvent<EnrollOtpSendFailedFields>({
+    level: "error",
+    description: "Funnel di iscrizione: il fornitore SMS non ha inviato il codice. Il cliente non può proseguire.",
+    msg: (f) =>
+      `SMS con il codice NON inviato per l'iscrizione al negozio ${f.shop_name}: Twilio ha risposto ` +
+      `${f.http_status === null ? "senza risposta" : `status ${f.http_status}`} ("${f.provider_response.slice(0, 160)}"). ` +
+      `Azione: controllare credito e credenziali Twilio.`,
+    examples: [
+      {
+        ...funnel,
+        http_status: 401,
+        error_code: "E_OTP_SEND_FAILED",
+        provider_response: "Authenticate",
+        duration_ms: 210,
+      },
+    ],
+  }),
+
+  "enroll.otp.limited": defineEvent<EnrollOtpLimitedFields>({
+    level: "warn",
+    description:
+      "Funnel di iscrizione: SMS non inviato per un limite (per numero, per IP o numero bloccato). Molti blocchi per IP = possibile abuso.",
+    msg: (f) =>
+      `SMS per l'iscrizione al negozio ${f.shop_name} non inviato: superato il limite per ${f.scope}. ` +
+      `Si può riprovare tra ${minutes(f.retry_after_min)}.`,
+    examples: [{ shop_name: "Salone Mario", scope: "numero", retry_after_min: 60 }],
+  }),
+
+  "enroll.otp.verified": defineEvent<EnrollOtpVerifiedFields>({
+    level: "info",
+    description: "Funnel di iscrizione, passo 3: codice corretto, telefono verificato.",
+    msg: (f) =>
+      `Telefono verificato per l'iscrizione al negozio ${f.shop_name} (${f.attempts === 1 ? "al primo tentativo" : `al tentativo n. ${f.attempts}`}).`,
+    examples: [{ ...funnel, attempts: 1 }],
+  }),
+
+  "enroll.otp.wrong_code": defineEvent<EnrollOtpWrongCodeFields>({
+    level: "warn",
+    description: "Funnel di iscrizione: codice sbagliato, il cliente ha ancora tentativi.",
+    msg: (f) =>
+      `Codice sbagliato nell'iscrizione al negozio ${f.shop_name}: ${f.attempts_left === 1 ? "resta 1 tentativo" : `restano ${f.attempts_left} tentativi`}.`,
+    examples: [{ ...funnel, attempts_left: 2 }],
+  }),
+
+  "enroll.otp.too_many_attempts": defineEvent<EnrollOtpBlockedFields>({
+    level: "warn",
+    description: "Funnel di iscrizione: 5 codici sbagliati, iscrizione annullata e numero bloccato.",
+    msg: (f) =>
+      `Iscrizione al negozio ${f.shop_name} bloccata dopo 5 codici sbagliati: il numero potrà riprovare tra ${minutes(f.blocked_min)}.`,
+    examples: [{ ...funnel, blocked_min: 15 }],
+  }),
+
+  "enroll.wallet.link.shown": defineEvent<EnrollWalletLinkFields>({
+    level: "info",
+    description: "Funnel di iscrizione, passo 5: al cliente è stato mostrato il modo per salvare la carta.",
+    msg: (f) =>
+      `Al cliente della carta ${f.customer_ref} (negozio ${f.shop_name}) è stato mostrato ${WALLET_LABEL[f.wallet] ?? f.wallet}.`,
+    examples: [{ ...funnel, customer_ref: "A3F2C91B", wallet: "google" }],
+  }),
+
+  "enroll.wallet.link.clicked": defineEvent<EnrollWalletLinkFields>({
+    level: "info",
+    description: "Funnel di iscrizione, ultimo passo: il cliente ha aperto il link per salvare la carta nel Wallet.",
+    msg: (f) =>
+      `Il cliente della carta ${f.customer_ref} (negozio ${f.shop_name}) ha aperto ${f.wallet === "qr-da-computer" ? "dal telefono il QR mostrato sul computer" : "il link per salvare la carta nel Wallet"}.`,
+    examples: [
+      { ...funnel, customer_ref: "A3F2C91B", wallet: "google" },
+      { ...funnel, customer_ref: "A3F2C91B", wallet: "qr-da-computer" },
+    ],
+  }),
+
+  "enroll.shop.unavailable": defineEvent<EnrollShopUnavailableFields>({
+    level: "warn",
+    description: "Qualcuno ha aperto la pagina di iscrizione di un negozio inesistente o sospeso.",
+    msg: (f) =>
+      f.reason === "sospeso"
+        ? `Pagina di iscrizione aperta per il negozio "${f.slug}", che è sospeso: mostrata la pagina dedicata.`
+        : `Pagina di iscrizione aperta per "${f.slug}", che non corrisponde a nessun negozio (QR o link sbagliato?).`,
+    examples: [
+      { slug: "salone-norra", reason: "inesistente" },
+      { slug: "salone-mario", reason: "sospeso" },
+    ],
+  }),
+
+  "marketing.unsubscribe.ok": defineEvent<MarketingUnsubscribeFields>({
+    level: "info",
+    description: "Il cliente si è disiscritto dalle promozioni con il link nel messaggio (link monouso).",
+    msg: (f) =>
+      f.already_unsubscribed
+        ? `Link di disiscrizione della carta ${f.customer_ref} (negozio ${f.shop_name}) usato di nuovo: il cliente era già disiscritto.`
+        : `Il cliente della carta ${f.customer_ref} (negozio ${f.shop_name}) si è disiscritto dalle promozioni dal link nel messaggio.`,
+    examples: [
+      { ...cardA, already_unsubscribed: false },
+      { ...cardA, already_unsubscribed: true },
+    ],
+  }),
+
+  "counter_qr.public_downloaded": defineEvent<CounterQrPublicFields>({
+    level: "info",
+    description: "Il PDF del cartello A5 è stato scaricato dalla pagina pubblica /<negozio>/qr.",
+    msg: (f) =>
+      `Cartello A5 del negozio ${f.shop_name} scaricato dalla pagina pubblica (PDF di ${kb(f.size_bytes)}, ${f.duration_ms} ms).`,
+    examples: [{ shop_name: "Salone Mario", size_bytes: 48_000, duration_ms: 420 }],
+  }),
+
+  "public.link.invalid": defineEvent<PublicLinkInvalidFields>({
+    level: "warn",
+    description:
+      "Qualcuno ha aperto un link pubblico firmato non valido (scaduto, manomesso o di una carta cancellata).",
+    msg: (f) =>
+      `Aperto un link ${f.link_kind === "carta" ? "per salvare la carta" : "di disiscrizione"} non valido (${f.reason}): mostrata la pagina di link scaduto.`,
+    examples: [
+      { link_kind: "carta", reason: "scaduto" },
+      { link_kind: "disiscrizione", reason: "firma non valida" },
+    ],
   }),
 
   "promo.send.completed": defineEvent<PromoSendCompletedFields>({
