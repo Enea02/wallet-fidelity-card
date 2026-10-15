@@ -22,6 +22,7 @@ export type Subject =
   | { kind: "utente staff"; userId: string };
 
 const LIMIT = 600;
+const HIDDEN_EVENTS = new Set(["support.timeline.viewed", "support.search"]);
 const LOG_COLS = "ts, level, event, msg, request_id, error_code, fields";
 const AUDIT_COLS = "ts, request_id, actor_type, actor_id, action, entity, entity_id, before, after, reason, platform";
 
@@ -209,6 +210,8 @@ export async function loadTimeline(subject: Subject, days = 14): Promise<{ block
 
   let app = bundles.flatMap(appItems);
   if (subject.kind === "richiesta") app = app.filter((i) => i.request_id && subject.requestIds.includes(i.request_id));
+  // le consultazioni dell'assistenza (ricerche, timeline aperte) sono tracciate ma qui sarebbero solo rumore
+  logs = logs.filter((r) => !HIDDEN_EVENTS.has(r.event));
   const names = await staffNames(audit);
   const items = [
     ...logs.map(logItem),

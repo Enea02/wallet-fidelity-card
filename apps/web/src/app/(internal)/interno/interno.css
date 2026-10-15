@@ -198,6 +198,7 @@
   padding: 8px 10px;
   border-bottom: 1px solid var(--lw-line);
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
 .int th {
   font-size: 13px;

@@ -7,7 +7,7 @@ import { loadTimeline } from "@/lib/support/timeline";
 import { ActionForm } from "../../_ui/ActionForm";
 import { UUID_RE } from "../../_ui/format";
 import { Timeline } from "../../_ui/Timeline";
-import { shopLegalAction, shopStatusAction } from "../actions";
+import { resyncShopAction, shopLegalAction, shopStatusAction } from "../actions";
 
 export default async function Negozio({
   params,
@@ -102,6 +102,25 @@ export default async function Negozio({
                   placeholder="abbonamento non rinnovato"
                   data-testid="stato-motivo"
                 />
+              </label>
+            </ActionForm>
+          </section>
+
+          <section className="int-card">
+            <h2>Google Wallet</h2>
+            <p className="int-muted">
+              Rimanda a Google il template del negozio e lo stato completo di tutte le carte. Serve dopo un problema di
+              credenziali o se molte carte risultano disallineate.
+            </p>
+            <ActionForm
+              action={resyncShopAction}
+              submit="Risincronizza tutto il negozio"
+              testId="risincronizza-negozio"
+            >
+              <input type="hidden" name="shopId" value={shop.id} />
+              <label>
+                Motivo
+                <input name="reason" placeholder="credenziali Google sostituite" />
               </label>
             </ActionForm>
           </section>

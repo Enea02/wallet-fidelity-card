@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { resyncWholeShop } from "@/lib/support/card-status";
 import { supportAction, type ActionResult } from "@/lib/support/run";
 import { createShop, LegalInput, NewShopInput, parseForm, setShopStatus, updateLegal } from "@/lib/support/shops";
 import { formText } from "../_ui/format";
@@ -60,6 +61,17 @@ export async function shopLegalAction(_: ActionResult<unknown> | null, f: FormDa
       ),
     { message: (d) => (d.changed === 0 ? "Nessuna modifica." : "Dati per l'informativa salvati.") },
   );
+  revalidatePath(`/interno/negozi/${id}`);
+  return r;
+}
+
+export async function resyncShopAction(_: ActionResult<unknown> | null, f: FormData): Promise<ActionResult<unknown>> {
+  const id = formText(f, "shopId");
+  const r = await supportAction("negozio-risincronizza", (user) => resyncWholeShop(id, formText(f, "reason"), user), {
+    message: (d) =>
+      `Template ${d.classOk ? "aggiornato" : "in errore"}, ${d.ok}/${d.cards} carte allineate su Google Wallet.` +
+      (d.classOk && d.ok === d.cards ? "" : " Il motivo degli errori è nella timeline."),
+  });
   revalidatePath(`/interno/negozi/${id}`);
   return r;
 }
