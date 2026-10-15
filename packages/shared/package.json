@@ -13,7 +13,8 @@
     "./api": "./api/index.ts",
     "./theme": "./theme.ts",
     "./phone": "./phone.ts",
-    "./copy": "./copy.ts"
+    "./copy": "./copy.ts",
+    "./support/timeline": "./support/timeline.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

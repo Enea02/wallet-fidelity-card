@@ -1,8 +1,12 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { log } from "@/lib/observability/logger";
 import { supportPage } from "@/lib/support/run";
 import { shopDetail } from "@/lib/support/shops";
+import { loadTimeline } from "@/lib/support/timeline";
 import { ActionForm } from "../../_ui/ActionForm";
 import { UUID_RE } from "../../_ui/format";
+import { Timeline } from "../../_ui/Timeline";
 import { shopLegalAction, shopStatusAction } from "../actions";
 
 export default async function Negozio({
@@ -15,8 +19,15 @@ export default async function Negozio({
   const { id } = await params;
   const { creato } = await searchParams;
   if (!UUID_RE.test(id)) notFound();
-  return supportPage(`/interno/negozi/${id}`, async () => {
+  return supportPage(`/interno/negozi/${id}`, async (user) => {
     const { shop, staff, customers } = await shopDetail(id);
+    const { blocks, rows } = await loadTimeline({ kind: "negozio", shopId: shop.id });
+    log.event("support.timeline.viewed", {
+      support_name: user.name,
+      subject_kind: "negozio",
+      subject: shop.name,
+      rows,
+    });
     const suspended = shop.status === "suspended";
     return (
       <>
@@ -47,7 +58,9 @@ export default async function Negozio({
                 {staff.map((m) => (
                   <tr key={m.user_id}>
                     <td>
-                      <strong>{m.display_name}</strong>
+                      <Link href={`/interno/utenti/${m.user_id}`}>
+                        <strong>{m.display_name}</strong>
+                      </Link>
                       <div className="int-muted">{m.email}</div>
                     </td>
                     <td>{m.role === "owner" ? "titolare" : "operatore"}</td>
@@ -112,6 +125,11 @@ export default async function Negozio({
             </ActionForm>
           </section>
         </div>
+
+        <section>
+          <h2>Timeline (14 giorni)</h2>
+          <Timeline blocks={blocks} />
+        </section>
       </>
     );
   });
