@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, type ReactNode } from "react";
+import { startTransition, useActionState, useState, type ReactNode } from "react";
 import type { ActionResult } from "@/lib/support/run";
 
 export type FormAction = (prev: ActionResult<unknown> | null, form: FormData) => Promise<ActionResult<unknown>>;
@@ -29,7 +29,16 @@ export function ActionForm({
   const [armed, setArmed] = useState(false);
   const needsConfirm = confirm !== undefined && !armed;
   return (
-    <form action={formAction} className="int-form" data-testid={testId}>
+    <form
+      className="int-form"
+      data-testid={testId}
+      onSubmit={(e) => {
+        // invio da codice: React non svuota il modulo, così dopo un errore i campi restano compilati
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        startTransition(() => formAction(data));
+      }}
+    >
       {children}
       {needsConfirm ? (
         <button type="button" className={danger ? "int-btn int-danger" : "int-btn"} onClick={() => setArmed(true)}>

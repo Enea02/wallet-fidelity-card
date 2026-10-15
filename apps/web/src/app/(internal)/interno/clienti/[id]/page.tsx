@@ -11,7 +11,8 @@ import { ActionForm } from "../../_ui/ActionForm";
 import { DiagnosticPanel } from "../../_ui/DiagnosticPanel";
 import { Timeline } from "../../_ui/Timeline";
 import { WalletStatus } from "../../_ui/WalletStatus";
-import { resyncCardAction } from "../actions";
+import { ExportButton } from "../../_ui/ExportButton";
+import { deleteCustomerAction, resyncCardAction } from "../actions";
 
 /** Cliente: saldo, stato della carta nei wallet, azioni GDPR e timeline (iscrizione, timbri, wallet). */
 export default async function Cliente({ params }: { params: Promise<{ id: string }> }) {
@@ -73,6 +74,40 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
                     placeholder="il cliente vede ancora 6 timbri"
                     data-testid="risincronizza-motivo"
                   />
+                </label>
+              </ActionForm>
+            )}
+          </section>
+          <section className="int-card">
+            <h2>Richieste GDPR</h2>
+            <p className="int-muted">
+              Esportazione dei dati da inviare all&apos;interessato e cancellazione su richiesta.
+            </p>
+            <ExportButton customerId={c.id} />
+            {!c.deletedAt && (
+              <ActionForm
+                action={deleteCustomerAction}
+                submit="Cancella i dati del cliente"
+                danger
+                confirm="La cancellazione non si può annullare."
+                testId="cancella"
+              >
+                <input type="hidden" name="customerId" value={c.id} />
+                <input type="hidden" name="shopId" value={c.shop.id} />
+                <input type="hidden" name="shortCode" value={c.shortCode} />
+                <label>
+                  Motivo
+                  <input
+                    name="reason"
+                    required
+                    minLength={5}
+                    placeholder="richiesta di cancellazione via email"
+                    data-testid="cancella-motivo"
+                  />
+                </label>
+                <label>
+                  Per confermare scrivi il codice della carta ({c.shortCode})
+                  <input name="confirm" required autoComplete="off" data-testid="cancella-codice" />
                 </label>
               </ActionForm>
             )}

@@ -515,8 +515,8 @@ export async function adjustBalance(
 }
 
 /**
- * Cancella i dati personali del cliente (titolare o assistenza): nome, telefono e consensi
- * rimossi, storico di audit pseudonimizzato. La disattivazione della carta Google arriva in Fase 4.
+ * Cancella i dati personali del cliente (titolare dall'app o assistenza dal pannello, su richiesta GDPR):
+ * nome, telefono e consensi rimossi, storico di audit pseudonimizzato, carta disattivata su Google.
  */
 export async function deleteCustomer(shopId: string, customerId: string, actor: DomainActor, reason?: string) {
   const [customer, shop] = await Promise.all([getCustomerById(shopId, customerId), getShopById(shopId)]);
@@ -526,13 +526,24 @@ export async function deleteCustomer(shopId: string, customerId: string, actor: 
     p_meta: domainMeta(actor),
   });
 
-  log.event("customer.delete.ok", {
-    ...actorFields(r),
-    ...cardFields(customer, shop),
-    stamps_at_delete: customer.stamps,
-    rewards_at_delete: customer.rewards_available,
-    audit_rows_pseudonymized: r.audit_rows_pseudonymized,
-  });
+  if (actor.type === "support") {
+    log.event("support.customer.delete", {
+      support_name: actor.name,
+      ...cardFields(customer, shop),
+      reason: reason?.trim() || "non indicato",
+      stamps_at_delete: customer.stamps,
+      rewards_at_delete: customer.rewards_available,
+      audit_rows_pseudonymized: r.audit_rows_pseudonymized,
+    });
+  } else {
+    log.event("customer.delete.ok", {
+      ...actorFields(r),
+      ...cardFields(customer, shop),
+      stamps_at_delete: customer.stamps,
+      rewards_at_delete: customer.rewards_available,
+      audit_rows_pseudonymized: r.audit_rows_pseudonymized,
+    });
+  }
   await notifyCardChanged(shop, customer.id, { kind: "delete" });
   return { deleted: true as const, shortCode: customer.short_code };
 }

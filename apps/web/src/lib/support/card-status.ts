@@ -1,12 +1,15 @@
 import "server-only";
 import { AppError } from "@loyalty/shared/errors";
-import { getCustomerById, getShopById } from "../loyalty";
+import { CUSTOMER_COLS } from "../db-columns";
+import { getShopById } from "../loyalty";
 import { callDomain } from "../merchant/domain-call";
 import { setContext } from "../observability/context";
 import { log } from "../observability/logger";
 import { classifyGoogleError, googleRequest } from "../wallet/google/client";
 import { googleEnabled, objectIdFor } from "../wallet/google/config";
 import { objectBody } from "../wallet/google/payload";
+import { supabaseAdmin } from "../supabase";
+import type { Customer } from "../types";
 import { resyncShop, syncCard } from "../wallet/sync";
 import type { SupportUser } from "./session";
 import { supportMeta } from "./shops";
@@ -39,9 +42,23 @@ interface GoogleObject {
   textModulesData?: Array<{ id?: string; header?: string; body?: string }>;
 }
 
+/** Carta anche se cancellata: l'assistenza deve poter verificare che su Google sia disattivata. */
+async function anyCustomer(shopId: string, customerId: string): Promise<Customer> {
+  const { data, error } = await supabaseAdmin()
+    .from("customers")
+    .select(CUSTOMER_COLS)
+    .eq("shop_id", shopId)
+    .eq("id", customerId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data)
+    throw new AppError("E_CARD_NOT_FOUND", `nessuna carta ${customerId} nel negozio ${shopId}`, { shop_id: shopId });
+  return data as Customer;
+}
+
 export async function googleCardStatus(shopId: string, customerId: string): Promise<GoogleStatus> {
   if (!googleEnabled()) return { kind: "non configurato" };
-  const [shop, customer] = await Promise.all([getShopById(shopId), getCustomerById(shopId, customerId)]);
+  const [shop, customer] = await Promise.all([getShopById(shopId), anyCustomer(shopId, customerId)]);
   const want = objectBody(shop, customer);
   let got: GoogleObject;
   try {
@@ -87,7 +104,7 @@ function requireGoogle() {
 
 export async function resyncCard(shopId: string, customerId: string, reason: string, user: SupportUser) {
   requireGoogle();
-  const [shop, customer] = await Promise.all([getShopById(shopId), getCustomerById(shopId, customerId)]);
+  const [shop, customer] = await Promise.all([getShopById(shopId), anyCustomer(shopId, customerId)]);
   setContext({ shop_id: shop.id, customer_ref: customer.short_code });
   await callDomain("support_record", {
     p_meta: supportMeta(user),
