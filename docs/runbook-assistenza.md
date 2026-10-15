@@ -605,6 +605,40 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | `scan.card.shown` | info | Scheda cliente aperta dopo una lettura: tempo dalla lettura alla scheda. | Scheda della carta A3F2C91B aperta in 420 ms dalla lettura (fotocamera). |
 | `scan.stamp.confirmed` | info | Timbro confermato nell'app: tempo dal tocco alla conferma e dalla lettura del codice (obiettivo sotto i 2 secondi). | Timbro sulla carta A3F2C91B confermato in 310 ms dal tocco, 1.6 s dalla lettura del codice. |
 
+### support
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `support.login` | info | Un membro del team è entrato nel pannello interno (password e codice dell'app di autenticazione). | Enea (assistenza) è entrato nel pannello interno con password e codice dell'app di autenticazione. |
+| `support.login.failed` | warn | Accesso al pannello interno rifiutato (password, codice o collegamento dell'app di autenticazione). | Accesso al pannello interno rifiutato per en***@loyaltywallet.it al passo "password": email o password non corrette. Se si ripete con i dati giusti, vedere E_SUPPORT_LOGIN_FAILED nel runbook. |
+| `support.access.denied` | warn | Qualcuno ha provato ad aprire una pagina o un'azione del pannello interno senza averne diritto. | Accesso negato al pannello interno (/interno) senza sessione: sessione assente. |
+| `support.logout` | info | Un membro del team è uscito dal pannello interno. | Enea (assistenza) è uscito dal pannello interno. |
+| `support.search` | info | Ricerca nella vista Assistenza (l'accesso ai dati è tracciato): tipo riconosciuto e numero di risultati. | Enea (assistenza) ha cercato codice errore "ERR-7K3QX": 1 risultato. |
+| `support.timeline.viewed` | info | Apertura di una timeline nella vista Assistenza: chi ha consultato i log di quale negozio, cliente o richiesta. | Enea (assistenza) ha aperto la timeline di cliente A3F2C91B (42 righe). |
+| `support.resync` | info | L'assistenza ha risincronizzato con Google Wallet una carta o un intero negozio dal pannello. | Enea (assistenza) ha risincronizzato la carta A3F2C91B del negozio Salone Mario su Google Wallet: riuscito. |
+| `support.resync.failed` | warn | Risincronizzazione dal pannello non completa: il motivo è nella riga wallet.google.* della stessa richiesta. | Risincronizzazione della carta A3F2C91B del negozio Salone Mario chiesta da Enea non riuscita: il motivo è nella riga wallet.google.* della stessa richiesta; i nuovi tentativi partono da soli. |
+| `support.diagnostic.enabled` | info | Modalità diagnostica attivata dal pannello interno (con scope, durata e motivo). | Enea (assistenza) ha attivato dal pannello la modalità diagnostica debug per negozio salone-mario fino al 04/11/2026 10:00 (ora italiana). Motivo: Il titolare segnala timbri che non arrivano sulla carta. |
+| `support.diagnostic.disabled` | info | Modalità diagnostica spenta dal pannello interno prima della scadenza. | Enea (assistenza) ha disattivato dal pannello la modalità diagnostica per negozio salone-mario prima della scadenza (attiva dal 03/11/2026 10:00 (ora italiana); motivo: Il titolare segnala timbri che non arrivano sulla carta). |
+| `support.customer.export` | info | Esportazione GDPR dei dati di un cliente (file JSON da inviare all'interessato), con il motivo. | Enea (assistenza) ha esportato i dati della carta A3F2C91B del negozio Salone Mario (5.2 KB) per una richiesta GDPR. Motivo: richiesta di accesso via email del 03/11. |
+| `support.customer.delete` | info | Cancellazione GDPR di un cliente fatta dall'assistenza: dati personali tolti, storico pseudonimizzato, carta disattivata. | Enea (assistenza) ha cancellato i dati della carta A3F2C91B del negozio Salone Mario su richiesta GDPR (aveva 4 timbri e 0 premi; 7 righe di storico pseudonimizzate). Motivo: richiesta di cancellazione via email del 03/11. La carta nel wallet viene disattivata. |
+| `support.member.added` | info | Persona aggiunta al team interno (accesso al pannello con 2FA), da riga di comando. | Sara (sa***@loyaltywallet.it) aggiunto al team interno da Enea: inviata l'email per scegliere la password. |
+
+### shop
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `shop.created` | info | Nuovo negozio creato dal pannello interno, con il titolare invitato. | Enea (assistenza) ha creato il negozio Barberia Rossi (indirizzo /barberia-rossi) con titolare Luca (lu***@gmail.com): inviata l'email d'invito per scegliere la password. |
+| `shop.suspended` | info | Negozio sospeso dall'assistenza: app esercente e pagina di iscrizione bloccate, carte disattivate su Google dal cron. | Enea (assistenza) ha sospeso il negozio Salone Mario (/salone-mario). Motivo: abbonamento non rinnovato. L'app e la pagina di iscrizione sono bloccate; le 120 carte vengono disattivate su Google entro qualche minuto. |
+| `shop.reactivated` | info | Negozio riattivato dall'assistenza: app e iscrizioni di nuovo aperte, carte riattivate dal cron. | Enea (assistenza) ha riattivato il negozio Salone Mario (/salone-mario). Motivo: abbonamento rinnovato. Le 120 carte tornano attive su Google entro qualche minuto. |
+| `shop.legal.updated` | info | Dati del titolare per l'informativa privacy (ragione sociale, partita IVA, email privacy) cambiati dall'assistenza. | Enea (assistenza) ha aggiornato i dati per l'informativa del negozio Salone Mario: partita IVA, email privacy. |
+
+### log
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `log.db_sink.failed` | warn | Le righe di log non sono state copiate nel database (tabella log_events): mancheranno nella timeline della vista Assistenza, restano nel servizio di log. | 12 righe di log non copiate nel database per la vista Assistenza: fetch failed (Supabase non raggiungibile). Restano nel servizio di log esterno; se si ripete controllare Supabase. |
+| `log.retention.purged` | info | Pulizia dei log copiati nel database: oltre 30 giorni (7 per quelli di modalità diagnostica). | Pulizia dei log della vista Assistenza: tolte 5000 righe più vecchie di 30 giorni e 120 righe di modalità diagnostica più vecchie di 7 giorni. |
+
 ## Errori
 
 Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è andato storto.
@@ -993,5 +1027,40 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Il server non si avvia perché una o più variabili d'ambiente mancano o hanno un formato non valido.
 - **Causa probabile**: Variabile non impostata nel deploy o nel file .env.local, oppure copiata male (spazi, virgolette, base64 troncato).
 - **Cosa fare**: Confrontare le variabili del deploy con .env.example dell'app indicata nel log; correggere quelle elencate e riavviare.
+
+### `E_SUPPORT_UNAUTHORIZED` (HTTP 401)
+
+- **L'utente vede**: Accedi al pannello interno per continuare.
+- **Cosa è successo**: Richiesta al pannello interno senza una sessione valida (mai entrati, sessione scaduta o uscita).
+- **Causa probabile**: Sessione di 12 ore scaduta, cookie cancellati o link del pannello aperto da un altro browser.
+- **Cosa fare**: Rientrare da /interno/accesso. Se succede subito dopo l'accesso, controllare che il browser accetti i cookie.
+
+### `E_SUPPORT_FORBIDDEN` (HTTP 403)
+
+- **L'utente vede**: Questo account non fa parte del team interno.
+- **Cosa è successo**: Un account autenticato ha provato a usare il pannello interno ma non è nel team (support_members).
+- **Causa probabile**: Account di un esercente usato per errore sul pannello, oppure membro del team disattivato.
+- **Cosa fare**: Verificare in support_members (user_id nel log). Per aggiungere un membro: pnpm support:add <email> --name <nome> --by <chi>.
+
+### `E_SUPPORT_MFA_REQUIRED` (HTTP 403)
+
+- **L'utente vede**: Inserisci il codice dell'app di autenticazione per continuare.
+- **Cosa è successo**: Membro del team entrato con la password ma senza il secondo fattore (codice TOTP) verificato.
+- **Causa probabile**: Accesso interrotto prima del codice, oppure app di autenticazione non ancora collegata.
+- **Cosa fare**: Completare l'accesso con il codice a 6 cifre. Se il telefono con l'app è perso: rimuovere il fattore dalla dashboard Supabase (Authentication → utente → MFA) e ricollegarlo al prossimo accesso.
+
+### `E_SUPPORT_LOGIN_FAILED` (HTTP 401)
+
+- **L'utente vede**: Email, password o codice non corretti.
+- **Cosa è successo**: Accesso al pannello interno rifiutato: credenziali o codice dell'app di autenticazione sbagliati.
+- **Causa probabile**: Password errata, codice scaduto (vale 30 secondi) o orologio del telefono non sincronizzato.
+- **Cosa fare**: Riprovare con un codice nuovo. Se l'errore si ripete con il codice giusto, controllare l'ora automatica del telefono.
+
+### `E_SHOP_SLUG_TAKEN` (HTTP 409)
+
+- **L'utente vede**: Questo indirizzo è già usato o non è disponibile: scegline un altro.
+- **Cosa è successo**: Creazione di un negozio con uno slug già usato da un altro negozio o riservato a una pagina del sito.
+- **Causa probabile**: Negozio già creato in precedenza, oppure slug come «interno» o «api» che sono percorsi del sito.
+- **Cosa fare**: Cercare il negozio con quello slug nel pannello; se è un doppione usare quello esistente, altrimenti cambiare slug.
 
 <!-- FINE SEZIONE GENERATA -->

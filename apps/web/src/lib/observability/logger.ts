@@ -1,11 +1,13 @@
 import { createLogger, stdoutSink, type LogFormat, type LogSink } from "@loyalty/shared/logger";
 import type { LogLevel } from "@loyalty/shared/logging/events";
 import { getContext } from "./context";
+import { enqueueLogLine, onDbSinkFailure } from "./db-sink";
 import { diagnosticLevelFor } from "./diagnostic-state";
 
 /**
  * Logger del server web. Destinazione: stdout, che Vercel inoltra al servizio di log
  * esterno tramite Log Drain (Axiom). LOG_TRANSPORT=none spegne l'output (test).
+ * Ogni riga è copiata anche in Postgres per la vista Assistenza (db-sink.ts, LOG_DB_SINK).
  * Le variabili sono lette in modo tollerante: il logger serve anche a segnalare
  * una configurazione non valida all'avvio.
  */
@@ -33,7 +35,11 @@ export const log = createLogger({
   getContext,
   minLevel: (ctx) => diagnosticLevelFor(ctx, baseLevel()),
   format: format(),
-  sink: (text, line) => sink(text, line),
+  sink: (text, line) => {
+    sink(text, line);
+    // copia per la timeline della vista Assistenza (log_events)
+    enqueueLogLine(line);
+  },
   base: {
     app: "web",
     env: process.env.APP_ENV ?? "development",
@@ -41,3 +47,5 @@ export const log = createLogger({
     ...(process.env.APP_COMMIT_SHA !== undefined && { commit: process.env.APP_COMMIT_SHA }),
   },
 });
+
+onDbSinkFailure((rows, error_message) => log.event("log.db_sink.failed", { rows, error_message }));

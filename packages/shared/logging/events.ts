@@ -766,6 +766,119 @@ const startupOk: ServerStartupOkFields = {
   log_level: "info",
 };
 
+/* ---------- pannello interno e assistenza (Fase 9) ---------- */
+
+/** Chi del team ha agito (nome, mai l'email in chiaro). */
+export interface SupportActorFields {
+  support_name: string;
+}
+
+export interface SupportLoginFields extends SupportActorFields {
+  /** true = primo accesso: ha appena collegato l'app di autenticazione. */
+  factor_enrolled: boolean;
+}
+
+export type SupportLoginStage = "password" | "codice" | "collegamento";
+export interface SupportLoginFailedFields {
+  /** Email mascherata. */
+  email: string;
+  stage: SupportLoginStage;
+  reason: string;
+}
+
+export type SupportDeniedReason = "sessione assente" | "non nel team" | "secondo fattore mancante";
+export interface SupportAccessDeniedFields {
+  route: string;
+  reason: SupportDeniedReason;
+  /** Email mascherata, se c'è una sessione. */
+  email: string | null;
+}
+
+export type SupportQueryKind =
+  | "codice errore"
+  | "richiesta"
+  | "ticket diagnostica"
+  | "carta"
+  | "telefono"
+  | "email staff"
+  | "negozio"
+  | "codice di errore del catalogo";
+export interface SupportSearchFields extends SupportActorFields {
+  query_kind: SupportQueryKind;
+  /** Testo cercato già reso sicuro (il telefono diventa un estratto del suo hash). */
+  query: string;
+  results: number;
+}
+
+export type SupportSubjectKind = "negozio" | "cliente" | "richiesta" | "utente staff";
+export interface SupportTimelineViewedFields extends SupportActorFields {
+  subject_kind: SupportSubjectKind;
+  /** Nome del negozio, codice carta, codice assistenza o email mascherata. */
+  subject: string;
+  rows: number;
+}
+
+export interface SupportResyncFields extends SupportActorFields {
+  shop_name: string;
+  /** Codice della carta; null = tutto il negozio. */
+  customer_ref: string | null;
+  cards: number;
+  cards_ok: number;
+  template_ok: boolean;
+}
+
+export interface SupportCustomerExportFields extends SupportActorFields, CardFields {
+  size_bytes: number;
+  reason: string;
+}
+
+export interface SupportCustomerDeleteFields extends SupportActorFields, CardFields {
+  reason: string;
+  stamps_at_delete: number;
+  rewards_at_delete: number;
+  audit_rows_pseudonymized: number;
+}
+
+export interface SupportMemberAddedFields {
+  support_name: string;
+  /** Email mascherata. */
+  email: string;
+  added_by: string;
+  existing_account: boolean;
+}
+
+export interface ShopCreatedFields extends SupportActorFields {
+  shop_name: string;
+  slug: string;
+  owner_name: string;
+  /** Email mascherata del titolare. */
+  owner_email: string;
+  existing_account: boolean;
+}
+
+export interface ShopStatusFields extends SupportActorFields {
+  shop_name: string;
+  slug: string;
+  reason: string;
+  /** Carte attive del negozio, che il cron disattiva o riattiva su Google. */
+  cards: number;
+}
+
+export interface ShopLegalUpdatedFields extends SupportActorFields {
+  shop_name: string;
+  changes: string;
+}
+
+export interface LogDbSinkFailedFields {
+  rows: number;
+  error_message: string;
+}
+
+export interface LogRetentionPurgedFields {
+  expired: number;
+  diagnostic: number;
+}
+
 const diagnostic: DiagnosticModeFields = {
   diagnostic_id: "5f1c2a9e-0d1b-4f43-9a51-7d1e2b3c4d5e",
   scope_type: "shop",
@@ -777,6 +890,9 @@ const diagnostic: DiagnosticModeFields = {
   enabled_at: "2026-11-03T09:00:00.000Z",
   expires_at: "2026-11-04T09:00:00.000Z",
 };
+
+const enea: SupportActorFields = { support_name: "Enea" };
+const cardSupport = { ...enea, customer_ref: "A3F2C91B", shop_name: "Salone Mario" };
 
 const giulia: ActorFields = { actor_name: "Giulia", actor_role: "operator", platform: "ios", app_version: "1.4.0" };
 const titolare: ActorFields = { actor_name: "Mario", actor_role: "owner", platform: "web", app_version: "n/d" };
@@ -1998,6 +2114,246 @@ export const events = {
       { where: "il caricamento dei negozi", error_name: "TypeError", error_message: "shops.map is not a function" },
     ],
   }),
+  "support.login": defineEvent<SupportLoginFields>({
+    level: "info",
+    description: "Un membro del team è entrato nel pannello interno (password e codice dell'app di autenticazione).",
+    msg: (f) =>
+      f.factor_enrolled
+        ? `${f.support_name} (assistenza) ha collegato l'app di autenticazione ed è entrato nel pannello interno.`
+        : `${f.support_name} (assistenza) è entrato nel pannello interno con password e codice dell'app di autenticazione.`,
+    examples: [
+      { ...enea, factor_enrolled: false },
+      { ...enea, factor_enrolled: true },
+    ],
+  }),
+
+  "support.login.failed": defineEvent<SupportLoginFailedFields>({
+    level: "warn",
+    description: "Accesso al pannello interno rifiutato (password, codice o collegamento dell'app di autenticazione).",
+    msg: (f) =>
+      `Accesso al pannello interno rifiutato per ${f.email} al passo "${f.stage}": ${f.reason}. ` +
+      `Se si ripete con i dati giusti, vedere E_SUPPORT_LOGIN_FAILED nel runbook.`,
+    examples: [
+      { email: "en***@loyaltywallet.it", stage: "password", reason: "email o password non corrette" },
+      {
+        email: "en***@loyaltywallet.it",
+        stage: "codice",
+        reason: "codice dell'app di autenticazione non valido o scaduto",
+      },
+    ],
+  }),
+
+  "support.access.denied": defineEvent<SupportAccessDeniedFields>({
+    level: "warn",
+    description: "Qualcuno ha provato ad aprire una pagina o un'azione del pannello interno senza averne diritto.",
+    msg: (f) =>
+      `Accesso negato al pannello interno (${f.route}) ${f.email ? `per ${f.email}` : "senza sessione"}: ${f.reason}.`,
+    examples: [
+      { route: "/interno", reason: "sessione assente", email: null },
+      { route: "/interno/negozi", reason: "non nel team", email: "gi***@salone-mario.it" },
+      { route: "/interno", reason: "secondo fattore mancante", email: "en***@loyaltywallet.it" },
+    ],
+  }),
+
+  "support.logout": defineEvent<SupportActorFields>({
+    level: "info",
+    description: "Un membro del team è uscito dal pannello interno.",
+    msg: (f) => `${f.support_name} (assistenza) è uscito dal pannello interno.`,
+    examples: [enea],
+  }),
+
+  "support.search": defineEvent<SupportSearchFields>({
+    level: "info",
+    description:
+      "Ricerca nella vista Assistenza (l'accesso ai dati è tracciato): tipo riconosciuto e numero di risultati.",
+    msg: (f) =>
+      `${f.support_name} (assistenza) ha cercato ${f.query_kind} "${f.query}": ` +
+      (f.results === 0 ? "nessun risultato." : f.results === 1 ? "1 risultato." : `${f.results} risultati.`),
+    examples: [
+      { ...enea, query_kind: "codice errore", query: "ERR-7K3QX", results: 1 },
+      { ...enea, query_kind: "telefono", query: "hash 3f9a1c…", results: 0 },
+      { ...enea, query_kind: "negozio", query: "salone", results: 2 },
+    ],
+  }),
+
+  "support.timeline.viewed": defineEvent<SupportTimelineViewedFields>({
+    level: "info",
+    description:
+      "Apertura di una timeline nella vista Assistenza: chi ha consultato i log di quale negozio, cliente o richiesta.",
+    msg: (f) =>
+      `${f.support_name} (assistenza) ha aperto la timeline di ${f.subject_kind} ${f.subject} (${f.rows} righe).`,
+    examples: [
+      { ...enea, subject_kind: "cliente", subject: "A3F2C91B", rows: 42 },
+      { ...enea, subject_kind: "richiesta", subject: "ERR-7K3QX", rows: 6 },
+    ],
+  }),
+
+  "support.resync": defineEvent<SupportResyncFields>({
+    level: "info",
+    description: "L'assistenza ha risincronizzato con Google Wallet una carta o un intero negozio dal pannello.",
+    msg: (f) =>
+      f.customer_ref
+        ? `${f.support_name} (assistenza) ha risincronizzato la carta ${f.customer_ref} del negozio ${f.shop_name} su Google Wallet: riuscito.`
+        : `${f.support_name} (assistenza) ha risincronizzato il negozio ${f.shop_name} su Google Wallet: template ${f.template_ok ? "ok" : "in errore"}, ${f.cards_ok}/${f.cards} carte allineate.`,
+    examples: [
+      { ...cardSupport, cards: 1, cards_ok: 1, template_ok: true },
+      { ...enea, shop_name: "Salone Mario", customer_ref: null, cards: 120, cards_ok: 120, template_ok: true },
+    ],
+  }),
+
+  "support.resync.failed": defineEvent<SupportResyncFields>({
+    level: "warn",
+    description:
+      "Risincronizzazione dal pannello non completa: il motivo è nella riga wallet.google.* della stessa richiesta.",
+    msg: (f) =>
+      f.customer_ref
+        ? `Risincronizzazione della carta ${f.customer_ref} del negozio ${f.shop_name} chiesta da ${f.support_name} non riuscita: ` +
+          `il motivo è nella riga wallet.google.* della stessa richiesta; i nuovi tentativi partono da soli.`
+        : `Risincronizzazione del negozio ${f.shop_name} chiesta da ${f.support_name} incompleta: template ${f.template_ok ? "ok" : "in errore"}, ` +
+          `${f.cards_ok}/${f.cards} carte allineate. Il motivo è nelle righe wallet.google.* della stessa richiesta.`,
+    examples: [
+      { ...cardSupport, cards: 1, cards_ok: 0, template_ok: true },
+      { ...enea, shop_name: "Salone Mario", customer_ref: null, cards: 120, cards_ok: 0, template_ok: false },
+    ],
+  }),
+
+  "support.diagnostic.enabled": defineEvent<DiagnosticModeFields>({
+    level: "info",
+    description: "Modalità diagnostica attivata dal pannello interno (con scope, durata e motivo).",
+    msg: (f) =>
+      `${cap(f.enabled_by)} (assistenza) ha attivato dal pannello la modalità diagnostica ${f.diagnostic_level} per ${scope(f)} ` +
+      `fino al ${when(f.expires_at)}. Motivo: ${f.reason}.`,
+    examples: [diagnostic],
+  }),
+
+  "support.diagnostic.disabled": defineEvent<DiagnosticModeDisabledFields>({
+    level: "info",
+    description: "Modalità diagnostica spenta dal pannello interno prima della scadenza.",
+    msg: (f) =>
+      `${cap(f.disabled_by)} (assistenza) ha disattivato dal pannello la modalità diagnostica per ${scope(f)} prima della scadenza ` +
+      `(attiva dal ${when(f.enabled_at)}; motivo: ${f.reason}).`,
+    examples: [{ ...diagnostic, disabled_by: "Enea" }],
+  }),
+
+  "support.customer.export": defineEvent<SupportCustomerExportFields>({
+    level: "info",
+    description: "Esportazione GDPR dei dati di un cliente (file JSON da inviare all'interessato), con il motivo.",
+    msg: (f) =>
+      `${f.support_name} (assistenza) ha esportato i dati della ${card(f)} (${bytes(f.size_bytes)}) per una richiesta GDPR. Motivo: ${f.reason}.`,
+    examples: [{ ...cardSupport, size_bytes: 5320, reason: "richiesta di accesso via email del 03/11" }],
+  }),
+
+  "support.customer.delete": defineEvent<SupportCustomerDeleteFields>({
+    level: "info",
+    description:
+      "Cancellazione GDPR di un cliente fatta dall'assistenza: dati personali tolti, storico pseudonimizzato, carta disattivata.",
+    msg: (f) =>
+      `${f.support_name} (assistenza) ha cancellato i dati della ${card(f)} su richiesta GDPR (aveva ${f.stamps_at_delete} timbri e ` +
+      `${f.rewards_at_delete} premi; ${f.audit_rows_pseudonymized} righe di storico pseudonimizzate). Motivo: ${f.reason}. ` +
+      `La carta nel wallet viene disattivata.`,
+    examples: [
+      {
+        ...cardSupport,
+        reason: "richiesta di cancellazione via email del 03/11",
+        stamps_at_delete: 4,
+        rewards_at_delete: 0,
+        audit_rows_pseudonymized: 7,
+      },
+    ],
+  }),
+
+  "support.member.added": defineEvent<SupportMemberAddedFields>({
+    level: "info",
+    description: "Persona aggiunta al team interno (accesso al pannello con 2FA), da riga di comando.",
+    msg: (f) =>
+      `${f.support_name} (${f.email}) aggiunto al team interno da ${f.added_by}` +
+      (f.existing_account
+        ? ": aveva già un account, entra con la sua password."
+        : ": inviata l'email per scegliere la password."),
+    examples: [
+      { support_name: "Sara", email: "sa***@loyaltywallet.it", added_by: "Enea", existing_account: false },
+      { support_name: "Sara", email: "sa***@loyaltywallet.it", added_by: "Enea", existing_account: true },
+    ],
+  }),
+
+  "shop.created": defineEvent<ShopCreatedFields>({
+    level: "info",
+    description: "Nuovo negozio creato dal pannello interno, con il titolare invitato.",
+    msg: (f) =>
+      `${f.support_name} (assistenza) ha creato il negozio ${f.shop_name} (indirizzo /${f.slug}) con titolare ${f.owner_name} (${f.owner_email})` +
+      (f.existing_account
+        ? ": aveva già un account, trova il negozio nell'app."
+        : ": inviata l'email d'invito per scegliere la password."),
+    examples: [
+      {
+        ...enea,
+        shop_name: "Barberia Rossi",
+        slug: "barberia-rossi",
+        owner_name: "Luca",
+        owner_email: "lu***@gmail.com",
+        existing_account: false,
+      },
+      {
+        ...enea,
+        shop_name: "Barberia Rossi",
+        slug: "barberia-rossi",
+        owner_name: "Luca",
+        owner_email: "lu***@gmail.com",
+        existing_account: true,
+      },
+    ],
+  }),
+
+  "shop.suspended": defineEvent<ShopStatusFields>({
+    level: "info",
+    description:
+      "Negozio sospeso dall'assistenza: app esercente e pagina di iscrizione bloccate, carte disattivate su Google dal cron.",
+    msg: (f) =>
+      `${f.support_name} (assistenza) ha sospeso il negozio ${f.shop_name} (/${f.slug}). Motivo: ${f.reason}. ` +
+      `L'app e la pagina di iscrizione sono bloccate; le ${f.cards} carte vengono disattivate su Google entro qualche minuto.`,
+    examples: [
+      { ...enea, shop_name: "Salone Mario", slug: "salone-mario", reason: "abbonamento non rinnovato", cards: 120 },
+    ],
+  }),
+
+  "shop.reactivated": defineEvent<ShopStatusFields>({
+    level: "info",
+    description: "Negozio riattivato dall'assistenza: app e iscrizioni di nuovo aperte, carte riattivate dal cron.",
+    msg: (f) =>
+      `${f.support_name} (assistenza) ha riattivato il negozio ${f.shop_name} (/${f.slug}). Motivo: ${f.reason}. ` +
+      `Le ${f.cards} carte tornano attive su Google entro qualche minuto.`,
+    examples: [
+      { ...enea, shop_name: "Salone Mario", slug: "salone-mario", reason: "abbonamento rinnovato", cards: 120 },
+    ],
+  }),
+
+  "shop.legal.updated": defineEvent<ShopLegalUpdatedFields>({
+    level: "info",
+    description:
+      "Dati del titolare per l'informativa privacy (ragione sociale, partita IVA, email privacy) cambiati dall'assistenza.",
+    msg: (f) =>
+      `${f.support_name} (assistenza) ha aggiornato i dati per l'informativa del negozio ${f.shop_name}: ${f.changes}.`,
+    examples: [{ ...enea, shop_name: "Salone Mario", changes: "partita IVA, email privacy" }],
+  }),
+
+  "log.db_sink.failed": defineEvent<LogDbSinkFailedFields>({
+    level: "warn",
+    description:
+      "Le righe di log non sono state copiate nel database (tabella log_events): mancheranno nella timeline della vista Assistenza, restano nel servizio di log.",
+    msg: (f) =>
+      `${f.rows === 1 ? "1 riga" : `${f.rows} righe`} di log non copiate nel database per la vista Assistenza: ${f.error_message}. ` +
+      `Restano nel servizio di log esterno; se si ripete controllare Supabase.`,
+    examples: [{ rows: 12, error_message: "fetch failed (Supabase non raggiungibile)" }],
+  }),
+
+  "log.retention.purged": defineEvent<LogRetentionPurgedFields>({
+    level: "info",
+    description: "Pulizia dei log copiati nel database: oltre 30 giorni (7 per quelli di modalità diagnostica).",
+    msg: (f) =>
+      `Pulizia dei log della vista Assistenza: tolte ${f.expired} righe più vecchie di 30 giorni e ${f.diagnostic} righe di modalità diagnostica più vecchie di 7 giorni.`,
+    examples: [{ expired: 5000, diagnostic: 120 }],
+  }),
+
   "app.invite.accepted": defineEvent<AppEmailFields>({
     level: "info",
     description: "Lo staff ha aperto il link d'invito e la sessione è valida: deve solo scegliere la password.",
