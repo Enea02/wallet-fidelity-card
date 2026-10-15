@@ -114,3 +114,19 @@ export function historyLine(h: HistoryInput, rewardLabel: string, now = new Date
       return { what: h.action, meta: meta(), delta: "" };
   }
 }
+
+/** "oggi", "ieri", "2 giorni fa", "3 settimane fa" (per inviti e ultimi invii). */
+export function ago(iso: string, now = new Date()): string {
+  const days = Math.floor((now.getTime() - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return "oggi";
+  if (days === 1) return "ieri";
+  if (days < 14) return `${days} giorni fa`;
+  return `${Math.floor(days / 7)} settimane fa`;
+}
+
+/** Limite delle promozioni: una a settimana (dal backend, E_PROMO_WEEKLY_LIMIT). */
+export function nextPromoAllowed(lastCreatedAt: string | null, now = new Date()): Date | null {
+  if (!lastCreatedAt) return null;
+  const next = new Date(new Date(lastCreatedAt).getTime() + 7 * 86_400_000);
+  return next > now ? next : null;
+}

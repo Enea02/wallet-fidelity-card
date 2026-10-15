@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { greeting, historyLine, plural, shortDate, weekDelta, weekRange, type HistoryInput } from "./format";
+import {
+  ago,
+  greeting,
+  historyLine,
+  nextPromoAllowed,
+  plural,
+  shortDate,
+  weekDelta,
+  weekRange,
+  type HistoryInput,
+} from "./format";
 
 const now = new Date("2026-10-14T10:00:00Z");
 const h = (over: Partial<HistoryInput>): HistoryInput => ({
@@ -56,5 +66,15 @@ describe("testi dell'area titolare", () => {
     expect(historyLine(h({ action: "marketing_consent", after: { consent_marketing: false } }), "x", now).what).toBe(
       "Consenso alle promozioni revocato",
     );
+  });
+
+  it("tempi relativi e limite settimanale delle promozioni", () => {
+    expect(ago("2026-10-14T08:00:00Z", now)).toBe("oggi");
+    expect(ago("2026-10-13T08:00:00Z", now)).toBe("ieri");
+    expect(ago("2026-10-12T08:00:00Z", now)).toBe("2 giorni fa");
+    expect(ago("2026-09-20T08:00:00Z", now)).toBe("3 settimane fa");
+    expect(nextPromoAllowed(null, now)).toBeNull();
+    expect(nextPromoAllowed("2026-10-10T10:00:00Z", now)?.toISOString()).toBe("2026-10-17T10:00:00.000Z");
+    expect(nextPromoAllowed("2026-10-01T10:00:00Z", now)).toBeNull();
   });
 });
