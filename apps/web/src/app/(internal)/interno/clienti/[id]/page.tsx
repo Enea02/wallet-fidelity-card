@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { log } from "@/lib/observability/logger";
 import { googleCardStatus } from "@/lib/support/card-status";
 import { customerSummary } from "@/lib/support/customers";
+import { openModesFor } from "@/lib/support/diagnostics";
 import { supportPage } from "@/lib/support/run";
 import { loadTimeline } from "@/lib/support/timeline";
 import { dateTime, UUID_RE } from "../../_ui/format";
 import { ActionForm } from "../../_ui/ActionForm";
+import { DiagnosticPanel } from "../../_ui/DiagnosticPanel";
 import { Timeline } from "../../_ui/Timeline";
 import { WalletStatus } from "../../_ui/WalletStatus";
 import { resyncCardAction } from "../actions";
@@ -17,7 +19,7 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
   if (!UUID_RE.test(id)) notFound();
   return supportPage(`/interno/clienti/${id}`, async (user) => {
     const c = await customerSummary(id);
-    const google = await googleCardStatus(c.shop.id, c.id);
+    const [google, modes] = await Promise.all([googleCardStatus(c.shop.id, c.id), openModesFor("customer", c.id)]);
     const { blocks, rows } = await loadTimeline({
       kind: "cliente",
       customerId: c.id,
@@ -75,6 +77,7 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
               </ActionForm>
             )}
           </section>
+          <DiagnosticPanel scopeType="customer" scopeId={c.id} open={modes} back={`/interno/clienti/${c.id}`} />
         </div>
         <section>
           <h2>Timeline (14 giorni)</h2>

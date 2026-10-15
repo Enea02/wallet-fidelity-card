@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { log } from "@/lib/observability/logger";
+import { openModesFor } from "@/lib/support/diagnostics";
 import { supportPage } from "@/lib/support/run";
 import { shopDetail } from "@/lib/support/shops";
 import { loadTimeline } from "@/lib/support/timeline";
 import { ActionForm } from "../../_ui/ActionForm";
+import { DiagnosticPanel } from "../../_ui/DiagnosticPanel";
 import { UUID_RE } from "../../_ui/format";
 import { Timeline } from "../../_ui/Timeline";
 import { resyncShopAction, shopLegalAction, shopStatusAction } from "../actions";
@@ -21,7 +23,10 @@ export default async function Negozio({
   if (!UUID_RE.test(id)) notFound();
   return supportPage(`/interno/negozi/${id}`, async (user) => {
     const { shop, staff, customers } = await shopDetail(id);
-    const { blocks, rows } = await loadTimeline({ kind: "negozio", shopId: shop.id });
+    const [{ blocks, rows }, modes] = await Promise.all([
+      loadTimeline({ kind: "negozio", shopId: shop.id }),
+      openModesFor("shop", shop.id),
+    ]);
     log.event("support.timeline.viewed", {
       support_name: user.name,
       subject_kind: "negozio",
@@ -124,6 +129,8 @@ export default async function Negozio({
               </label>
             </ActionForm>
           </section>
+
+          <DiagnosticPanel scopeType="shop" scopeId={shop.id} open={modes} back={`/interno/negozi/${shop.id}`} />
 
           <section className="int-card">
             <h2>Dati per l&apos;informativa</h2>

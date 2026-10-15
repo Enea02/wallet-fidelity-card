@@ -810,7 +810,7 @@ export interface SupportSearchFields extends SupportActorFields {
   results: number;
 }
 
-export type SupportSubjectKind = "negozio" | "cliente" | "richiesta" | "utente staff";
+export type SupportSubjectKind = "negozio" | "cliente" | "richiesta" | "utente staff" | "pacchetto diagnostica";
 export interface SupportTimelineViewedFields extends SupportActorFields {
   subject_kind: SupportSubjectKind;
   /** Nome del negozio, codice carta, codice assistenza o email mascherata. */
