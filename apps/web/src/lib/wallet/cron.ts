@@ -19,6 +19,9 @@ export async function runWalletCron() {
   // iscrizioni dal web non completate: nome e telefono via dopo 24 ore
   const { error } = await supabaseAdmin().rpc("enrollment_cleanup");
   if (error) throw error;
+  // chiavi di idempotenza delle azioni sul saldo: servono solo per i tentativi ravvicinati (48 ore)
+  const { error: keysError } = await supabaseAdmin().rpc("action_keys_cleanup");
+  if (keysError) throw keysError;
   const summary = {
     retries: retries.total,
     retries_ok: retries.ok,

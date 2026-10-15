@@ -16,3 +16,4 @@ apps/merchant/e2e-logs/
 apps/merchant/test-results/
 apps/merchant/playwright-report/
 apps/merchant/expo-env.d.ts
+apps/merchant/build-iphone/

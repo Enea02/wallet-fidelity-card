@@ -9,9 +9,20 @@ export interface ButtonProps extends Omit<PressableProps, "children" | "style"> 
   size?: "md" | "lg";
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Colore del testo su sfondi diversi dal tema (es. schermata del premio nel colore della carta). */
+  labelColor?: string;
 }
 
-export function Button({ label, variant = "primary", size = "md", loading, disabled, style, ...rest }: ButtonProps) {
+export function Button({
+  label,
+  variant = "primary",
+  size = "md",
+  loading,
+  disabled,
+  style,
+  labelColor,
+  ...rest
+}: ButtonProps) {
   const t = useTheme();
   const off = disabled || loading;
   const palette = {
@@ -20,6 +31,7 @@ export function Button({ label, variant = "primary", size = "md", loading, disab
     ghost: { bg: "transparent", fg: t.accentText, border: "transparent" },
     danger: { bg: t.surface, fg: t.danger, border: t.line },
   }[variant];
+  if (labelColor) palette.fg = labelColor;
   return (
     <Pressable
       accessibilityRole="button"

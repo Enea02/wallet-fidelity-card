@@ -205,6 +205,60 @@ con la durata). Nel frattempo le azioni che richiedono il server sono disattivat
 online ma vede il banner, il dispositivo non ha una rete attiva (es. Wi-Fi collegato senza internet su alcuni
 Android): far disattivare e riattivare il Wi-Fi.
 
+## Una sessione di timbratura nei log
+
+Ogni passo ha la sua riga. Quelle dell'app (`scan.*`, nel pacchetto "Invia diagnostica" e in Sentry) e quelle del
+backend (`customer.lookup.*`, `stamp.*`, `reward.*`) hanno lo stesso `customer_ref` (codice breve della carta).
+Esempio da una sessione di prova in locale (lettura, timbro, annullamento):
+
+```
+app      scan.read.ok          Letto il QR di una carta con lettore QR esterno.
+backend  customer.lookup.ok    Marco (operatore, web 0.1.0) ha aperto la carta V9Q45RUZ del negozio Barbiere Demo con la scansione del QR (0/10 timbri, premi disponibili: 0).
+app      scan.card.shown       Scheda della carta V9Q45RUZ aperta in 194 ms dalla lettura (lettore QR esterno).
+backend  stamp.add.ok          Marco (operatore, web 0.1.0) ha aggiunto un timbro alla carta V9Q45RUZ del negozio Barbiere Demo: 0 → 1 su 10.
+app      scan.stamp.confirmed  Timbro sulla carta V9Q45RUZ confermato in 104 ms dal tocco, 0.8 s dalla lettura del codice.
+backend  stamp.undo.ok         Marco (operatore, web 0.1.0) ha annullato l'ultimo timbro della carta V9Q45RUZ del negozio Barbiere Demo: 1 → 0 su 10.
+```
+
+`scan.stamp.confirmed` misura il tempo dalla lettura del codice al timbro confermato: con buona rete deve stare sotto
+i 2 secondi. Se è molto più alto, guardare `duration_ms` delle righe `http.request.end` del backend per la stessa
+carta: se il server è veloce, il problema è la rete del negozio.
+
+## "Lo scanner non legge"
+
+- **Fotocamera**: QR troppo piccolo, riflesso dello schermo del cliente, poca luce (c'è la torcia). Far alzare la
+  luminosità del telefono del cliente. Nessuna riga `scan.read.*` = la fotocamera non ha visto un QR.
+- **`scan.read.invalid`**: è stato letto qualcosa che non è una carta (un URL, un codice a barre del prodotto, un
+  codice breve incompleto). Il motivo è nel campo `reason`. Il cliente ha aperto la cosa sbagliata.
+- **Lettore QR esterno**: deve essere configurato come tastiera con Invio finale (impostazione di fabbrica di
+  quasi tutti). Il campo del lettore nell'app deve essere a fuoco ("Pronto: scansiona con il lettore"): se è stato
+  toccato altro, l'app lo rimette a fuoco da sola.
+- **Web su Safari, Firefox o Chrome per Windows**: la decodifica usa il motore ZXing servito dalla web app
+  (`/zxing/zxing_reader.wasm`). Se manca (deploy incompleto) la webcam si vede ma non legge nulla: usare lettore o
+  codice breve e verificare il deploy.
+- In ogni caso il **codice breve** stampato sotto il QR funziona sempre (modalità "Codice").
+
+## Permesso della fotocamera negato (`scan.camera.denied`)
+
+- iOS e Android: con `can_ask_again: false` il permesso va riattivato da Impostazioni → app Loyalty Wallet
+  Esercente → Fotocamera; l'app mostra il pulsante "Apri le impostazioni".
+- Web: icona del lucchetto/fotocamera accanto all'indirizzo del browser → Consenti. Sul sito non in HTTPS il
+  browser non concede mai la fotocamera.
+
+## "Ho dato due timbri con un tocco" / "il timbro c'è due volte"
+
+Ogni tocco su "+1 timbro", "Annulla ultimo timbro" e "Riscatta premio" porta una chiave (`Idempotency-Key`): una
+seconda richiesta con la stessa chiave (doppio tocco, rete che ripete) non agisce e lascia
+`stamp.add.duplicate_ignored` (o `stamp.undo.…`, `reward.redeem.…`). Se ci sono davvero due `stamp.add.ok` per la
+stessa carta, sono due tocchi distinti: con il cooldown attivo il secondo è possibile solo con "Aggiungi comunque"
+(vedi sotto). Si corregge con "Annulla ultimo timbro" entro 5 minuti, poi con la correzione del saldo del titolare.
+
+## Timbro forzato durante il cooldown (`stamp.add.forced`)
+
+Lo staff ha premuto "Aggiungi comunque" sul foglio "Timbro già dato da poco". Il timbro vale, ma resta nell'audit
+(`audit_log.reason = 'timbro forzato durante il cooldown'`, con i minuti mancanti in `after`) e nel log a livello
+warn. Se succede spesso con lo stesso operatore o la stessa carta, segnalarlo al titolare.
+
 ## "La carta non viene trovata" alla scansione
 
 - `customer.lookup.not_found`: il QR o il codice breve non corrisponde a nessuna carta. Far riscansionare o digitare
@@ -350,6 +404,9 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | --- | --- | --- | --- |
 | `stamp.add.ok` | info | Un membro dello staff ha aggiunto un timbro a una carta. | Giulia (operatore, iOS 1.4.0) ha aggiunto un timbro alla carta A3F2C91B del negozio Salone Mario: 6 → 7 su 10. |
 | `stamp.add.rejected_cooldown` | warn | Timbro rifiutato perché troppo vicino al precedente (tempo minimo tra due timbri impostato dal negozio). | Timbro di Giulia (operatore, iOS 1.4.0) rifiutato sulla carta A3F2C91B del negozio Salone Mario: ultimo timbro 8 minuti fa, il negozio richiede almeno 60 minuti tra due timbri (mancano 52 minuti). |
+| `stamp.add.forced` | warn | Timbro dato durante il cooldown con "Aggiungi comunque": resta nell'audit. Se succede spesso, parlarne con il titolare. | Giulia (operatore, iOS 1.4.0) ha forzato un timbro sulla carta A3F2C91B del negozio Salone Mario durante il cooldown (mancavano 52 minuti su 60 minuti): 6 → 7 su 10, registrato nell'audit. |
+| `stamp.add.duplicate_ignored` | info | Doppio tocco o richiesta ripetuta dalla rete su "+1 timbro": la stessa chiave di idempotenza non dà un secondo timbro. | Richiesta ripetuta di Giulia (operatore, iOS 1.4.0) (timbro sulla carta A3F2C91B del negozio Salone Mario) ignorata: è la stessa del 03/11/2026 10:32 (ora italiana) (1 s prima), già eseguita una volta sola. |
+| `stamp.undo.duplicate_ignored` | info | Richiesta di annullamento ripetuta con la stessa chiave: eseguita una volta sola. | Richiesta ripetuta di Giulia (operatore, iOS 1.4.0) (annullamento del timbro sulla carta A3F2C91B del negozio Salone Mario) ignorata: è la stessa del 03/11/2026 10:32 (ora italiana) (1 s prima), già eseguita una volta sola. |
 | `stamp.undo.ok` | info | Un membro dello staff ha annullato l'ultimo timbro che aveva dato (entro 5 minuti). | Giulia (operatore, iOS 1.4.0) ha annullato l'ultimo timbro della carta A3F2C91B del negozio Salone Mario: 7 → 6 su 10. |
 | `stamp.undo.rejected` | warn | Annullamento dell'ultimo timbro rifiutato: tempo scaduto, altro operatore, carta già modificata. | Annullamento dell'ultimo timbro chiesto da Giulia (operatore, iOS 1.4.0) sulla carta A3F2C91B del negozio Salone Mario rifiutato: il timbro è stato dato 12 minuti fa (limite 5 minuti). |
 
@@ -358,6 +415,7 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
 | `reward.unlocked` | info | Una carta ha raggiunto i timbri richiesti: il premio è disponibile. | La carta A3F2C91B del negozio Salone Mario ha raggiunto 10 timbri: premio "Taglio gratis" sbloccato (premi disponibili: 1). |
+| `reward.redeem.duplicate_ignored` | info | Richiesta di riscatto ripetuta con la stessa chiave: il premio è scalato una volta sola. | Richiesta ripetuta di Giulia (operatore, iOS 1.4.0) (riscatto del premio sulla carta A3F2C91B del negozio Salone Mario) ignorata: è la stessa del 03/11/2026 10:32 (ora italiana) (1 s prima), già eseguita una volta sola. |
 | `reward.redeem.ok` | info | Un membro dello staff ha riscattato un premio dalla carta del cliente. | Giulia (operatore, iOS 1.4.0) ha riscattato il premio "Taglio gratis" dalla carta A3F2C91B del negozio Salone Mario (premi disponibili: 1 → 0). |
 | `reward.redeem.rejected_none` | warn | Riscatto rifiutato perché la carta non ha premi disponibili. | Riscatto chiesto da Giulia (operatore, iOS 1.4.0) sulla carta A3F2C91B del negozio Salone Mario rifiutato: nessun premio disponibile (la carta ha 4/10 timbri). |
 
@@ -491,6 +549,17 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | `app.password.changed` | info | Lo staff ha impostato una nuova password, dal link di recupero o accettando l'invito. | Password reimpostata dal link di recupero e accesso eseguito. |
 | `app.error.unexpected` | error | Errore imprevisto nel codice dell'app (non una risposta del server): va segnalato allo sviluppo con la diagnostica e Sentry. | Errore imprevisto nell'app durante il caricamento dei negozi: TypeError: shops.map is not a function. |
 | `app.invite.accepted` | info | Lo staff ha aperto il link d'invito e la sessione è valida: deve solo scegliere la password. | Aperto il link d'invito di gi***@salone-mario.it: in attesa della scelta della password. |
+
+### scan
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `scan.read.ok` | info | Lo scanner dell'app ha letto un codice valido (QR della carta o codice breve): parte la ricerca della carta. | Letto il QR di una carta con fotocamera. |
+| `scan.read.invalid` | warn | Lo scanner ha letto qualcosa che non è una carta (altro QR, codice incompleto): nessuna chiamata al server. | Lettura scartata (fotocamera): URL di un sito, non è un QR della carta né un codice breve. |
+| `scan.camera.denied` | warn | Permesso della fotocamera negato: lo scanner propone le impostazioni, il lettore esterno o il codice a mano. | Permesso della fotocamera negato: l'app può chiederlo di nuovo. |
+| `scan.mode.changed` | info | Cambiata la modalità dello scanner (fotocamera, lettore QR esterno, codice a mano); viene ricordata. | Scanner passato da fotocamera a lettore QR esterno. |
+| `scan.card.shown` | info | Scheda cliente aperta dopo una lettura: tempo dalla lettura alla scheda. | Scheda della carta A3F2C91B aperta in 420 ms dalla lettura (fotocamera). |
+| `scan.stamp.confirmed` | info | Timbro confermato nell'app: tempo dal tocco alla conferma e dalla lettura del codice (obiettivo sotto i 2 secondi). | Timbro sulla carta A3F2C91B confermato in 310 ms dal tocco, 1.6 s dalla lettura del codice. |
 
 ## Errori
 

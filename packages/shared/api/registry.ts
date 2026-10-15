@@ -21,6 +21,8 @@ export interface EndpointDef {
   response: z.ZodType | "pdf";
   /** Limite del body in byte (default 64 KB). */
   maxBodyBytes?: number;
+  /** Azione sul saldo: header Idempotency-Key obbligatorio, la stessa chiave non agisce due volte. */
+  idempotent?: true;
 }
 
 const BASE = "/api/v1/merchant";
@@ -49,8 +51,9 @@ export const merchantApi = {
     path: "/stamp",
     summary: "Aggiunge un timbro",
     auth: "staff",
-    body: m.CustomerIdBody,
+    body: m.StampBody,
     response: m.StampResponse,
+    idempotent: true,
   }),
   undo: def({
     method: "POST",
@@ -58,7 +61,8 @@ export const merchantApi = {
     summary: "Annulla l'ultimo timbro",
     auth: "staff",
     body: m.CustomerIdBody,
-    response: m.CardResponse,
+    response: m.CardOnlyResponse,
+    idempotent: true,
   }),
   redeem: def({
     method: "POST",
@@ -66,7 +70,8 @@ export const merchantApi = {
     summary: "Riscatta un premio",
     auth: "staff",
     body: m.CustomerIdBody,
-    response: m.CardResponse,
+    response: m.CardOnlyResponse,
+    idempotent: true,
   }),
 
   stats: def({
@@ -100,7 +105,7 @@ export const merchantApi = {
     auth: "owner",
     params: m.IdParams,
     body: m.AdjustBody,
-    response: m.CardResponse,
+    response: m.CardOnlyResponse,
   }),
   deleteCustomer: def({
     method: "DELETE",

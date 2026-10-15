@@ -7,6 +7,7 @@ import { deviceLabel } from "@/lib/diagnostics/device";
 import { sendDiagnostics } from "@/lib/diagnostics/send";
 import { useOnline } from "@/lib/network";
 import { useSession, useShop } from "@/lib/session";
+import { uuid } from "@/lib/uuid";
 import { Banner } from "@/ui/Banner";
 import { Button } from "@/ui/Button";
 import { Card } from "@/ui/Card";
@@ -71,7 +72,7 @@ export default function Profilo() {
   async function forceError() {
     setForced(null);
     try {
-      await api.call("stamp", { shopId: shop.id, body: { customerId: MISSING_CUSTOMER } });
+      await api.call("stamp", { shopId: shop.id, body: { customerId: MISSING_CUSTOMER }, idempotencyKey: uuid() });
     } catch (e) {
       if (e instanceof ApiError) setForced(e);
       else throw e;

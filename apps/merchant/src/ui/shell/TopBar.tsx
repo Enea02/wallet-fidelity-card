@@ -32,6 +32,29 @@ export function TopBar({ shop, showProfile }: { shop: Shop; showProfile: boolean
         {shop.name}
       </T>
       {showProfile ? (
+        // il titolare non ha lo scanner tra le tab (design T2): sempre a un tocco da qui
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Scansiona una carta"
+          testID="apri-scanner"
+          onPress={() => router.navigate("/scanner")}
+          style={({ pressed }) => ({
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            height: 40,
+            paddingHorizontal: space.md,
+            borderRadius: 20,
+            backgroundColor: pressed ? t.accentEdge : t.accent,
+          })}
+        >
+          <Icon name="scan" color={t.onAccent} size={18} />
+          <T variant="small" style={{ color: t.onAccent }}>
+            Scansiona
+          </T>
+        </Pressable>
+      ) : null}
+      {showProfile ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Profilo"

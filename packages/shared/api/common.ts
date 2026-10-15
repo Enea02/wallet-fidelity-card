@@ -8,6 +8,8 @@ export const HEADERS = {
   appBuild: "x-app-build",
   /** Negozio su cui si opera: obbligatorio per le API di un negozio. */
   shopId: "x-shop-id",
+  /** UUID di un tocco su timbro, annullamento o riscatto: la stessa chiave non agisce due volte. */
+  idempotencyKey: "idempotency-key",
 } as const;
 
 export const Platform = z.enum(["ios", "android", "web"]);

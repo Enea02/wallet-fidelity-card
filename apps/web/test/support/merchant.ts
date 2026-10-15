@@ -2,7 +2,7 @@
  * Supporto agli smoke test delle API esercente: chiama le route vere (stesso codice di
  * produzione, senza server HTTP) a partire dal registro dei contratti.
  */
-import { createHmac, randomInt } from "node:crypto";
+import { createHmac, randomInt, randomUUID } from "node:crypto";
 import { HEADERS, merchantApi, type MerchantEndpoint } from "@loyalty/shared/api";
 import { createClient } from "@supabase/supabase-js";
 import * as customer from "@/app/api/v1/merchant/customers/[id]/route";
@@ -110,6 +110,10 @@ export async function call(key: MerchantEndpoint, o: CallOptions = {}) {
   const headers: Record<string, string> = { ...o.headers };
   if (o.token) headers.authorization = `Bearer ${o.token}`;
   if (o.shopId) headers[HEADERS.shopId] = o.shopId;
+  // azioni sul saldo: una chiave nuova per chiamata, come un tocco nell'app (i test la passano per i doppioni)
+  if ("idempotent" in def && def.idempotent && !(HEADERS.idempotencyKey in headers)) {
+    headers[HEADERS.idempotencyKey] = randomUUID();
+  }
   const body =
     def.method === "GET" ? undefined : (o.rawBody ?? (o.body === undefined ? undefined : JSON.stringify(o.body)));
   if (body !== undefined) headers["content-type"] = "application/json";

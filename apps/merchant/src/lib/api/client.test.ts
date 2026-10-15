@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AppApiErrorFields } from "@loyalty/shared/logging/events";
 import { isRequestId } from "@loyalty/shared/logging/request-id";
+import { uuid } from "../uuid";
 import { ApiError, createApiClient, type ApiDeps } from "./client";
 
 const ME = {
@@ -73,6 +74,22 @@ describe("client API esercente", () => {
     expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ device: { os: "iOS" }, events: [] });
   });
 
+  it("azioni sul saldo: manda la chiave di idempotenza del tocco", async () => {
+    const card = {
+      id: "33333333-3333-4333-8333-333333333333",
+      shortCode: "DEMA2345",
+      name: "Cliente Demo",
+      stamps: 1,
+      stampsRequired: 10,
+      rewardsAvailable: 0,
+      rewardLabel: "Taglio gratis",
+    };
+    const { api, calls } = setup([json(200, { card, rewardUnlocked: false, forced: false })]);
+    const key = uuid(); // generata a runtime: nessun valore simile a una chiave nel repository
+    await api.call("stamp", { shopId: SHOP, body: { customerId: card.id }, idempotencyKey: key });
+    expect(header(calls[0]!.init, "idempotency-key")).toBe(key);
+  });
+
   it("sostituisce i parametri del percorso e la query", async () => {
     const id = "33333333-3333-4333-8333-333333333333";
     const { api, calls } = setup([apiError(404, "E_CARD_NOT_FOUND", "Carta non trovata.")]);
@@ -83,7 +100,11 @@ describe("client API esercente", () => {
   it("errore del catalogo: messaggio e codice assistenza del server, riga app.api.error", async () => {
     const { api, logged } = setup([apiError(409, "E_STAMP_COOLDOWN", "Timbro già dato da poco.", "ERR-7K3QX")]);
     const err = await api
-      .call("stamp", { shopId: SHOP, body: { customerId: "33333333-3333-4333-8333-333333333333" } })
+      .call("stamp", {
+        shopId: SHOP,
+        body: { customerId: "33333333-3333-4333-8333-333333333333" },
+        idempotencyKey: uuid(),
+      })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     const e = err as ApiError;
