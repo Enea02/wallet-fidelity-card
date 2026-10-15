@@ -2310,7 +2310,10 @@ export const events = {
       "Negozio sospeso dall'assistenza: app esercente e pagina di iscrizione bloccate, carte disattivate su Google dal cron.",
     msg: (f) =>
       `${f.support_name} (assistenza) ha sospeso il negozio ${f.shop_name} (/${f.slug}). Motivo: ${f.reason}. ` +
-      `L'app e la pagina di iscrizione sono bloccate; le ${f.cards} carte vengono disattivate su Google entro qualche minuto.`,
+      `L'app e la pagina di iscrizione sono bloccate; ` +
+      (f.cards === 0
+        ? "nessuna carta da disattivare."
+        : `${f.cards === 1 ? "la carta viene disattivata" : `le ${f.cards} carte vengono disattivate`} su Google entro qualche minuto.`),
     examples: [
       { ...enea, shop_name: "Salone Mario", slug: "salone-mario", reason: "abbonamento non rinnovato", cards: 120 },
     ],
@@ -2321,7 +2324,9 @@ export const events = {
     description: "Negozio riattivato dall'assistenza: app e iscrizioni di nuovo aperte, carte riattivate dal cron.",
     msg: (f) =>
       `${f.support_name} (assistenza) ha riattivato il negozio ${f.shop_name} (/${f.slug}). Motivo: ${f.reason}. ` +
-      `Le ${f.cards} carte tornano attive su Google entro qualche minuto.`,
+      (f.cards === 0
+        ? "Nessuna carta da riattivare."
+        : `${f.cards === 1 ? "La carta torna attiva" : `Le ${f.cards} carte tornano attive`} su Google entro qualche minuto.`),
     examples: [
       { ...enea, shop_name: "Salone Mario", slug: "salone-mario", reason: "abbonamento rinnovato", cards: 120 },
     ],
