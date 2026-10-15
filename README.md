@@ -117,6 +117,31 @@ Expo SDK 57 + Expo Router in `apps/merchant`, una sola codebase per le tre piatt
 - Test: `pnpm --filter @loyalty/merchant test` (unitari), `pnpm e2e` (web pubblico + web app esercente;
   serve `pnpm db:start`).
 
+### Scanner e timbratura
+
+- Tre modalità, ricordate sul dispositivo: **Fotocamera** (iOS/Android con `expo-camera`; web con `BarcodeDetector`
+  o il polyfill ZXing, il cui `.wasm` viene copiato in `public/zxing/` da `scripts/copy-zxing.mjs` prima di `dev` e
+  `build`), **Lettore** (lettore QR USB/Bluetooth che scrive il codice e preme Invio: il campo resta sempre a fuoco)
+  e **Codice** (codice breve a mano).
+- Timbro, annullamento e riscatto mandano l'header `Idempotency-Key` (uno per tocco): il backend non agisce due volte
+  con la stessa chiave. Dopo un timbro "+1" resta bloccato 1 secondo (doppio tocco). "Aggiungi comunque" forza il
+  timbro durante il cooldown e resta nell'audit.
+- Per provare il lettore senza averne uno: modalità Lettore, scrivere il codice breve (es. `DEMA2345` della carta
+  demo) e premere Invio. Il simulatore iOS non ha fotocamera.
+- Test: `pnpm --filter @loyalty/merchant test` (Vitest per la logica, jest-expo per i componenti), `pnpm e2e` (anche
+  la webcam, con un video finto che mostra un QR).
+- **Su un iPhone vero** (basta un Apple ID gratuito aggiunto in Xcode → Settings → Accounts; telefono collegato via
+  cavo con la Modalità sviluppatore attiva):
+  1. in `apps/merchant/.env.local` mettere l'IP del Mac in rete al posto di `localhost` (API e Supabase);
+  2. `APPLE_TEAM_ID=<team> npx expo prebuild --platform ios --clean` (il team è in Xcode → Settings → Accounts);
+  3. `xcodebuild -workspace ios/LoyaltyWalletEsercente.xcworkspace -scheme LoyaltyWalletEsercente -configuration Debug -destination id=<UDID> -allowProvisioningUpdates -derivedDataPath build-iphone build`,
+     poi `xcrun devicectl device install app --device <UDID> build-iphone/Build/Products/Debug-iphoneos/LoyaltyWalletEsercente.app`;
+  4. sul telefono: Impostazioni → Generali → VPN e gestione dispositivi → autorizza lo sviluppatore.
+
+  Su iOS 27 serve il ciclo di vita a scene: lo applica `plugins/with-scene-lifecycle.js` a ogni prebuild. Metro va
+  avviato senza `CI=1` (in modalità CI non si accorge delle modifiche e serve codice vecchio). Alla fine
+  `pnpm db:start` riporta `.env.local` su `localhost`.
+
 ### Da completare con gli account (segnaposto)
 
 | Cosa            | Dove                                                                   | Variabili                                                                                           |
