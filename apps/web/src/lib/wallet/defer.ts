@@ -1,6 +1,7 @@
 import "server-only";
 import { after } from "next/server";
 import { getContext, runWithContext } from "../observability/context";
+import { flushLogs } from "../observability/db-sink";
 import { log } from "../observability/logger";
 
 /**
@@ -20,6 +21,9 @@ export function deferWalletWork(what: string, task: () => Promise<unknown>): Pro
         { task: what, error_message: e instanceof Error ? e.message : String(e) },
         { error: e },
       );
+    } finally {
+      // le righe del lavoro verso i wallet arrivano dopo la risposta: si copiano subito
+      await flushLogs();
     }
   };
   if (process.env.WALLET_SYNC_INLINE === "1") return run();

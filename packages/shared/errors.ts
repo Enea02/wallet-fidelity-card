@@ -444,6 +444,47 @@ export const errors = {
     action:
       "Confrontare le variabili del deploy con .env.example dell'app indicata nel log; correggere quelle elencate e riavviare.",
   },
+  E_SUPPORT_UNAUTHORIZED: {
+    status: 401,
+    userMessage: "Accedi al pannello interno per continuare.",
+    description: "Richiesta al pannello interno senza una sessione valida (mai entrati, sessione scaduta o uscita).",
+    probableCause: "Sessione di 12 ore scaduta, cookie cancellati o link del pannello aperto da un altro browser.",
+    action:
+      "Rientrare da /interno/accesso. Se succede subito dopo l'accesso, controllare che il browser accetti i cookie.",
+  },
+  E_SUPPORT_FORBIDDEN: {
+    status: 403,
+    userMessage: "Questo account non fa parte del team interno.",
+    description: "Un account autenticato ha provato a usare il pannello interno ma non è nel team (support_members).",
+    probableCause: "Account di un esercente usato per errore sul pannello, oppure membro del team disattivato.",
+    action:
+      "Verificare in support_members (user_id nel log). Per aggiungere un membro: pnpm support:add <email> --name <nome> --by <chi>.",
+  },
+  E_SUPPORT_MFA_REQUIRED: {
+    status: 403,
+    userMessage: "Inserisci il codice dell'app di autenticazione per continuare.",
+    description: "Membro del team entrato con la password ma senza il secondo fattore (codice TOTP) verificato.",
+    probableCause: "Accesso interrotto prima del codice, oppure app di autenticazione non ancora collegata.",
+    action:
+      "Completare l'accesso con il codice a 6 cifre. Se il telefono con l'app è perso: rimuovere il fattore dalla dashboard Supabase (Authentication → utente → MFA) e ricollegarlo al prossimo accesso.",
+  },
+  E_SUPPORT_LOGIN_FAILED: {
+    status: 401,
+    userMessage: "Email, password o codice non corretti.",
+    description: "Accesso al pannello interno rifiutato: credenziali o codice dell'app di autenticazione sbagliati.",
+    probableCause: "Password errata, codice scaduto (vale 30 secondi) o orologio del telefono non sincronizzato.",
+    action:
+      "Riprovare con un codice nuovo. Se l'errore si ripete con il codice giusto, controllare l'ora automatica del telefono.",
+  },
+  E_SHOP_SLUG_TAKEN: {
+    status: 409,
+    userMessage: "Questo indirizzo è già usato o non è disponibile: scegline un altro.",
+    description:
+      "Creazione di un negozio con uno slug già usato da un altro negozio o riservato a una pagina del sito.",
+    probableCause: "Negozio già creato in precedenza, oppure slug come «interno» o «api» che sono percorsi del sito.",
+    action:
+      "Cercare il negozio con quello slug nel pannello; se è un doppione usare quello esistente, altrimenti cambiare slug.",
+  },
 } as const satisfies Record<string, ErrorDef>;
 
 export type ErrorCode = keyof typeof errors;

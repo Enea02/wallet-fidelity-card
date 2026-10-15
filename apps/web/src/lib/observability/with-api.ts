@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
+import { after } from "next/server";
 import { isRequestId, newRequestId, supportCodeFromRequestId } from "@loyalty/shared/logging/request-id";
 import { getContext, runWithContext } from "./context";
 import { refreshDiagnosticModes } from "./diagnostic";
+import { flushLogs } from "./db-sink";
 import { classifyError, errorResponse } from "./errors";
 import { log } from "./logger";
 
@@ -109,6 +111,7 @@ export function withApi<Args extends unknown[]>(
         res = new Response(res.body, res);
         res.headers.set("x-request-id", request_id);
       }
+      flushAfterResponse();
       return res;
     });
   };
@@ -137,4 +140,13 @@ async function logPayloads(req: Request, res: Response, requestText: Promise<str
     size_bytes: resText.length,
     body: parsePayload(resText),
   });
+}
+
+/** Copia dei log della richiesta in Postgres dopo la risposta (fuori da Next: al timer di db-sink). */
+function flushAfterResponse() {
+  try {
+    after(flushLogs);
+  } catch {
+    void flushLogs();
+  }
 }

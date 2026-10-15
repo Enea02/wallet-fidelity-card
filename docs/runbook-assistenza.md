@@ -4,12 +4,41 @@ Come ricostruire cosa è successo partendo da una segnalazione, senza chiedere a
 Le sezioni **Eventi di log** ed **Errori** in fondo sono generate dai cataloghi del codice (`pnpm runbook`): non
 modificarle a mano. Il resto è scritto a mano e va aggiornato a ogni fase.
 
-Dove sono i log: in produzione su **Axiom** (Vercel Log Drain), dataset del progetto web. In locale nel terminale di
-`pnpm dev`. Gli orari nei campi `ts` sono UTC; nei `msg` le date sono già in ora italiana.
+Dove sono i log: nella **vista Assistenza** del pannello interno (`/interno`, ultimi 30 giorni: copia in Postgres,
+tabella `log_events`), e in produzione anche su **Axiom** (Vercel Log Drain), dataset del progetto web. In locale nel
+terminale di `pnpm dev`. Gli orari nei campi `ts` sono UTC; nel pannello e nei `msg` le date sono in ora italiana.
+
+## Vista Assistenza: da dove partire
+
+Pannello interno su `/interno` (solo il team, email + password + codice dell'app di autenticazione). Un solo campo di
+ricerca riconosce da solo cosa si è scritto:
+
+| Si scrive | Si apre |
+| --- | --- |
+| `ERR-7K3QX` (codice che l'esercente legge sullo schermo) | la richiesta: tutte le righe con lo stesso `request_id` |
+| `DIAG-XXXXXXXX` (ticket di "Invia diagnostica") | il pacchetto: dispositivo ed eventi dell'app |
+| `E_STAMP_COOLDOWN` (codice di errore del catalogo) | descrizione, causa e azione + le ultime richieste con quell'errore |
+| codice della carta (`DEMA2345`) o telefono del cliente | la scheda del cliente (il telefono si cerca per hash, mai salvato in chiaro) |
+| email dello staff | la scheda dell'utente: negozi e sue azioni |
+| nome o indirizzo del negozio | la scheda del negozio |
+
+Ogni timeline (negozio, cliente, richiesta, utente) mette insieme log tecnici, storico di dominio (`audit_log`,
+righe "Storico: …") e righe dell'app dai pacchetti di diagnostica ("App: …"), raggruppati per richiesta: un blocco è
+una richiesta, con il riassunto dei passi ("stamp add ok → risposta 200 → Google errore 401"). Gli errori del
+catalogo mostrano subito **causa probabile** e **cosa fare**; un clic su una riga mostra tutti i campi.
+
+Dalla scheda del cliente: carta su Google letta in diretta e confrontata con il database, **Risincronizza**,
+esportazione GDPR, cancellazione, modalità diagnostica. Dalla scheda del negozio: staff, sospensione/riattivazione,
+risincronizzazione di tutte le carte, dati per l'informativa, modalità diagnostica.
+
+Ogni azione dell'assistenza resta nello storico (`audit_log`, `actor_type = support`, con chi e perché) e nei log
+(`support.*`, `shop.*`); anche le ricerche e le timeline aperte sono tracciate (`support.search`,
+`support.timeline.viewed`).
 
 ## L'esercente comunica un codice assistenza (`ERR-XXXXX`)
 
 Ogni errore mostrato in app o sul web riporta un codice come `ERR-7K3QX`, ricavato dal `request_id` della richiesta.
+**Nel pannello basta cercarlo** (vista Assistenza): apre la richiesta con causa e azione. A mano, sul servizio di log:
 
 1. Normalizzare il codice: maiuscole, `O` → `0`, `I`/`L` → `1` (le persone lo dettano male; la funzione
    `normalizeSupportCode` lo fa da sola).
@@ -20,7 +49,9 @@ Ogni errore mostrato in app o sul web riporta un codice come `ERR-7K3QX`, ricava
 
 Se la riga con il `support_code` non si trova (es. errore prima che la richiesta arrivasse al server), il codice
 corrisponde comunque a un istante preciso (finestra di 32 ms): i `request_id` compatibili negli ultimi 30 giorni
-iniziano con uno di 3-4 prefissi calcolabili. Dalla Fase 9 la vista Assistenza fa questa ricerca da sola.
+iniziano con uno di 3-4 prefissi calcolabili: la vista Assistenza fa questa ricerca da sola. Se l'app non ha proprio
+raggiunto il server (rete assente, `E_NETWORK`), il codice esiste solo sul telefono: chiedere all'esercente
+"Profilo → Invia diagnostica all'assistenza"; poi lo stesso `ERR-…` si trova nel pacchetto.
 
 ## Il server non parte / tutto risponde 500 dopo un deploy
 
@@ -51,7 +82,7 @@ Ogni carta ha una riga in `wallet_sync_state` (`wallet = google`): cosa abbiamo 
 2. I tentativi automatici sono in `wallet_sync_failures`: dopo un errore si riprova tra 1, 5, 15 e 60 minuti
    (`wallet.sync.retry.scheduled`); al quinto errore `wallet.sync.retry.exhausted` e la carta resta indietro.
 3. Dopo aver risolto la causa: `pnpm wallet:resync --shop <slug> --card <codice breve>` (o solo `--shop` per tutto il
-   negozio). Dalla Fase 9 c'è il pulsante "Risincronizza" nella vista Assistenza.
+   negozio). Dal pannello: scheda del cliente → "Risincronizza" (o scheda del negozio per tutte le carte).
 4. Carte rimaste indietro senza errori (es. server riavviato durante l'aggiornamento): le riallinea da sola la
    riconciliazione del cron entro pochi minuti (`wallet.sync.reconciled`, con la differenza trovata).
 
@@ -123,8 +154,8 @@ danno i clienti iscrivendosi.
 ## Carta disattivata
 
 `wallet.card.deactivated`: la carta su Google è `INACTIVE` perché il cliente è stato cancellato o il negozio è
-sospeso. Alla riattivazione del negozio, `pnpm wallet:resync --shop <slug>` le riattiva tutte (dalla Fase 9 lo fa il
-pannello).
+sospeso. Alla riattivazione del negozio il cron le riattiva da solo entro qualche minuto; per farlo subito, scheda del
+negozio → "Risincronizza tutto il negozio" (o `pnpm wallet:resync --shop <slug>`).
 
 ## "Il timbro non è arrivato" / "il saldo è sbagliato"
 
@@ -327,8 +358,8 @@ nuovo riaprendo la pagina di iscrizione del negozio con lo stesso numero e spunt
 ## L'esercente ha inviato la diagnostica dall'app
 
 Ci comunica un codice `DIAG-XXXXXXXX` (Profilo → "Invia diagnostica all'assistenza"): `diagnostics.received` lo
-conferma, il pacchetto è nella tabella `diagnostic_bundles` (`ticket_code`). Dalla Fase 9 si consulta dalla vista
-Assistenza.
+conferma, il pacchetto è nella tabella `diagnostic_bundles` (`ticket_code`). Si apre cercando il ticket nella vista
+Assistenza (o da Diagnostica → Pacchetti ricevuti): dispositivo ed eventi raggruppati per richiesta.
 
 Cosa contiene:
 - `device`: piattaforma, versione e build dell'app, modello o browser, sistema operativo, lingua, fuso orario, tipo
@@ -361,6 +392,10 @@ endpoint, status HTTP, durata, tentativo e (in errore) la risposta del provider,
 Per un problema che i log normali non spiegano, attivare la modalità diagnostica **solo** sullo scope interessato.
 Registra anche i payload delle richieste e delle chiamate esterne (sempre redatti) e i log `debug`.
 
+Dal pannello: scheda del negozio, del cliente o dell'utente → "Modalità diagnostica" (durata, livello, motivo);
+le attive sono in Diagnostica, da dove si spengono. Restano nello storico (`diagnostic_enable` / `diagnostic_disable`)
+e nei log (`support.diagnostic.enabled` / `disabled`). In alternativa, da riga di comando:
+
 ```bash
 pnpm diag list
 pnpm diag enable --shop <slug> --reason "<perché>" --by <chi> [--hours 24] [--level debug|trace]
@@ -373,8 +408,47 @@ pnpm diag disable <id> --by <chi>
 - I server la applicano entro 30 secondi.
 - Attivazione, disattivazione e scadenza sono registrate (`diagnostic.mode.enabled` / `disabled` / `expired`) e
   restano nella tabella `diagnostic_modes` con chi, quando e perché.
-- In produzione lo script va eseguito con le variabili dell'ambiente di produzione. Dalla Fase 9 si fa dal pannello
-  interno.
+- In produzione lo script va eseguito con le variabili dell'ambiente di produzione; di norma si usa il pannello.
+- Le righe di diagnostica copiate per la vista Assistenza si tengono 7 giorni (le altre 30).
+
+## Pannello interno: accesso
+
+- Solo chi è in `support_members` (`pnpm support:add <email> --name <nome> --by <chi>`), con password e **codice
+  dell'app di autenticazione** (TOTP). Al primo accesso il pannello mostra il QR da inquadrare.
+- La sessione dura 12 ore dall'ultimo codice, poi si rientra.
+- "Questo account non fa parte del team" (`E_SUPPORT_FORBIDDEN`, `support.access.denied` con "non nel team"): account
+  di un esercente o membro disattivato.
+- Codice rifiutato (`E_SUPPORT_LOGIN_FAILED` al passo "codice"): codice scaduto (30 s) o ora del telefono sbagliata.
+- Telefono con l'app perso: in Supabase (Authentication → utente → MFA) eliminare il fattore; al prossimo accesso si
+  ricollega con un nuovo QR.
+
+## Negozi dal pannello
+
+- **Nuovo negozio** (`shop.created`): nome, indirizzo della pagina di iscrizione (slug), titolare (riceve l'email
+  d'invito se non ha già un account), dati per l'informativa. Slug già usato o riservato (`interno`, `api`, …):
+  `E_SHOP_SLUG_TAKEN`.
+- **Sospensione / riattivazione** con motivo (`shop.suspended` / `shop.reactivated`): app esercente e pagina di
+  iscrizione bloccate, carte disattivate su Google dal cron entro qualche minuto (e riattivate alla riattivazione).
+- **Dati per l'informativa** (`shop.legal.updated`): ragione sociale, partita IVA, email privacy, mostrati nella
+  pagina privacy del negozio e nell'esportazione GDPR.
+
+## Richieste GDPR (accesso e cancellazione)
+
+- **Accesso** (art. 15): scheda del cliente → motivo → "Esporta i dati (JSON)". Il file contiene dati, consensi,
+  saldo, storico, stato nei wallet e promozioni ricevute; si invia all'interessato da un canale sicuro.
+  `support.customer.export`, storico `customer_export`.
+- **Cancellazione**: scheda del cliente → motivo → codice della carta come conferma. Nome, telefono (anche l'hash) e
+  consensi tolti, storico pseudonimizzato, carta disattivata su Google. `support.customer.delete`, storico
+  `customer_delete` con `actor_type = support`.
+
+## Log nella vista Assistenza (copia in Postgres)
+
+- Ogni riga di log del server è copiata anche in `log_events` a fine richiesta (`LOG_DB_SINK`, attiva di default).
+  Se la copia fallisce compare `log.db_sink.failed` sul servizio di log esterno: le righe mancano nella timeline ma
+  restano su Axiom.
+- Pulizia dal cron: 30 giorni, 7 per le righe di modalità diagnostica (`log.retention.purged`).
+- Dopo la migrazione della Fase 9, `pnpm support:phone-hash` calcola l'hash del telefono per le carte già esistenti
+  (quelle nuove lo hanno dall'iscrizione).
 
 ## Cosa non c'è mai nei log
 
@@ -604,6 +678,40 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | `scan.mode.changed` | info | Cambiata la modalità dello scanner (fotocamera, lettore QR esterno, codice a mano); viene ricordata. | Scanner passato da fotocamera a lettore QR esterno. |
 | `scan.card.shown` | info | Scheda cliente aperta dopo una lettura: tempo dalla lettura alla scheda. | Scheda della carta A3F2C91B aperta in 420 ms dalla lettura (fotocamera). |
 | `scan.stamp.confirmed` | info | Timbro confermato nell'app: tempo dal tocco alla conferma e dalla lettura del codice (obiettivo sotto i 2 secondi). | Timbro sulla carta A3F2C91B confermato in 310 ms dal tocco, 1.6 s dalla lettura del codice. |
+
+### support
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `support.login` | info | Un membro del team è entrato nel pannello interno (password e codice dell'app di autenticazione). | Enea (assistenza) è entrato nel pannello interno con password e codice dell'app di autenticazione. |
+| `support.login.failed` | warn | Accesso al pannello interno rifiutato (password, codice o collegamento dell'app di autenticazione). | Accesso al pannello interno rifiutato per en***@loyaltywallet.it al passo "password": email o password non corrette. Se si ripete con i dati giusti, vedere E_SUPPORT_LOGIN_FAILED nel runbook. |
+| `support.access.denied` | warn | Qualcuno ha provato ad aprire una pagina o un'azione del pannello interno senza averne diritto. | Accesso negato al pannello interno (/interno) senza sessione: sessione assente. |
+| `support.logout` | info | Un membro del team è uscito dal pannello interno. | Enea (assistenza) è uscito dal pannello interno. |
+| `support.search` | info | Ricerca nella vista Assistenza (l'accesso ai dati è tracciato): tipo riconosciuto e numero di risultati. | Enea (assistenza) ha cercato codice errore "ERR-7K3QX": 1 risultato. |
+| `support.timeline.viewed` | info | Apertura di una timeline nella vista Assistenza: chi ha consultato i log di quale negozio, cliente o richiesta. | Enea (assistenza) ha aperto la timeline di cliente A3F2C91B (42 righe). |
+| `support.resync` | info | L'assistenza ha risincronizzato con Google Wallet una carta o un intero negozio dal pannello. | Enea (assistenza) ha risincronizzato la carta A3F2C91B del negozio Salone Mario su Google Wallet: riuscito. |
+| `support.resync.failed` | warn | Risincronizzazione dal pannello non completa: il motivo è nella riga wallet.google.* della stessa richiesta. | Risincronizzazione della carta A3F2C91B del negozio Salone Mario chiesta da Enea non riuscita: il motivo è nella riga wallet.google.* della stessa richiesta; i nuovi tentativi partono da soli. |
+| `support.diagnostic.enabled` | info | Modalità diagnostica attivata dal pannello interno (con scope, durata e motivo). | Enea (assistenza) ha attivato dal pannello la modalità diagnostica debug per negozio salone-mario fino al 04/11/2026 10:00 (ora italiana). Motivo: Il titolare segnala timbri che non arrivano sulla carta. |
+| `support.diagnostic.disabled` | info | Modalità diagnostica spenta dal pannello interno prima della scadenza. | Enea (assistenza) ha disattivato dal pannello la modalità diagnostica per negozio salone-mario prima della scadenza (attiva dal 03/11/2026 10:00 (ora italiana); motivo: Il titolare segnala timbri che non arrivano sulla carta). |
+| `support.customer.export` | info | Esportazione GDPR dei dati di un cliente (file JSON da inviare all'interessato), con il motivo. | Enea (assistenza) ha esportato i dati della carta A3F2C91B del negozio Salone Mario (5.2 KB) per una richiesta GDPR. Motivo: richiesta di accesso via email del 03/11. |
+| `support.customer.delete` | info | Cancellazione GDPR di un cliente fatta dall'assistenza: dati personali tolti, storico pseudonimizzato, carta disattivata. | Enea (assistenza) ha cancellato i dati della carta A3F2C91B del negozio Salone Mario su richiesta GDPR (aveva 4 timbri e 0 premi; 7 righe di storico pseudonimizzate). Motivo: richiesta di cancellazione via email del 03/11. La carta nel wallet viene disattivata. |
+| `support.member.added` | info | Persona aggiunta al team interno (accesso al pannello con 2FA), da riga di comando. | Sara (sa***@loyaltywallet.it) aggiunto al team interno da Enea: account creato con la password scelta da riga di comando. |
+
+### shop
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `shop.created` | info | Nuovo negozio creato dal pannello interno, con il titolare invitato. | Enea (assistenza) ha creato il negozio Barberia Rossi (indirizzo /barberia-rossi) con titolare Luca (lu***@gmail.com): inviata l'email d'invito per scegliere la password. |
+| `shop.suspended` | info | Negozio sospeso dall'assistenza: app esercente e pagina di iscrizione bloccate, carte disattivate su Google dal cron. | Enea (assistenza) ha sospeso il negozio Salone Mario (/salone-mario). Motivo: abbonamento non rinnovato. L'app e la pagina di iscrizione sono bloccate; le 120 carte vengono disattivate su Google entro qualche minuto. |
+| `shop.reactivated` | info | Negozio riattivato dall'assistenza: app e iscrizioni di nuovo aperte, carte riattivate dal cron. | Enea (assistenza) ha riattivato il negozio Salone Mario (/salone-mario). Motivo: abbonamento rinnovato. Le 120 carte tornano attive su Google entro qualche minuto. |
+| `shop.legal.updated` | info | Dati del titolare per l'informativa privacy (ragione sociale, partita IVA, email privacy) cambiati dall'assistenza. | Enea (assistenza) ha aggiornato i dati per l'informativa del negozio Salone Mario: partita IVA, email privacy. |
+
+### log
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `log.db_sink.failed` | warn | Le righe di log non sono state copiate nel database (tabella log_events): mancheranno nella timeline della vista Assistenza, restano nel servizio di log. | 12 righe di log non copiate nel database per la vista Assistenza: fetch failed (Supabase non raggiungibile). Restano nel servizio di log esterno; se si ripete controllare Supabase. |
+| `log.retention.purged` | info | Pulizia dei log copiati nel database: oltre 30 giorni (7 per quelli di modalità diagnostica). | Pulizia dei log della vista Assistenza: tolte 5000 righe più vecchie di 30 giorni e 120 righe di modalità diagnostica più vecchie di 7 giorni. |
 
 ## Errori
 
@@ -993,5 +1101,40 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Il server non si avvia perché una o più variabili d'ambiente mancano o hanno un formato non valido.
 - **Causa probabile**: Variabile non impostata nel deploy o nel file .env.local, oppure copiata male (spazi, virgolette, base64 troncato).
 - **Cosa fare**: Confrontare le variabili del deploy con .env.example dell'app indicata nel log; correggere quelle elencate e riavviare.
+
+### `E_SUPPORT_UNAUTHORIZED` (HTTP 401)
+
+- **L'utente vede**: Accedi al pannello interno per continuare.
+- **Cosa è successo**: Richiesta al pannello interno senza una sessione valida (mai entrati, sessione scaduta o uscita).
+- **Causa probabile**: Sessione di 12 ore scaduta, cookie cancellati o link del pannello aperto da un altro browser.
+- **Cosa fare**: Rientrare da /interno/accesso. Se succede subito dopo l'accesso, controllare che il browser accetti i cookie.
+
+### `E_SUPPORT_FORBIDDEN` (HTTP 403)
+
+- **L'utente vede**: Questo account non fa parte del team interno.
+- **Cosa è successo**: Un account autenticato ha provato a usare il pannello interno ma non è nel team (support_members).
+- **Causa probabile**: Account di un esercente usato per errore sul pannello, oppure membro del team disattivato.
+- **Cosa fare**: Verificare in support_members (user_id nel log). Per aggiungere un membro: pnpm support:add <email> --name <nome> --by <chi>.
+
+### `E_SUPPORT_MFA_REQUIRED` (HTTP 403)
+
+- **L'utente vede**: Inserisci il codice dell'app di autenticazione per continuare.
+- **Cosa è successo**: Membro del team entrato con la password ma senza il secondo fattore (codice TOTP) verificato.
+- **Causa probabile**: Accesso interrotto prima del codice, oppure app di autenticazione non ancora collegata.
+- **Cosa fare**: Completare l'accesso con il codice a 6 cifre. Se il telefono con l'app è perso: rimuovere il fattore dalla dashboard Supabase (Authentication → utente → MFA) e ricollegarlo al prossimo accesso.
+
+### `E_SUPPORT_LOGIN_FAILED` (HTTP 401)
+
+- **L'utente vede**: Email, password o codice non corretti.
+- **Cosa è successo**: Accesso al pannello interno rifiutato: credenziali o codice dell'app di autenticazione sbagliati.
+- **Causa probabile**: Password errata, codice scaduto (vale 30 secondi) o orologio del telefono non sincronizzato.
+- **Cosa fare**: Riprovare con un codice nuovo. Se l'errore si ripete con il codice giusto, controllare l'ora automatica del telefono.
+
+### `E_SHOP_SLUG_TAKEN` (HTTP 409)
+
+- **L'utente vede**: Questo indirizzo è già usato o non è disponibile: scegline un altro.
+- **Cosa è successo**: Creazione di un negozio con uno slug già usato da un altro negozio o riservato a una pagina del sito.
+- **Causa probabile**: Negozio già creato in precedenza, oppure slug come «interno» o «api» che sono percorsi del sito.
+- **Cosa fare**: Cercare il negozio con quello slug nel pannello; se è un doppione usare quello esistente, altrimenti cambiare slug.
 
 <!-- FINE SEZIONE GENERATA -->

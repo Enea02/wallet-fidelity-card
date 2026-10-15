@@ -64,6 +64,8 @@ const describe: Partial<Record<ErrorCode, (d: Detail) => { message: string; user
     userMessage: `Puoi inviare una sola promozione a settimana: la prossima dal ${dayIt(d.next_allowed_at)}.`,
   }),
   E_PROMO_NO_RECIPIENTS: () => ({ message: "nessun cliente attivo con consenso marketing" }),
+  E_SHOP_SLUG_TAKEN: (d) => ({ message: `lo slug ${str(d.slug)} non è disponibile (${str(d.reason)})` }),
+  E_SUPPORT_FORBIDDEN: (d) => ({ message: str(d.reason) }),
 };
 
 const isCatalogCode = (s: string): s is ErrorCode => Object.hasOwn(errors, s);

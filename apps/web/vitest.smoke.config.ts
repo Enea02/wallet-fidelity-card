@@ -19,6 +19,8 @@ function localSupabaseEnv(): Record<string, string> {
     SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY ?? "",
     IP_HASH_SALT: "smoke-test-salt-0123456789",
     LOG_TRANSPORT: "none",
+    // copia dei log in Postgres (vista Assistenza) attiva anche qui: la provano gli smoke della Fase 9
+    LOG_DB_SINK: "on",
     MERCHANT_APP_ORIGINS: "http://localhost:8081",
     MERCHANT_APP_URL: "http://localhost:8081",
     // i test girano tutti dallo stesso "IP": limiti alti, il test del rate limit usa un IP dedicato

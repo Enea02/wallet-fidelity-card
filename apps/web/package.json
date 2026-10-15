@@ -14,12 +14,15 @@
     "diag": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/diag.ts",
     "wallet:resync": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/wallet-resync.ts",
     "cron:configure": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/cron-configure.ts",
+    "support:add": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/support-add.ts",
+    "support:phone-hash": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/phone-hash-backfill.ts",
     "e2e": "next build && playwright test",
     "e2e:only": "playwright test"
   },
   "dependencies": {
     "@loyalty/shared": "workspace:*",
     "@react-pdf/renderer": "^4.9.0",
+    "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.3",
     "jsonwebtoken": "^9.0.3",
     "next": "^16.4.0",
@@ -36,6 +39,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "otplib": "^13.5.0",
     "tsx": "^4.23.0",
     "vitest": "^5.0.4"
   }

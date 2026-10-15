@@ -213,8 +213,9 @@ describe("impostazioni e logo", () => {
       body: { hexColor: "#0F766E", stampCooldownMinutes: 45 },
     });
     expect(r.json).toMatchObject({ settings: { hexColor: "#0f766e", stampCooldownMinutes: 45 } });
+    // valori di partenza letti dal database: il test non dipende da cosa è rimasto da prove precedenti
     expect(ev("settings.update.ok")[0]?.msg).toContain(
-      "colore #7c3aed → #0f766e, minuti minimi tra due timbri 60 → 45",
+      `colore ${String(original.hexColor).toLowerCase()} → #0f766e, minuti minimi tra due timbri ${String(original.stampCooldownMinutes)} → 45`,
     );
     const { data } = await admin
       .from("audit_log")
