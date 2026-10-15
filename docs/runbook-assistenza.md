@@ -621,7 +621,7 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | `support.diagnostic.disabled` | info | Modalità diagnostica spenta dal pannello interno prima della scadenza. | Enea (assistenza) ha disattivato dal pannello la modalità diagnostica per negozio salone-mario prima della scadenza (attiva dal 03/11/2026 10:00 (ora italiana); motivo: Il titolare segnala timbri che non arrivano sulla carta). |
 | `support.customer.export` | info | Esportazione GDPR dei dati di un cliente (file JSON da inviare all'interessato), con il motivo. | Enea (assistenza) ha esportato i dati della carta A3F2C91B del negozio Salone Mario (5.2 KB) per una richiesta GDPR. Motivo: richiesta di accesso via email del 03/11. |
 | `support.customer.delete` | info | Cancellazione GDPR di un cliente fatta dall'assistenza: dati personali tolti, storico pseudonimizzato, carta disattivata. | Enea (assistenza) ha cancellato i dati della carta A3F2C91B del negozio Salone Mario su richiesta GDPR (aveva 4 timbri e 0 premi; 7 righe di storico pseudonimizzate). Motivo: richiesta di cancellazione via email del 03/11. La carta nel wallet viene disattivata. |
-| `support.member.added` | info | Persona aggiunta al team interno (accesso al pannello con 2FA), da riga di comando. | Sara (sa***@loyaltywallet.it) aggiunto al team interno da Enea: inviata l'email per scegliere la password. |
+| `support.member.added` | info | Persona aggiunta al team interno (accesso al pannello con 2FA), da riga di comando. | Sara (sa***@loyaltywallet.it) aggiunto al team interno da Enea: account creato con la password scelta da riga di comando. |
 
 ### shop
 

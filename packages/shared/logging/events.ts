@@ -2269,7 +2269,7 @@ export const events = {
       `${f.support_name} (${f.email}) aggiunto al team interno da ${f.added_by}` +
       (f.existing_account
         ? ": aveva già un account, entra con la sua password."
-        : ": inviata l'email per scegliere la password."),
+        : ": account creato con la password scelta da riga di comando."),
     examples: [
       { support_name: "Sara", email: "sa***@loyaltywallet.it", added_by: "Enea", existing_account: false },
       { support_name: "Sara", email: "sa***@loyaltywallet.it", added_by: "Enea", existing_account: true },
