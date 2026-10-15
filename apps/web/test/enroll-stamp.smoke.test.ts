@@ -13,10 +13,12 @@ const phone = testPhone();
 let mocks: PublicMocks;
 let qrToken = "";
 
+// IP diverso a ogni giro: il limite è di 10 iscrizioni l'ora per IP e resta nel DB tra un giro e l'altro
+const ip = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
 const post = (body: unknown) =>
   new Request("http://localhost:3000/api/public", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.7" },
+    headers: { "content-type": "application/json", "x-forwarded-for": ip },
     body: JSON.stringify(body),
   });
 
