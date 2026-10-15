@@ -17,3 +17,6 @@ e2e-logs/
 .env*.local
 dist-e2e/
 public/zxing/
+
+# build locali per iPhone collegato (xcodebuild -derivedDataPath)
+/build-iphone

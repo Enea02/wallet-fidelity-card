@@ -20,9 +20,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   userInterfaceStyle: "automatic",
   ios: {
     bundleIdentifier: "it.loyaltywallet.esercente",
+    // team di firma per le build locali su un iPhone (APPLE_TEAM_ID); EAS usa le sue credenziali
+    ...(process.env.APPLE_TEAM_ID && { appleTeamId: process.env.APPLE_TEAM_ID }),
     supportsTablet: true,
     buildNumber: process.env.APP_BUILD ?? "1",
-    infoPlist: { ITSAppUsesNonExemptEncryption: false },
+    // NSAllowsLocalNetworking: in sviluppo l'app su iPhone parla in http con il Mac (backend e Supabase locali)
+    infoPlist: { ITSAppUsesNonExemptEncryption: false, NSAppTransportSecurity: { NSAllowsLocalNetworking: true } },
   },
   android: {
     package: "it.loyaltywallet.esercente",
@@ -39,6 +42,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     backgroundColor: "#F7F2EB",
   },
   plugins: [
+    // iOS 27: ciclo di vita a scene, altrimenti l'app si chiude all'avvio (vedi il plugin)
+    "./plugins/with-scene-lifecycle.js",
     "expo-router",
     "expo-secure-store",
     "expo-localization",
