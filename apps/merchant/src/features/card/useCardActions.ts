@@ -5,7 +5,7 @@ import type { Shop } from "@/lib/session";
 import type { ScannedCard } from "../scan/session";
 import { feedback } from "./feedback";
 import { createActionKeys, type CardActionKind } from "./keys";
-import { availability, cardReducer, initialState, type Notice } from "./state";
+import { availability, cardReducer, initialState, STAMP_GUARD_MS, type Notice } from "./state";
 
 /** Annullamento non più possibile: il pulsante sparisce (lo dice il server). */
 const UNDO_CLOSED = new Set([
@@ -32,6 +32,15 @@ export function useCardActions(shop: Shop, scanned: ScannedCard, sound: boolean,
   const keys = useRef(createActionKeys()).current;
   const [now, setNow] = useState(() => Date.now());
   const customerId = scanned.data.card.id;
+
+  // "+1" si riattiva da solo dopo il blocco anti doppio tocco
+  useEffect(() => {
+    if (state.lastStampAt === null) return;
+    const left = state.lastStampAt + STAMP_GUARD_MS - Date.now();
+    if (left <= 0) return;
+    const timer = setTimeout(() => setNow(Date.now()), left + 20);
+    return () => clearTimeout(timer);
+  }, [state.lastStampAt]);
 
   // conto alla rovescia di "Annulla ultimo timbro"
   useEffect(() => {

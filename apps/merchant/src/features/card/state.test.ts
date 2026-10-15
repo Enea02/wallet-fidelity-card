@@ -23,8 +23,10 @@ describe("scheda cliente", () => {
     s = cardReducer(s, { type: "stamped", card: card({ stamps: 7 }), rewardUnlocked: false, at: 1000 });
     expect(s.toast).toEqual({ title: "Timbro aggiunto", body: "Giulia ha 7 timbri su 10" });
     expect(s.data.visits).toBe(17);
-    expect(availability(s, 1000, true)).toMatchObject({ stamp: true, undo: true, undoSecondsLeft: 300 });
-    expect(availability(s, 1000 + UNDO_WINDOW_MS, true).undo).toBe(false);
+    // doppio tocco: per 1 secondo dopo il timbro "+1" resta bloccato
+    expect(availability(s, 1300, true)).toMatchObject({ stamp: false, undo: true });
+    expect(availability(s, 2000, true)).toMatchObject({ stamp: true, undo: true, undoSecondsLeft: 299 });
+    expect(availability(s, 1000 + UNDO_WINDOW_MS, true)).toMatchObject({ undo: false, stamp: true });
   });
 
   it("ultimo timbro: schermata del premio invece del toast; riscatto con conferma", () => {

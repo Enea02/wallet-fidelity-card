@@ -37,7 +37,8 @@ export default function Scanner() {
       return () => setFocused(false);
     }, []),
   );
-  const active = focused && !busy && online;
+  // con un avviso aperto la fotocamera si ferma: un QR sbagliato ancora inquadrato non viene riletto
+  const active = focused && !busy && online && notice === null;
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>

@@ -50,7 +50,15 @@ test("doppio tocco rapido su +1 timbro: un solo timbro", async ({ page }) => {
   await expect(page.getByTestId("toast")).toBeVisible();
   await page.waitForTimeout(500);
   expect(await stampCount(c.id)).toBe(1);
-  expect((await balance(c.id)).stamps).toBe(1);
+
+  // doppio tocco "umano": il secondo arriva dopo la risposta del server (300 ms dopo il primo)
+  await page.waitForTimeout(1200);
+  await page.getByTestId("aggiungi-timbro").click();
+  await page.waitForTimeout(300);
+  await page.getByTestId("aggiungi-timbro").click({ force: true });
+  await page.waitForTimeout(800);
+  expect(await stampCount(c.id)).toBe(2);
+  expect((await balance(c.id)).stamps).toBe(2);
 });
 
 test("carta completata: premio sbloccato, riscatto con conferma, annullamento", async ({ page }) => {

@@ -6,6 +6,11 @@ import type { CardView } from "@loyalty/shared/api";
  */
 
 export const UNDO_WINDOW_MS = 5 * 60 * 1000;
+/**
+ * Dopo un timbro "+1" resta bloccato per 1 secondo: un doppio tocco umano dura 200-400 ms, più
+ * della richiesta (~120 ms), e il secondo tocco sarebbe un timbro nuovo con una chiave nuova.
+ */
+export const STAMP_GUARD_MS = 1000;
 
 export interface CardData {
   card: CardView;
@@ -25,6 +30,8 @@ export interface CardState {
   busy: null | "stamp" | "undo" | "redeem";
   /** Fine della finestra per annullare il timbro dato da questo dispositivo (ms), se aperta. */
   undoUntil: number | null;
+  /** Istante dell'ultimo timbro confermato (ms): "+1" resta bloccato per STAMP_GUARD_MS. */
+  lastStampAt: number | null;
   toast: { title: string; body: string } | null;
   /** Foglio "Timbro già dato da poco" (messaggio del server con i minuti). */
   cooldown: Notice | null;
@@ -50,6 +57,7 @@ export const initialState = (data: CardData): CardState => ({
   data,
   busy: null,
   undoUntil: null,
+  lastStampAt: null,
   toast: null,
   cooldown: null,
   confirmRedeem: false,
@@ -72,6 +80,7 @@ export function cardReducer(s: CardState, e: CardEvent): CardState {
         busy: null,
         data: { ...s.data, card: e.card, visits: s.data.visits + 1 },
         undoUntil: e.at + UNDO_WINDOW_MS,
+        lastStampAt: e.at,
         celebration: e.rewardUnlocked,
         toast: e.rewardUnlocked
           ? null
@@ -123,8 +132,9 @@ export function cardReducer(s: CardState, e: CardEvent): CardState {
 /** Cosa si può fare adesso (pulsanti attivi). */
 export function availability(s: CardState, now: number, online: boolean) {
   const idle = s.busy === null && online;
+  const guarded = s.lastStampAt !== null && now < s.lastStampAt + STAMP_GUARD_MS;
   return {
-    stamp: idle,
+    stamp: idle && !guarded,
     redeem: idle && s.data.card.rewardsAvailable > 0,
     undo: idle && s.undoUntil !== null && now < s.undoUntil,
     undoSecondsLeft: s.undoUntil === null ? 0 : Math.max(0, Math.ceil((s.undoUntil - now) / 1000)),

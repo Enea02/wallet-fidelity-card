@@ -21,6 +21,7 @@ export function useScan(mode: ScanMode, sound: boolean) {
   const [notice, setNotice] = useState<(Notice & { title: string }) | null>(null);
   const dedupe = useRef(createDedupe());
   const busyRef = useRef(false);
+  const lastFailed = useRef("");
 
   // tornando dallo scanner la carta appena servita non si riapre (il telefono del cliente è ancora lì)
   useFocusEffect(
@@ -35,6 +36,7 @@ export function useScan(mode: ScanMode, sound: boolean) {
       const p = parseCode(raw);
       if (!p.ok) {
         if (!dedupe.current.accept(raw.trim())) return;
+        lastFailed.current = raw.trim();
         log.event("scan.read.invalid", { mode, reason: p.reason });
         feedback("error", sound);
         setNotice({
@@ -61,8 +63,8 @@ export function useScan(mode: ScanMode, sound: boolean) {
         router.push({ pathname: "/cliente/[id]", params: { id: r.card.id } });
       } catch (e) {
         if (!(e instanceof ApiError)) throw e;
+        lastFailed.current = p.code;
         feedback("error", sound);
-        dedupe.current.reset(); // dopo un errore lo stesso codice si può riprovare subito
         setNotice({
           code: e.code,
           title:
@@ -81,7 +83,17 @@ export function useScan(mode: ScanMode, sound: boolean) {
     [mode, shop.id, shop.name, sound],
   );
 
-  return { handle, busy, notice, dismiss: () => setNotice(null) };
+  /**
+   * "Ok, riprova": con la fotocamera la stessa carta resta ignorata per 3 secondi (il QR sbagliato
+   * è ancora inquadrato e riaprirebbe subito l'avviso); con lettore e codice a mano si può ripetere subito.
+   */
+  const dismiss = useCallback(() => {
+    setNotice(null);
+    if (mode === "fotocamera") dedupe.current.hold(lastFailed.current);
+    else dedupe.current.reset();
+  }, [mode]);
+
+  return { handle, busy, notice, dismiss };
 }
 
 /** La scheda appena aperta da una lettura: per scan.card.shown e i tempi del timbro. */
