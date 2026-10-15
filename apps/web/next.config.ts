@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
   },
   // packages/shared è TypeScript sorgente: lo compila Next
   transpilePackages: ["@loyalty/shared"],
+  // solo `next dev`: la pagina di iscrizione aperta da un telefono tramite tunnel (prova del cartello, README)
+  allowedDevOrigins: ["*.trycloudflare.com"],
   // versione e commit finiscono nel log di avvio e (dalla Fase 1) in ogni riga
   env: { APP_VERSION: pkg.version, APP_COMMIT_SHA: gitCommit() },
   // le istruzioni per gli agenti stanno in CLAUDE.md alla radice

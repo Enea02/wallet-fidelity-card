@@ -168,6 +168,9 @@ cloudflared tunnel --url http://127.0.0.1:3000    # altro https://….trycloudfl
 # in apps/web/.env.local: CARD_DEFAULT_LOGO_URL=<quell'indirizzo>/brand/logo-predefinito.png
 ```
 
+Lo stesso tunnel in `APP_BASE_URL` fa funzionare anche il QR del cartello da un telefono qualsiasi (i domini
+`*.trycloudflare.com` sono già in `allowedDevOrigins`, altrimenti `next dev` blocca il JavaScript della pagina).
+
 Su iPhone le foto (Display P3, 16 bit per canale) diventano PNG oltre i 2 MB anche a 660 px: in quel caso l'app
 carica il logo in JPEG.
 
