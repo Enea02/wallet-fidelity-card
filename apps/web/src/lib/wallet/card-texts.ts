@@ -1,3 +1,4 @@
+import { cardModule, cardStage as sharedStage, type CardStage } from "@loyalty/shared/copy";
 import type { Customer, Shop } from "../types";
 
 /*
@@ -19,12 +20,10 @@ export function cooldownText(minutes: number): string {
   return minutes === 1 ? "1 minuto" : `${minutes} minuti`;
 }
 
-export type CardStage = "nuova" | "a metà" | "premio";
+export type { CardStage };
 
-export function cardStage(customer: Pick<Customer, "stamps" | "rewards_available">): CardStage {
-  if (customer.rewards_available > 0) return "premio";
-  return customer.stamps === 0 ? "nuova" : "a metà";
-}
+export const cardStage = (customer: Pick<Customer, "stamps" | "rewards_available">): CardStage =>
+  sharedStage(customer.stamps, customer.rewards_available);
 
 export interface CardTexts {
   stamps: string;
@@ -39,22 +38,17 @@ export function cardTexts(shop: Shop, customer: Pick<Customer, "stamps" | "rewar
   const n = shop.stamps_required;
   const reward = shop.reward_label;
   const rl = lowerFirst(reward);
-  const left = n - customer.stamps;
   const oneStampEach = `Un timbro per ogni ${shop.stamp_unit}.`;
   const howItWorks = `${oneStampEach} Al ${n}° timbro, ${rl}.`;
-
-  const stateModule =
-    cardStage(customer) === "premio"
-      ? { header: `${reward} disponibile!`, body: `Hai completato la carta. Mostra il QR alla cassa e goditi ${rl}.` }
-      : cardStage(customer) === "nuova"
-        ? {
-            header: "Come funziona",
-            body: `${howItWorks} Mostra il QR alla cassa: niente app, niente carta da perdere.`,
-          }
-        : {
-            header: `Ti ${left === 1 ? "manca" : "mancano"} ${unitCount(shop, left)}`,
-            body: `Ancora ${unitCount(shop, left)} per il premio: ${rl}. ${oneStampEach}`,
-          };
+  // stesso testo dell'anteprima nell'app esercente (packages/shared/copy.ts)
+  const stateModule = cardModule({
+    stampsRequired: n,
+    stamps: customer.stamps,
+    rewards: customer.rewards_available,
+    stampUnit: shop.stamp_unit,
+    stampUnitPlural: shop.stamp_unit_plural,
+    rewardLabel: reward,
+  });
 
   const rules = [
     shop.stamp_cooldown_minutes > 0

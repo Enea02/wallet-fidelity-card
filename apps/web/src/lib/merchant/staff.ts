@@ -11,29 +11,41 @@ import { callDomain, staffMeta } from "./domain-call";
 
 type Member = z.input<typeof StaffMember>;
 
-async function emailOf(userId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin().auth.admin.getUserById(userId);
-  return data.user?.email ?? null;
+interface OverviewRow {
+  user_id: string;
+  display_name: string;
+  role: Role;
+  email: string | null;
+  stamps_given: number;
+  invite_pending: boolean;
+  invited_at: string | null;
+}
+
+const toMember = (r: OverviewRow): Member => ({
+  userId: r.user_id,
+  displayName: r.display_name,
+  role: r.role,
+  email: r.email,
+  stampsGiven: Number(r.stamps_given),
+  invitePending: r.invite_pending,
+  invitedAt: r.invited_at ? new Date(r.invited_at).toISOString() : null,
+});
+
+/** Staff del negozio con timbri dati e inviti in attesa (funzione staff_overview). */
+async function overview(shop: Shop): Promise<OverviewRow[]> {
+  const { data, error } = await supabaseAdmin().rpc("staff_overview", { p_shop_id: shop.id });
+  if (error) throw error;
+  return (data ?? []) as OverviewRow[];
+}
+
+async function memberOf(shop: Shop, userId: string): Promise<Member> {
+  const row = (await overview(shop)).find((r) => r.user_id === userId);
+  if (!row) throw new AppError("E_STAFF_NOT_FOUND", `l'utente ${userId} non è nello staff del negozio ${shop.id}`);
+  return toMember(row);
 }
 
 export async function listStaff(shop: Shop): Promise<{ staff: Member[] }> {
-  const { data, error } = await supabaseAdmin()
-    .from("staff")
-    .select("user_id, display_name, role")
-    .eq("shop_id", shop.id)
-    .order("role")
-    .order("display_name");
-  if (error) throw error;
-  const rows = (data ?? []) as Array<{ user_id: string; display_name: string; role: Role }>;
-  const emails = await Promise.all(rows.map((r) => emailOf(r.user_id)));
-  return {
-    staff: rows.map((r, i) => ({
-      userId: r.user_id,
-      displayName: r.display_name,
-      role: r.role,
-      email: emails[i] ?? null,
-    })),
-  };
+  return { staff: (await overview(shop)).map(toMember) };
 }
 
 /**
@@ -82,10 +94,7 @@ export async function inviteStaff(
     member_role: input.role,
     existing_account: existingId !== null,
   });
-  return {
-    member: { userId: memberId, displayName: input.displayName.trim(), role: input.role, email },
-    existingAccount: existingId !== null,
-  };
+  return { member: await memberOf(shop, memberId), existingAccount: existingId !== null };
 }
 
 export async function updateStaff(
@@ -109,7 +118,7 @@ export async function updateStaff(
     role_before: r.role_before,
     role_after: r.role,
   });
-  return { member: { userId: memberId, displayName: r.display_name, role: r.role, email: await emailOf(memberId) } };
+  return { member: await memberOf(shop, memberId) };
 }
 
 export async function removeStaff(shop: Shop, memberId: string, userId: string, actor: ActorFields) {
@@ -120,4 +129,35 @@ export async function removeStaff(shop: Shop, memberId: string, userId: string, 
   });
   log.event("staff.revoked", { ...actor, shop_name: shop.name, member_name: r.display_name, member_role: r.role });
   return { removed: true as const };
+}
+
+/** Reinvia l'email d'invito a chi non l'ha ancora accettato (stesso link: /invito della web app). */
+export async function resendInvite(shop: Shop, memberId: string, actor: ActorFields) {
+  const member = await memberOf(shop, memberId);
+  if (!member.invitePending || !member.email) {
+    throw new AppError(
+      "E_VALIDATION",
+      `${member.displayName} ha già accettato l'invito: niente da reinviare`,
+      { fields: ["params.userId"] },
+      { userMessage: `${member.displayName} ha già accettato l'invito e può accedere con la sua password.` },
+    );
+  }
+  const base = process.env.MERCHANT_APP_URL ?? process.env.APP_BASE_URL ?? "";
+  const { error } = await supabaseAdmin().auth.admin.inviteUserByEmail(member.email, {
+    redirectTo: `${base.replace(/\/$/, "")}/invito`,
+    data: { name: member.displayName, shop_name: shop.name },
+  });
+  if (error) {
+    throw new AppError(
+      "E_INVITE_FAILED",
+      `reinvio dell'invito a ${maskEmail(member.email)} non riuscito: ${error.message}`,
+    );
+  }
+  log.event("staff.invite.resent", {
+    ...actor,
+    shop_name: shop.name,
+    member_name: member.displayName,
+    member_email: maskEmail(member.email),
+  });
+  return { member: await memberOf(shop, memberId) };
 }

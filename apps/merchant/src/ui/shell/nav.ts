@@ -8,6 +8,7 @@ export const ICON: Record<SectionKey, IconName> = {
   carta: "card",
   staff: "staff",
   messaggi: "message",
+  cartello: "print",
   scanner: "scan",
   profilo: "profile",
 };

@@ -21,7 +21,11 @@ interface Row {
   rewards_available: number;
   consent_marketing: boolean;
   created_at: string;
+  /** Dalla vista customer_overview (assente nella lettura diretta di customers). */
+  last_visit_at?: string | null;
 }
+
+const INACTIVE_DAYS = 60;
 
 const toItem = (r: Row): z.infer<typeof CustomerItem> => ({
   id: r.id,
@@ -32,6 +36,7 @@ const toItem = (r: Row): z.infer<typeof CustomerItem> => ({
   rewardsAvailable: r.rewards_available,
   consentMarketing: r.consent_marketing,
   createdAt: new Date(r.created_at).toISOString(),
+  lastVisitAt: r.last_visit_at ? new Date(r.last_visit_at).toISOString() : null,
 });
 
 type QueryKind = "tutti" | "telefono" | "codice breve" | "nome";
@@ -64,7 +69,10 @@ function decodeCursor(cursor: string): { c: string; i: string } {
   throw new AppError("E_VALIDATION", "cursore di paginazione non valido", { fields: ["query.cursor"] });
 }
 
-/** Lista clienti attivi, dal più recente, con ricerca e paginazione a cursore. */
+/**
+ * Lista clienti attivi, dal più recente, con ricerca, filtro (con premio / inattivi da 60+ giorni)
+ * e paginazione a cursore. Dalla vista customer_overview, che aggiunge l'ultima visita.
+ */
 export async function listCustomers(
   shop: Shop,
   query: z.output<typeof CustomersQuery>,
@@ -72,10 +80,9 @@ export async function listCustomers(
 ): Promise<z.input<typeof CustomersResponse>> {
   const { kind, value } = classifyQuery(query.q);
   let q = supabaseAdmin()
-    .from("customers")
-    .select(COLS)
+    .from("customer_overview")
+    .select(`${COLS}, last_visit_at`)
     .eq("shop_id", shop.id)
-    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(query.limit + 1);
@@ -83,6 +90,10 @@ export async function listCustomers(
   if (kind === "telefono") q = q.eq("phone", value);
   if (kind === "codice breve") q = q.eq("short_code", value);
   if (kind === "nome") q = q.ilike("name", `%${value.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
+  if (query.filter === "premio") q = q.gt("rewards_available", 0);
+  if (query.filter === "inattivi") {
+    q = q.lt("last_activity_at", new Date(Date.now() - INACTIVE_DAYS * 86_400_000).toISOString());
+  }
   if (query.cursor) {
     const { c, i } = decodeCursor(query.cursor);
     q = q.or(`created_at.lt."${c}",and(created_at.eq."${c}",id.lt.${i})`);
@@ -122,6 +133,8 @@ export async function customerDetail(shop: Shop, customerId: string): Promise<z.
   setContext({ customer_ref: row.short_code });
   if (row.deleted_at)
     throw new AppError("E_CARD_DELETED", `la carta ${row.short_code} è stata cancellata il ${row.deleted_at}`);
+  const { data: visit } = await db.from("customer_overview").select("last_visit_at").eq("id", customerId).maybeSingle();
+  row.last_visit_at = (visit?.last_visit_at as string | null | undefined) ?? null;
 
   const [{ data: audit, error: e1 }, { data: staff, error: e2 }] = await Promise.all([
     db

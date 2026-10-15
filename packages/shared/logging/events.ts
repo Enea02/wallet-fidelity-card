@@ -406,6 +406,26 @@ export interface LogoUploadUrlIssuedFields extends ActorFields {
   size_bytes: number;
 }
 
+export interface LogoUploadOkFields extends ActorFields {
+  shop_name: string;
+  content_type: string;
+  size_bytes: number;
+}
+
+/** Caricamento del logo non riuscito: verso lo Storage (dall'app) o alla verifica (dal server). */
+export interface LogoUploadFailedFields {
+  shop_name: string;
+  stage: "caricamento" | "verifica";
+  reason: string;
+  http_status: number | null;
+}
+
+export interface StaffInviteResentFields extends ActorFields {
+  shop_name: string;
+  member_name: string;
+  member_email: string;
+}
+
 export interface StaffInviteSentFields extends ActorFields {
   shop_name: string;
   member_name: string;
@@ -1384,6 +1404,34 @@ export const events = {
       `${cap(actor(f))} sta caricando un nuovo logo per il negozio ${f.shop_name} (${f.content_type}, ${kb(f.size_bytes)}): ` +
       `URL di caricamento rilasciato.`,
     examples: [{ ...titolare, shop_name: "Salone Mario", content_type: "image/png", size_bytes: 184_320 }],
+  }),
+
+  "logo.upload.ok": defineEvent<LogoUploadOkFields>({
+    level: "info",
+    description: "Il nuovo logo è stato caricato, verificato e pubblicato: le carte nel Wallet si aggiornano.",
+    msg: (f) =>
+      `${cap(actor(f))} ha pubblicato il nuovo logo del negozio ${f.shop_name} (${f.content_type}, ${kb(f.size_bytes)}): ` +
+      `le carte nel Wallet si aggiornano entro qualche minuto.`,
+    examples: [{ ...titolare, shop_name: "Salone Mario", content_type: "image/png", size_bytes: 184_320 }],
+  }),
+  "logo.upload.failed": defineEvent<LogoUploadFailedFields>({
+    level: "warn",
+    description:
+      "Logo non caricato: invio del file allo Storage fallito (dall'app) o file non valido alla verifica (dal server). Il logo precedente resta.",
+    msg: (f) =>
+      `Logo del negozio ${f.shop_name} non aggiornato: ${f.stage === "caricamento" ? "invio del file non riuscito" : "file non valido"} ` +
+      `(${f.reason}${f.http_status === null ? "" : `, HTTP ${f.http_status}`}). Resta il logo precedente.`,
+    examples: [
+      { shop_name: "Salone Mario", stage: "caricamento", reason: "rete interrotta", http_status: null },
+      { shop_name: "Salone Mario", stage: "verifica", reason: "immagine di 3,1 MB, massimo 2 MB", http_status: 413 },
+    ],
+  }),
+  "staff.invite.resent": defineEvent<StaffInviteResentFields>({
+    level: "info",
+    description: "Il titolare ha reinviato l'email d'invito a chi non l'aveva ancora accettato.",
+    msg: (f) =>
+      `${cap(actor(f))} ha reinviato l'invito del negozio ${f.shop_name} a ${f.member_name} (${f.member_email}).`,
+    examples: [{ ...titolare, shop_name: "Salone Mario", member_name: "Ilaria", member_email: "il***@gmail.com" }],
   }),
 
   "staff.invite.sent": defineEvent<StaffInviteSentFields>({

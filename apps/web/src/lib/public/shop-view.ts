@@ -1,3 +1,4 @@
+import { taglineFor as sharedTagline } from "@loyalty/shared/copy";
 import { cardColors, monogram, strip, svgDataUrl, type StampIcon } from "@loyalty/shared/theme";
 import type { Shop } from "../types";
 
@@ -17,11 +18,14 @@ export interface PublicShop {
   card: { bg: string; fg: string; label: string; ring: string };
 }
 
-const lowerFirst = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
-
 /** Frase d'apertura: quella del negozio o, se manca, "Ogni 10 tagli, taglio gratis." */
 export const taglineFor = (s: Pick<Shop, "tagline" | "stamps_required" | "stamp_unit_plural" | "reward_label">) =>
-  s.tagline ?? `Ogni ${s.stamps_required} ${s.stamp_unit_plural}, ${lowerFirst(s.reward_label)}.`;
+  sharedTagline({
+    tagline: s.tagline,
+    stampsRequired: s.stamps_required,
+    stampUnitPlural: s.stamp_unit_plural,
+    rewardLabel: s.reward_label,
+  });
 
 export function publicShop(shop: Shop): PublicShop {
   const c = cardColors(shop.hex_color.toUpperCase());

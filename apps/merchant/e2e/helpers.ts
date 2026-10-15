@@ -107,7 +107,7 @@ export interface TestCustomer {
 }
 
 /** Cliente nuovo (iscrizione tramite la funzione di dominio, come dal web). */
-export async function newCustomer(shopId: string, name = "Zefiro Prova"): Promise<TestCustomer> {
+export async function newCustomer(shopId: string, name = "Zefiro Prova", marketing = false): Promise<TestCustomer> {
   const phone = `+39347${String(Math.floor(Math.random() * 1e7)).padStart(7, "0")}`;
   const r = await rest<{ customer_id: string; short_code: string; qr_token: string }>("rpc/enroll_customer", {
     method: "POST",
@@ -116,7 +116,7 @@ export async function newCustomer(shopId: string, name = "Zefiro Prova"): Promis
       p_name: name,
       p_phone: phone,
       p_consent_privacy: true,
-      p_consent_marketing: false,
+      p_consent_marketing: marketing,
       p_meta: { actor_type: "customer" },
     }),
   });
@@ -158,3 +158,24 @@ export async function readerScan(page: Page, code: string) {
   await page.keyboard.type(code, { delay: 5 });
   await page.keyboard.press("Enter");
 }
+
+/** Lettura o modifica diretta di una tabella (service role, solo nei test). */
+export const restSelect = <T>(path: string) => rest<T>(path);
+export const restPatch = (path: string, body: Record<string, unknown>) =>
+  rest<unknown>(path, { method: "PATCH", body: JSON.stringify(body), headers: { prefer: "return=representation" } });
+export const restDelete = (path: string) =>
+  rest<unknown>(path, { method: "DELETE", headers: { prefer: "return=representation" } });
+
+/** Elimina un utente di Supabase Auth creato da un test (inviti dello staff). */
+export async function deleteAuthUser(userId: string) {
+  await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+    method: "DELETE",
+    headers: { apikey: SERVICE, authorization: `Bearer ${SERVICE}` },
+  });
+}
+
+/** PNG valido di 1×1 pixel: il logo viene ritagliato e ridimensionato dall'app prima del caricamento. */
+export const TINY_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);

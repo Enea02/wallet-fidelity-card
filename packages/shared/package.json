@@ -12,7 +12,8 @@
     "./logger": "./logger/index.ts",
     "./api": "./api/index.ts",
     "./theme": "./theme.ts",
-    "./phone": "./phone.ts"
+    "./phone": "./phone.ts",
+    "./copy": "./copy.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

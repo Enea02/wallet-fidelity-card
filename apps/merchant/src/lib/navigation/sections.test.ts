@@ -26,6 +26,8 @@ describe("sezioni per ruolo", () => {
   it("riconosce la sezione dal percorso", () => {
     expect(sectionOf("/clienti")).toBe("clienti");
     expect(sectionOf("/staff/123")).toBe("staff");
+    expect(sectionOf("/clienti/33333333-3333-4333-8333-333333333333")).toBe("clienti");
+    expect(sectionOf("/cartello")).toBe("cartello");
     expect(sectionOf("/accedi")).toBeNull();
     expect(sectionOf("/")).toBeNull();
   });

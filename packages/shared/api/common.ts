@@ -26,6 +26,9 @@ export type Role = z.infer<typeof Role>;
 /** Codice breve della carta: 8 caratteri, niente 0/O/1/I/L. */
 export const ShortCode = z.string().regex(/^[2-9A-HJKMNP-Z]{8}$/, "codice breve non valido");
 
+/** Icone dei timbri (packages/shared/theme.ts, STAMP_ICONS). */
+export const StampIconName = z.enum(["scissors", "cup", "pizza", "sparkle", "gift", "check"]);
+
 export const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "colore non valido (formato #RRGGBB)");
 
 /** Carta come la vede lo staff: niente telefono, niente QR. */

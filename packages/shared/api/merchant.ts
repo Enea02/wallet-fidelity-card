@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CardView, CustomerIdBody, HexColor, IdParams, Role, ShortCode, UserIdParams } from "./common";
+import { CardView, CustomerIdBody, HexColor, IdParams, Role, ShortCode, StampIconName, UserIdParams } from "./common";
 
 /*
  * Contratti delle API dell'app esercente (/api/v1/merchant/*): richiesta e risposta di
@@ -30,7 +30,7 @@ export const ShopSummary = z.object({
   stampsRequired: z.number().int(),
   rewardLabel: z.string(),
   /** Icona dei timbri pieni (packages/shared/theme.ts, STAMP_ICONS). */
-  stampIcon: z.enum(["scissors", "cup", "pizza", "sparkle", "gift", "check"]),
+  stampIcon: StampIconName,
   status: z.enum(["active", "suspended"]),
 });
 export const ShopsResponse = z.object({ shops: z.array(ShopSummary) });
@@ -71,13 +71,26 @@ export { CustomerIdBody };
 export const WeekStats = z.object({
   weekStart: z.string(),
   stamps: z.number().int(),
+  /** Premi sbloccati (carte completate) nella settimana. */
+  unlocked: z.number().int(),
   redeems: z.number().int(),
   enrollments: z.number().int(),
+});
+export const InactiveCustomer = z.object({
+  customerId: z.uuid(),
+  name: z.string(),
+  stamps: z.number().int(),
+  /** Ultima visita, o l'iscrizione se non è mai tornato. */
+  lastActivityAt: z.string(),
 });
 export const StatsResponse = z.object({
   customersTotal: z.number().int(),
   customersMarketing: z.number().int(),
   inactive60Days: z.number().int(),
+  /** Inattivi da 60+ giorni con consenso marketing: "Scrivi ai 21 con consenso". */
+  inactiveMarketing: z.number().int(),
+  /** I 5 inattivi più recenti, da richiamare per primi. */
+  inactiveRecent: z.array(InactiveCustomer),
   thisWeek: WeekStats,
   weeks: z.array(WeekStats).length(8),
 });
@@ -86,6 +99,8 @@ export const StatsResponse = z.object({
 
 export const CustomersQuery = z.object({
   q: z.string().trim().max(80).optional(),
+  /** Tutti, solo con premio da riscattare, solo inattivi da 60+ giorni (design T3). */
+  filter: z.enum(["tutti", "premio", "inattivi"]).default("tutti"),
   cursor: z.string().max(200).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
 });
@@ -99,6 +114,8 @@ export const CustomerItem = z.object({
   rewardsAvailable: z.number().int(),
   consentMarketing: z.boolean(),
   createdAt: z.string(),
+  /** Ultimo timbro o riscatto (null se non è mai tornato dopo l'iscrizione). */
+  lastVisitAt: z.string().nullable(),
 });
 export const CustomersResponse = z.object({ items: z.array(CustomerItem), nextCursor: z.string().nullable() });
 
@@ -145,13 +162,17 @@ export const ShopSettings = z.object({
   programName: z.string(),
   stampUnit: z.string(),
   stampUnitPlural: z.string(),
+  stampIcon: StampIconName,
+  /** Frase d'apertura della pagina di iscrizione e del cartello (null = automatica). */
+  tagline: z.string().nullable(),
 });
 export const SettingsResponse = z.object({ settings: ShopSettings });
 export const SettingsUpdateBody = z
   .object({
     name: z.string().trim().min(2).max(60),
     hexColor: HexColor,
-    stampsRequired: z.number().int().min(2).max(50),
+    /** Da 5 a 20: la griglia dei timbri della carta arriva a 20 (design 03 · Timbri). */
+    stampsRequired: z.number().int().min(5).max(20),
     rewardLabel: z.string().trim().min(2).max(40),
     stampCooldownMinutes: z.number().int().min(0).max(1440),
     /** Percorso restituito da logo-upload-url, dopo aver caricato il file. */
@@ -166,6 +187,8 @@ export const SettingsUpdateBody = z
     programName: z.string().trim().min(2).max(40),
     stampUnit: z.string().trim().min(2).max(20),
     stampUnitPlural: z.string().trim().min(2).max(20),
+    stampIcon: StampIconName,
+    tagline: z.string().trim().max(80).nullable(),
   })
   .partial()
   .refine((o) => Object.keys(o).length > 0, { message: "nessun campo da aggiornare" });
@@ -189,6 +212,11 @@ export const StaffMember = z.object({
   displayName: z.string(),
   email: z.string().nullable(),
   role: Role,
+  /** Timbri dati in questo negozio (non annullati). */
+  stampsGiven: z.number().int(),
+  /** Invito non ancora accettato (nessun accesso). */
+  invitePending: z.boolean(),
+  invitedAt: z.string().nullable(),
 });
 export const StaffListResponse = z.object({ staff: z.array(StaffMember) });
 export const StaffInviteBody = z.object({

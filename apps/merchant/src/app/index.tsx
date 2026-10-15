@@ -1,6 +1,7 @@
 import { router, type Href } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { ActivityIndicator, View } from "react-native";
+import { takeInitialPath } from "@/lib/navigation/initial-path";
 import { homeFor } from "@/lib/navigation/sections";
 import { useSession } from "@/lib/session";
 import { Button } from "@/ui/Button";
@@ -16,14 +17,18 @@ export default function Index() {
 
   // reindirizzamento dopo il montaggio: un <Redirect> durante il primo render arriva prima che
   // il navigatore sia pronto (avviso di React all'avvio su mobile)
-  const target: Href | null =
-    status === "signedOut"
-      ? "/accedi"
-      : status === "chooseShop"
-        ? "/negozi"
-        : status === "ready" && role
-          ? (`/${homeFor(role)}` as Href)
-          : null;
+  // l'indirizzo iniziale si consuma una volta sola: il calcolo segue solo stato e ruolo
+  const target = useMemo<Href | null>(
+    () =>
+      status === "signedOut"
+        ? "/accedi"
+        : status === "chooseShop"
+          ? "/negozi"
+          : status === "ready" && role
+            ? ((takeInitialPath(role) ?? `/${homeFor(role)}`) as Href)
+            : null,
+    [status, role],
+  );
   useEffect(() => {
     if (target) router.replace(target);
   }, [target]);

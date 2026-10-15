@@ -174,6 +174,14 @@ export const merchantApi = {
     body: m.StaffUpdateBody,
     response: m.StaffMemberResponse,
   }),
+  resendInvite: def({
+    method: "POST",
+    path: "/staff/{userId}/resend-invite",
+    summary: "Reinvia l'email d'invito a chi non l'ha ancora accettato",
+    auth: "owner",
+    params: m.UserIdParams,
+    response: m.StaffMemberResponse,
+  }),
   removeStaff: def({
     method: "DELETE",
     path: "/staff/{userId}",

@@ -113,7 +113,12 @@ delle promozioni. Una riga `cron.wallet_sync.run` per ogni esecuzione che ha fat
 e le invia a gruppi di 50 → `promo.send.completed` con consegnate, saltate (consenso revocato nel frattempo, carta
 non presente su Google) e fallite. Ogni consegna è in `promotion_deliveries`; il messaggio ha id `promo-<id>` per
 carta, quindi un nuovo tentativo non lo duplica mai. Il link di disiscrizione nel messaggio è firmato
-(`UNSUBSCRIBE_SECRET`); la pagina che lo gestisce arriva in Fase 5.
+(`UNSUBSCRIBE_SECRET`) e porta a `/u/<token>`.
+
+Dall'app (Messaggi): una promozione **a settimana** (7 giorni dall'ultima non annullata). Il titolare vede prima
+dell'invio quanti la riceveranno e da quando potrà mandare la prossima; un secondo tentativo dà
+`E_PROMO_WEEKLY_LIMIT` con la data. "0 destinatari" (`E_PROMO_NO_RECIPIENTS`): nessun cliente ha il consenso, lo
+danno i clienti iscrivendosi.
 
 ## Carta disattivata
 
@@ -144,7 +149,9 @@ motivo; la soluzione è sempre una rettifica del titolare con il motivo.
 
 ## Cliente cancellato
 
-`customer.delete.ok`: nome, telefono e consensi rimossi, storico di audit pseudonimizzato (restano id, conteggi e date).
+Dall'app (Clienti → Cancella cliente) serve una doppia conferma: un avviso con le conseguenze, poi il codice breve
+della carta scritto a mano. `customer.delete.ok`: nome, telefono e consensi rimossi, storico di audit pseudonimizzato
+(restano id, conteggi e date).
 La carta nel Wallet del cliente non è più valida: scansionandola si ottiene `E_CARD_DELETED`. Il cliente può
 reiscriversi con lo stesso numero e riceve una carta nuova. Da Fase 4 la carta Google viene anche disattivata.
 
@@ -282,9 +289,40 @@ alla variabile nel progetto Vercel (separato da virgola, senza `/` finale) e rif
 ## L'email d'invito dello staff non arriva
 
 `staff.invite.sent` conferma che l'invito è partito (o che l'utente aveva già un account: in quel caso nessuna
-email, può entrare con le credenziali che ha). `E_INVITE_FAILED` riporta il messaggio di Supabase Auth: di solito
+email, può entrare con le credenziali che ha). Nell'app (Staff) chi non ha ancora accettato compare "in attesa":
+"Reinvia" manda di nuovo l'email (`staff.invite.resent`). `E_INVITE_FAILED` riporta il messaggio di Supabase Auth: di solito
 SMTP non configurato o limite di invio raggiunto (il server email di default di Supabase invia pochissime email
 l'ora). Il link dell'email porta a `MERCHANT_APP_URL/invito`.
+
+## Area titolare: chi ha fatto cosa
+
+Ogni azione del titolare ha la sua riga con un `msg` completo, filtrabile per `shop_id` e `user_id`:
+`stats.viewed` (apertura della panoramica), `customer.search` (tipo di ricerca, mai il testo cercato),
+`balance.adjust.ok` (saldo prima → dopo e motivo), `customer.marketing.changed`, `customer.delete.ok`,
+`settings.update.ok` (ogni campo cambiato, prima → dopo), `logo.upload.ok` / `logo.upload.failed`,
+`staff.invite.sent` / `staff.invite.resent` / `staff.role.changed` / `staff.revoked`, `promo.send.queued`,
+`counter_qr.downloaded`. Lo storico permanente delle stesse azioni è in `audit_log`.
+
+## "Ho cambiato colore o logo ma la carta sul telefono non cambia"
+
+1. `settings.update.ok` con "colore …" o "logo sostituito" conferma il salvataggio; se manca, il titolare non ha
+   premuto "Salva e aggiorna le carte".
+2. Il template Google si aggiorna subito (`wallet.class.*`), le carte una per una dal cron entro qualche minuto
+   (`wallet.object.*` con il nuovo `card_version`). Google Wallet sul telefono può metterci qualche minuto in più a
+   ridisegnare la carta.
+3. Logo: Google lo scarica dal suo URL pubblico. In locale (Supabase su 127.0.0.1) Google non lo raggiunge: per una
+   prova serve un tunnel (vedi README). In produzione l'URL è quello pubblico dello Storage.
+   Se l'immagine non è raggiungibile Google rifiuta **tutto** il template, colore compreso:
+   `wallet.google.class.upsert.failed` con `E_GOOGLE_INVALID_PAYLOAD` e in `provider_response` "Image cannot be
+   loaded. Invalid image URL …". Vale anche per i negozi senza logo, che usano `CARD_DEFAULT_LOGO_URL`: deve essere un
+   indirizzo pubblico. Corretto l'URL, `pnpm wallet:resync --shop <slug>`.
+4. Se il colore scelto non ha abbastanza contrasto, la carta usa una variante corretta: l'app lo dice prima del
+   salvataggio ("Per la leggibilità la carta userà …").
+
+## "Ho tolto il consenso a un cliente e non riesco a ridarlo" (`E_CONSENT_BY_CUSTOMER_ONLY`)
+
+È voluto: il consenso alle promozioni lo dà solo il cliente. Dall'app si può solo revocare. Il cliente può darlo di
+nuovo riaprendo la pagina di iscrizione del negozio con lo stesso numero e spuntando le promozioni.
 
 ## L'esercente ha inviato la diagnostica dall'app
 
@@ -304,8 +342,11 @@ Crash ed errori JavaScript dell'app sono anche in **Sentry** (progetto dell'app 
 
 ## Logo o impostazioni non salvati
 
-- `E_LOGO_INVALID`: formato (PNG, JPEG o WebP) o dimensione (max 2 MB) non ammessi, oppure il caricamento non è
-  stato completato prima del salvataggio.
+- `E_LOGO_INVALID` con `logo.upload.failed`: lo stadio dice dove si è fermato. "caricamento": il file non è arrivato
+  allo Storage (rete del negozio); "verifica": il server ha rifiutato il file (formato, peso oltre 2 MB, file di un
+  altro negozio o caricamento non completato). L'app ritaglia il logo quadrato e lo riduce a 660 px prima di
+  caricarlo (in JPEG se il PNG supera 2 MB, come succede con le foto dell'iPhone), quindi un file troppo pesante è
+  raro. Il logo precedente resta finché non ne passa uno valido.
 - `settings.update.ok` riporta ogni campo cambiato con il valore prima → dopo; lo storico completo è in `audit_log`
   (`action = settings_update`).
 
@@ -467,11 +508,14 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
 | `logo.upload_url.issued` | info | Il titolare ha chiesto di caricare un nuovo logo: rilasciato un URL di caricamento firmato. | Mario (titolare, web) sta caricando un nuovo logo per il negozio Salone Mario (image/png, 180 KB): URL di caricamento rilasciato. |
+| `logo.upload.ok` | info | Il nuovo logo è stato caricato, verificato e pubblicato: le carte nel Wallet si aggiornano. | Mario (titolare, web) ha pubblicato il nuovo logo del negozio Salone Mario (image/png, 180 KB): le carte nel Wallet si aggiornano entro qualche minuto. |
+| `logo.upload.failed` | warn | Logo non caricato: invio del file allo Storage fallito (dall'app) o file non valido alla verifica (dal server). Il logo precedente resta. | Logo del negozio Salone Mario non aggiornato: invio del file non riuscito (rete interrotta). Resta il logo precedente. |
 
 ### staff
 
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
+| `staff.invite.resent` | info | Il titolare ha reinviato l'email d'invito a chi non l'aveva ancora accettato. | Mario (titolare, web) ha reinviato l'invito del negozio Salone Mario a Ilaria (il***@gmail.com). |
 | `staff.invite.sent` | info | Il titolare ha aggiunto una persona allo staff (con email d'invito se non aveva già un account). | Mario (titolare, web) ha aggiunto Giulia (gi***@salone.it) allo staff del negozio Salone Mario come operatore: inviata l'email d'invito. |
 | `staff.role.changed` | info | Il titolare ha cambiato il ruolo (o il nome) di un membro dello staff. | Mario (titolare, web) ha cambiato il ruolo di Giulia nel negozio Salone Mario: operatore → titolare. |
 | `staff.revoked` | info | Il titolare ha rimosso una persona dallo staff: non può più accedere al negozio. | Mario (titolare, web) ha rimosso Giulia (operatore) dallo staff del negozio Salone Mario. |
@@ -886,6 +930,13 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Link firmato (disiscrizione o apertura della carta) scaduto, già usato o manomesso.
 - **Causa probabile**: Link vecchio, copiato male, oppure link di disiscrizione già usato.
 - **Cosa fare**: Per la disiscrizione: il cliente è già disiscritto o può chiederlo in negozio. Per la carta: rifare l'iscrizione con lo stesso numero.
+
+### `E_CONSENT_BY_CUSTOMER_ONLY` (HTTP 409)
+
+- **L'utente vede**: Il consenso alle promozioni lo dà solo il cliente, iscrivendosi. Dall'app si può solo revocare.
+- **Cosa è successo**: Lo staff ha provato ad attivare il consenso marketing di un cliente.
+- **Causa probabile**: App non aggiornata, o tentativo di iscrivere alle promozioni un cliente che non l'ha chiesto.
+- **Cosa fare**: Spiegare al titolare che il consenso deve darlo il cliente: può riaprire la pagina di iscrizione con lo stesso numero e spuntare le promozioni.
 
 ### `E_NETWORK` (HTTP 503)
 

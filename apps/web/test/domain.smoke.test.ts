@@ -331,20 +331,27 @@ describe("cancellazione del cliente", () => {
 });
 
 describe("consenso marketing", () => {
-  it("cambia solo se diverso, con audit; il cliente può revocare il proprio", async () => {
+  it("cambia solo se diverso, con audit; lo dà il cliente, lo staff può solo revocarlo", async () => {
     const c = await newCard(SALONE);
-    expect(await setMarketingConsent(SALONE.id, c.id, true, { type: "staff", userId: GIULIA })).toMatchObject({
+    // il titolare non può attivarlo al posto del cliente
+    await expect(setMarketingConsent(SALONE.id, c.id, true, { type: "staff", userId: GIULIA })).rejects.toMatchObject({
+      code: "E_CONSENT_BY_CUSTOMER_ONLY",
+    });
+    expect(await setMarketingConsent(SALONE.id, c.id, true, { type: "customer", customerId: c.id })).toMatchObject({
       changed: true,
     });
+    // già attivo: nessun errore e nessuna modifica
     expect(await setMarketingConsent(SALONE.id, c.id, true, { type: "staff", userId: GIULIA })).toMatchObject({
       changed: false,
     });
-    await setMarketingConsent(SALONE.id, c.id, false, { type: "customer", customerId: c.id });
+    expect(await setMarketingConsent(SALONE.id, c.id, false, { type: "staff", userId: GIULIA })).toMatchObject({
+      changed: true,
+    });
     const rows = (await audit(c.id)).filter((a) => a.action === "marketing_consent");
-    expect(rows.map((r) => r.actor_type)).toEqual(["staff", "customer"]);
+    expect(rows.map((r) => r.actor_type)).toEqual(["customer", "staff"]);
     expect(events("customer.marketing.changed").map((l) => l.msg)).toEqual([
-      `Giulia (titolare) ha attivato il consenso alle promozioni per la carta ${c.shortCode} del negozio Salone Demo.`,
-      `Il cliente ha revocato il consenso alle promozioni per la carta ${c.shortCode} del negozio Salone Demo.`,
+      `Il cliente ha attivato il consenso alle promozioni per la carta ${c.shortCode} del negozio Salone Demo.`,
+      `Giulia (titolare) ha revocato il consenso alle promozioni per la carta ${c.shortCode} del negozio Salone Demo.`,
     ]);
   });
 });

@@ -5,7 +5,7 @@ import type { Role } from "@loyalty/shared/api";
  * il titolare le sezioni del negozio (design Titolare T2) più scanner e profilo.
  * Il layout decide come mostrarle (tab su mobile, barra laterale da tablet orizzontale in su).
  */
-export type SectionKey = "panoramica" | "clienti" | "carta" | "staff" | "messaggi" | "scanner" | "profilo";
+export type SectionKey = "panoramica" | "clienti" | "carta" | "staff" | "messaggi" | "cartello" | "scanner" | "profilo";
 
 export interface Section {
   key: SectionKey;
@@ -20,6 +20,7 @@ const OWNER: Section[] = [
   { key: "carta", label: "Carta", inTabs: true },
   { key: "staff", label: "Staff", inTabs: true },
   { key: "messaggi", label: "Messaggi", inTabs: true },
+  { key: "cartello", label: "Cartello", inTabs: false },
   { key: "scanner", label: "Scanner", inTabs: false },
   { key: "profilo", label: "Profilo", inTabs: false },
 ];

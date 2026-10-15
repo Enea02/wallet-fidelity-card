@@ -19,6 +19,7 @@ import * as logoUpload from "@/app/api/v1/merchant/shop-settings/logo-upload-url
 import * as settings from "@/app/api/v1/merchant/shop-settings/route";
 import * as shops from "@/app/api/v1/merchant/shops/route";
 import * as staffMember from "@/app/api/v1/merchant/staff/[userId]/route";
+import * as resendInvite from "@/app/api/v1/merchant/staff/[userId]/resend-invite/route";
 import * as invite from "@/app/api/v1/merchant/staff/invite/route";
 import * as staff from "@/app/api/v1/merchant/staff/route";
 import * as stamp from "@/app/api/v1/merchant/stamp/route";
@@ -48,6 +49,7 @@ export const ROUTES: Record<MerchantEndpoint, Handler> = {
   invite: invite.POST,
   updateStaff: staffMember.PATCH,
   removeStaff: staffMember.DELETE,
+  resendInvite: resendInvite.POST,
   promotions: promotions.GET,
   queuePromotion: promotions.POST,
   counterQr: counterQr.GET,

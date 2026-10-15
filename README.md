@@ -142,6 +142,38 @@ Expo SDK 57 + Expo Router in `apps/merchant`, una sola codebase per le tre piatt
   avviato senza `CI=1` (in modalità CI non si accorge delle modifiche e serve codice vecchio). Alla fine
   `pnpm db:start` riporta `.env.local` su `localhost`.
 
+### Area titolare
+
+Panoramica, Clienti, Carta, Staff, Messaggi e Cartello (`src/app/(app)/`, logica in `src/features/owner/`). Su
+desktop la panoramica è a più colonne e i clienti hanno il dettaglio affiancato. Il consenso alle promozioni dall'app
+si può solo revocare; la cancellazione chiede il codice della carta; una promozione a settimana.
+
+**Prova del logo sulla carta vera** (Google scarica il logo da un URL pubblico, che in locale non c'è):
+
+```bash
+brew install cloudflared
+cloudflared tunnel --url http://127.0.0.1:54321   # stampa un https://….trycloudflare.com
+```
+
+Mettere quell'indirizzo in `SUPABASE_PUBLIC_URL` di `apps/web/.env.local` (usato solo per gli URL pubblici dei
+loghi), riavviare `pnpm dev` e caricare il logo dall'app: il template Google lo scarica dal tunnel.
+
+Anche un negozio **senza logo** ha bisogno di un indirizzo pubblico, quello del logo predefinito: altrimenti Google
+rifiuta tutto il template (`wallet.google.class.upsert.failed`, 400 "Invalid image URL … localhost") e nemmeno il
+colore arriva sulle carte. Per le prove aprire un secondo tunnel verso il backend e impostare
+`CARD_DEFAULT_LOGO_URL`, poi `pnpm wallet:resync --shop <slug>`:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:3000    # altro https://….trycloudflare.com
+# in apps/web/.env.local: CARD_DEFAULT_LOGO_URL=<quell'indirizzo>/brand/logo-predefinito.png
+```
+
+Lo stesso tunnel in `APP_BASE_URL` fa funzionare anche il QR del cartello da un telefono qualsiasi (i domini
+`*.trycloudflare.com` sono già in `allowedDevOrigins`, altrimenti `next dev` blocca il JavaScript della pagina).
+
+Su iPhone le foto (Display P3, 16 bit per canale) diventano PNG oltre i 2 MB anche a 660 px: in quel caso l'app
+carica il logo in JPEG.
+
 ### Da completare con gli account (segnaposto)
 
 | Cosa            | Dove                                                                   | Variabili                                                                                           |

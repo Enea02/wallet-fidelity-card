@@ -143,15 +143,25 @@ describe("clienti", () => {
     expect(JSON.stringify(lines)).not.toContain(tag); // il testo cercato non va nei log
   });
 
-  it("dettaglio con storico e nome di chi ha agito; rettifica e consenso dall'API", async () => {
-    const c = await newCustomer(SALONE);
+  it("dettaglio con storico e nome di chi ha agito; rettifica e revoca del consenso dall'API", async () => {
+    const c = await newCustomer(SALONE, { marketing: true });
     await call("adjust", {
       token: G,
       shopId: SALONE,
       params: { id: c.id },
       body: { stamps: 4, rewards: 0, reason: "carta cartacea" },
     });
-    await call("marketing", { token: G, shopId: SALONE, params: { id: c.id }, body: { consent: true } });
+    const grant = await call("marketing", { token: G, shopId: SALONE, params: { id: c.id }, body: { consent: true } });
+    expect(grant.json).toMatchObject({ changed: false }); // già dato dal cliente
+    const revoke = await call("marketing", {
+      token: G,
+      shopId: SALONE,
+      params: { id: c.id },
+      body: { consent: false },
+    });
+    expect(revoke.json).toMatchObject({ changed: true, consentMarketing: false });
+    const again = await call("marketing", { token: G, shopId: SALONE, params: { id: c.id }, body: { consent: true } });
+    expect([again.status, again.code]).toEqual([409, "E_CONSENT_BY_CUSTOMER_ONLY"]);
     const d = await call("customer", { token: G, shopId: SALONE, params: { id: c.id } });
     const history = d.json?.history as Array<{ action: string; actorName: string; reason: string | null }>;
     expect(history.map((h) => h.action)).toEqual(["marketing_consent", "adjust", "enroll"]);

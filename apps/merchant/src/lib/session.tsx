@@ -31,6 +31,8 @@ interface SessionValue {
   selectShop: (id: string, how: "scelta" | "cambio") => void;
   /** Ricarica utente e negozi (dopo un errore o dopo aver accettato un invito). */
   reload: () => Promise<number>;
+  /** Aggiorna i dati dei negozi senza schermata di caricamento (es. colore e logo appena salvati). */
+  refreshShops: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -138,6 +140,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [reload],
   );
 
+  const refreshShops = useCallback(async () => {
+    try {
+      const [me, list] = await Promise.all([api.call("me", {}), api.call("shops", {})]);
+      const names = new Map(me.memberships.map((m) => [m.shopId, m.displayName]));
+      const all: Shop[] = list.shops.map((s) => ({ ...s, displayName: names.get(s.id) ?? "" }));
+      setShops(all);
+      setShop((cur) => (cur ? (all.find((s) => s.id === cur.id) ?? cur) : cur));
+    } catch (e) {
+      // non bloccante: i dati nuovi arriveranno al prossimo avvio
+      if (!(e instanceof ApiError)) throw e;
+    }
+  }, []);
+
   const selectShop = useCallback(
     (id: string, how: "scelta" | "cambio") => {
       const s = shops.find((x) => x.id === id);
@@ -165,8 +180,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [reload, reset, signOut]);
 
   const value = useMemo<SessionValue>(
-    () => ({ status, user, shops, shop, role: shop?.role ?? null, error, notice, signIn, signOut, selectShop, reload }),
-    [status, user, shops, shop, error, notice, signIn, signOut, selectShop, reload],
+    () => ({
+      status,
+      user,
+      shops,
+      shop,
+      role: shop?.role ?? null,
+      error,
+      notice,
+      signIn,
+      signOut,
+      selectShop,
+      reload,
+      refreshShops,
+    }),
+    [status, user, shops, shop, error, notice, signIn, signOut, selectShop, reload, refreshShops],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
