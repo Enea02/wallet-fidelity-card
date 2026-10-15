@@ -2316,6 +2316,7 @@ export const events = {
         : `${f.cards === 1 ? "la carta viene disattivata" : `le ${f.cards} carte vengono disattivate`} su Google entro qualche minuto.`),
     examples: [
       { ...enea, shop_name: "Salone Mario", slug: "salone-mario", reason: "abbonamento non rinnovato", cards: 120 },
+      { ...enea, shop_name: "Salone Mario", slug: "salone-mario", reason: "prova", cards: 0 },
     ],
   }),
 
@@ -2329,6 +2330,7 @@ export const events = {
         : `${f.cards === 1 ? "La carta torna attiva" : `Le ${f.cards} carte tornano attive`} su Google entro qualche minuto.`),
     examples: [
       { ...enea, shop_name: "Salone Mario", slug: "salone-mario", reason: "abbonamento rinnovato", cards: 120 },
+      { ...enea, shop_name: "Salone Mario", slug: "salone-mario", reason: "abbonamento rinnovato", cards: 1 },
     ],
   }),
 
