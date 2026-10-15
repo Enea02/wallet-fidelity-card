@@ -308,10 +308,11 @@ describe("riconciliazione e impostazioni", () => {
     await notifyShopChanged(shop);
     expect(mock.classes.get(`${ISSUER}.shop-${TEST_SHOP.slug}`)?.hexBackgroundColor).toBe("#0f766e");
 
-    await runWalletCron();
-    expect(ev("wallet.sync.reconciled").find((l) => l.customer_ref === c.shortCode)?.reason).toBe(
-      "impostazioni del negozio",
-    );
+    // il cron riallinea al massimo 50 carte per giro, di tutti i negozi: con altri test in parallelo la nostra
+    // può non stare nel primo lotto, quindi si gira finché non tocca a lei (come farebbe il cron ogni minuto)
+    const reconciled = () => ev("wallet.sync.reconciled").find((l) => l.customer_ref === c.shortCode);
+    for (let i = 0; i < 5 && !reconciled(); i++) await runWalletCron();
+    expect(reconciled()?.reason).toBe("impostazioni del negozio");
     expect((await state(c.id))?.synced_version).toBe(version);
   });
 });
