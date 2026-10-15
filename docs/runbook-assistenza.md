@@ -467,11 +467,14 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
 | `logo.upload_url.issued` | info | Il titolare ha chiesto di caricare un nuovo logo: rilasciato un URL di caricamento firmato. | Mario (titolare, web) sta caricando un nuovo logo per il negozio Salone Mario (image/png, 180 KB): URL di caricamento rilasciato. |
+| `logo.upload.ok` | info | Il nuovo logo è stato caricato, verificato e pubblicato: le carte nel Wallet si aggiornano. | Mario (titolare, web) ha pubblicato il nuovo logo del negozio Salone Mario (image/png, 180 KB): le carte nel Wallet si aggiornano entro qualche minuto. |
+| `logo.upload.failed` | warn | Logo non caricato: invio del file allo Storage fallito (dall'app) o file non valido alla verifica (dal server). Il logo precedente resta. | Logo del negozio Salone Mario non aggiornato: invio del file non riuscito (rete interrotta). Resta il logo precedente. |
 
 ### staff
 
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
+| `staff.invite.resent` | info | Il titolare ha reinviato l'email d'invito a chi non l'aveva ancora accettato. | Mario (titolare, web) ha reinviato l'invito del negozio Salone Mario a Ilaria (il***@gmail.com). |
 | `staff.invite.sent` | info | Il titolare ha aggiunto una persona allo staff (con email d'invito se non aveva già un account). | Mario (titolare, web) ha aggiunto Giulia (gi***@salone.it) allo staff del negozio Salone Mario come operatore: inviata l'email d'invito. |
 | `staff.role.changed` | info | Il titolare ha cambiato il ruolo (o il nome) di un membro dello staff. | Mario (titolare, web) ha cambiato il ruolo di Giulia nel negozio Salone Mario: operatore → titolare. |
 | `staff.revoked` | info | Il titolare ha rimosso una persona dallo staff: non può più accedere al negozio. | Mario (titolare, web) ha rimosso Giulia (operatore) dallo staff del negozio Salone Mario. |
@@ -886,6 +889,13 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Link firmato (disiscrizione o apertura della carta) scaduto, già usato o manomesso.
 - **Causa probabile**: Link vecchio, copiato male, oppure link di disiscrizione già usato.
 - **Cosa fare**: Per la disiscrizione: il cliente è già disiscritto o può chiederlo in negozio. Per la carta: rifare l'iscrizione con lo stesso numero.
+
+### `E_CONSENT_BY_CUSTOMER_ONLY` (HTTP 409)
+
+- **L'utente vede**: Il consenso alle promozioni lo dà solo il cliente, iscrivendosi. Dall'app si può solo revocare.
+- **Cosa è successo**: Lo staff ha provato ad attivare il consenso marketing di un cliente.
+- **Causa probabile**: App non aggiornata, o tentativo di iscrivere alle promozioni un cliente che non l'ha chiesto.
+- **Cosa fare**: Spiegare al titolare che il consenso deve darlo il cliente: può riaprire la pagina di iscrizione con lo stesso numero e spuntare le promozioni.
 
 ### `E_NETWORK` (HTTP 503)
 

@@ -368,6 +368,15 @@ export const errors = {
       "Per la disiscrizione: il cliente è già disiscritto o può chiederlo in negozio. Per la carta: rifare l'iscrizione con lo stesso numero.",
   },
 
+  E_CONSENT_BY_CUSTOMER_ONLY: {
+    status: 409,
+    userMessage: "Il consenso alle promozioni lo dà solo il cliente, iscrivendosi. Dall'app si può solo revocare.",
+    description: "Lo staff ha provato ad attivare il consenso marketing di un cliente.",
+    probableCause: "App non aggiornata, o tentativo di iscrivere alle promozioni un cliente che non l'ha chiesto.",
+    action:
+      "Spiegare al titolare che il consenso deve darlo il cliente: può riaprire la pagina di iscrizione con lo stesso numero e spuntare le promozioni.",
+  },
+
   // --- App esercente (errori nati nell'app, senza risposta del server) ---
   E_NETWORK: {
     status: 503,
