@@ -66,6 +66,12 @@ export const serverEnvSchema = z
       .url()
       .optional()
       .describe("logo PNG pubblico per i negozi senza logo (default APP_BASE_URL/brand/logo-predefinito.png)"),
+    SUPABASE_PUBLIC_URL: z
+      .url()
+      .optional()
+      .describe(
+        "solo sviluppo: indirizzo pubblico di Supabase (tunnel) per gli URL dei loghi che Google deve scaricare",
+      ),
     GOOGLE_WALLET_API_BASE: z.url().optional().describe("solo test: base dell'API Google Wallet simulata"),
     OTP_PROVIDER: z
       .enum(["twilio", "test"])

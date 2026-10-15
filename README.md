@@ -142,6 +142,22 @@ Expo SDK 57 + Expo Router in `apps/merchant`, una sola codebase per le tre piatt
   avviato senza `CI=1` (in modalità CI non si accorge delle modifiche e serve codice vecchio). Alla fine
   `pnpm db:start` riporta `.env.local` su `localhost`.
 
+### Area titolare
+
+Panoramica, Clienti, Carta, Staff, Messaggi e Cartello (`src/app/(app)/`, logica in `src/features/owner/`). Su
+desktop la panoramica è a più colonne e i clienti hanno il dettaglio affiancato. Il consenso alle promozioni dall'app
+si può solo revocare; la cancellazione chiede il codice della carta; una promozione a settimana.
+
+**Prova del logo sulla carta vera** (Google scarica il logo da un URL pubblico, che in locale non c'è):
+
+```bash
+brew install cloudflared
+cloudflared tunnel --url http://127.0.0.1:54321   # stampa un https://….trycloudflare.com
+```
+
+Mettere quell'indirizzo in `SUPABASE_PUBLIC_URL` di `apps/web/.env.local` (usato solo per gli URL pubblici dei
+loghi), riavviare `pnpm dev` e caricare il logo dall'app: il template Google lo scarica dal tunnel.
+
 ### Da completare con gli account (segnaposto)
 
 | Cosa            | Dove                                                                   | Variabili                                                                                           |

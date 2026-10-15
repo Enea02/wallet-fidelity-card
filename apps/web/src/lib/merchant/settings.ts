@@ -118,7 +118,17 @@ async function publicLogoUrl(shop: Shop, path: string, actor: ActorFields): Prom
     content_type: contentType || "sconosciuto",
     size_bytes: size,
   });
-  return storage.getPublicUrl(path).data.publicUrl;
+  return publicUrl(storage.getPublicUrl(path).data.publicUrl);
+}
+
+/**
+ * In sviluppo Supabase è su 127.0.0.1, che Google non raggiunge: con SUPABASE_PUBLIC_URL (un tunnel)
+ * l'URL salvato del logo usa l'indirizzo pubblico. In produzione la variabile non c'è.
+ */
+function publicUrl(url: string): string {
+  const pub = process.env.SUPABASE_PUBLIC_URL?.replace(/\/$/, "");
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  return pub && base && url.startsWith(base) ? `${pub}${url.slice(base.length)}` : url;
 }
 
 export async function updateSettings(
