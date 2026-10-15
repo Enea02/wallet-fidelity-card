@@ -158,6 +158,19 @@ cloudflared tunnel --url http://127.0.0.1:54321   # stampa un https://….tryclo
 Mettere quell'indirizzo in `SUPABASE_PUBLIC_URL` di `apps/web/.env.local` (usato solo per gli URL pubblici dei
 loghi), riavviare `pnpm dev` e caricare il logo dall'app: il template Google lo scarica dal tunnel.
 
+Anche un negozio **senza logo** ha bisogno di un indirizzo pubblico, quello del logo predefinito: altrimenti Google
+rifiuta tutto il template (`wallet.google.class.upsert.failed`, 400 "Invalid image URL … localhost") e nemmeno il
+colore arriva sulle carte. Per le prove aprire un secondo tunnel verso il backend e impostare
+`CARD_DEFAULT_LOGO_URL`, poi `pnpm wallet:resync --shop <slug>`:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:3000    # altro https://….trycloudflare.com
+# in apps/web/.env.local: CARD_DEFAULT_LOGO_URL=<quell'indirizzo>/brand/logo-predefinito.png
+```
+
+Su iPhone le foto (Display P3, 16 bit per canale) diventano PNG oltre i 2 MB anche a 660 px: in quel caso l'app
+carica il logo in JPEG.
+
 ### Da completare con gli account (segnaposto)
 
 | Cosa            | Dove                                                                   | Variabili                                                                                           |

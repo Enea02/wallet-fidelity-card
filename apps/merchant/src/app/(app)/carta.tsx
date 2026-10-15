@@ -376,6 +376,11 @@ export default function Carta() {
         </Banner>
       ) : null}
       {error ? <ErrorNotice error={error} /> : null}
+      {logoError && !busy ? (
+        <Banner tone="danger" title="Logo non salvato">
+          {logoError}
+        </Banner>
+      ) : null}
       <View style={{ flexDirection: "row", gap: space.md }}>
         <Button
           label="Salva e aggiorna le carte"

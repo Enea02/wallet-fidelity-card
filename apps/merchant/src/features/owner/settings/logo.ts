@@ -9,7 +9,7 @@ import { LOGO_SIZE, squareCrop } from "./logic";
 
 /*
  * Logo del negozio: scelta dalla galleria (mobile) o da file (web), ritaglio quadrato
- * (su mobile quello di sistema, sul web automatico al centro), ridimensionamento a 660 px,
+ * (su mobile quello di sistema, sul web automatico al centro), ridimensionamento a 660 px (PNG, o JPEG se il PNG supera 2 MB),
  * caricamento diretto su Supabase Storage con l'URL firmato del backend. Il server lo verifica
  * al salvataggio delle impostazioni (logo.upload.ok / logo.upload.failed).
  */
@@ -17,7 +17,11 @@ import { LOGO_SIZE, squareCrop } from "./logic";
 export interface PreparedLogo {
   uri: string;
   width: number;
+  contentType: "image/png" | "image/jpeg";
+  bytes: ArrayBuffer;
 }
+
+const readBytes = async (uri: string) => (await fetch(uri)).arrayBuffer();
 
 /** Sceglie e prepara il logo; null se l'utente annulla. */
 export async function pickLogo(): Promise<PreparedLogo | null> {
@@ -32,13 +36,21 @@ export async function pickLogo(): Promise<PreparedLogo | null> {
   const ctx = ImageManipulator.manipulate(a.uri);
   if (a.width !== a.height) ctx.crop(squareCrop(a.width, a.height));
   ctx.resize({ width: LOGO_SIZE, height: LOGO_SIZE });
-  const img = await (await ctx.renderAsync()).saveAsync({ format: SaveFormat.PNG });
-  return { uri: img.uri, width: img.width };
+  const ref = await ctx.renderAsync();
+  // PNG per tenere la trasparenza; le foto dell'iPhone (Display P3, 16 bit per canale) però
+  // diventano PNG da oltre 2 MB anche a 660 px: in quel caso JPEG, che resta sui 100-200 KB.
+  const png = await ref.saveAsync({ format: SaveFormat.PNG });
+  const pngBytes = await readBytes(png.uri);
+  if (pngBytes.byteLength <= LOGO_MAX_BYTES) {
+    return { uri: png.uri, width: png.width, contentType: "image/png", bytes: pngBytes };
+  }
+  const jpg = await ref.saveAsync({ format: SaveFormat.JPEG, compress: 0.9 });
+  return { uri: jpg.uri, width: jpg.width, contentType: "image/jpeg", bytes: await readBytes(jpg.uri) };
 }
 
 /** Carica il logo preparato; restituisce il percorso da salvare nelle impostazioni (logoPath). */
 export async function uploadLogo(shop: { id: string; name: string }, logo: PreparedLogo): Promise<string> {
-  const bytes = await (await fetch(logo.uri)).arrayBuffer();
+  const { bytes, contentType } = logo;
   if (bytes.byteLength > LOGO_MAX_BYTES) {
     log.event("logo.upload.failed", {
       shop_name: shop.name,
@@ -50,11 +62,9 @@ export async function uploadLogo(shop: { id: string; name: string }, logo: Prepa
   }
   const { path, token } = await api.call("logoUploadUrl", {
     shopId: shop.id,
-    body: { contentType: "image/png", sizeBytes: bytes.byteLength },
+    body: { contentType, sizeBytes: bytes.byteLength },
   });
-  const { error } = await supabase.storage
-    .from("logos")
-    .uploadToSignedUrl(path, token, bytes, { contentType: "image/png" });
+  const { error } = await supabase.storage.from("logos").uploadToSignedUrl(path, token, bytes, { contentType });
   if (error) {
     const status = (error as { statusCode?: string | number }).statusCode;
     log.event("logo.upload.failed", {

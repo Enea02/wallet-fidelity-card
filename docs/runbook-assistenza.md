@@ -312,6 +312,10 @@ Ogni azione del titolare ha la sua riga con un `msg` completo, filtrabile per `s
    ridisegnare la carta.
 3. Logo: Google lo scarica dal suo URL pubblico. In locale (Supabase su 127.0.0.1) Google non lo raggiunge: per una
    prova serve un tunnel (vedi README). In produzione l'URL è quello pubblico dello Storage.
+   Se l'immagine non è raggiungibile Google rifiuta **tutto** il template, colore compreso:
+   `wallet.google.class.upsert.failed` con `E_GOOGLE_INVALID_PAYLOAD` e in `provider_response` "Image cannot be
+   loaded. Invalid image URL …". Vale anche per i negozi senza logo, che usano `CARD_DEFAULT_LOGO_URL`: deve essere un
+   indirizzo pubblico. Corretto l'URL, `pnpm wallet:resync --shop <slug>`.
 4. Se il colore scelto non ha abbastanza contrasto, la carta usa una variante corretta: l'app lo dice prima del
    salvataggio ("Per la leggibilità la carta userà …").
 
@@ -341,7 +345,8 @@ Crash ed errori JavaScript dell'app sono anche in **Sentry** (progetto dell'app 
 - `E_LOGO_INVALID` con `logo.upload.failed`: lo stadio dice dove si è fermato. "caricamento": il file non è arrivato
   allo Storage (rete del negozio); "verifica": il server ha rifiutato il file (formato, peso oltre 2 MB, file di un
   altro negozio o caricamento non completato). L'app ritaglia il logo quadrato e lo riduce a 660 px prima di
-  caricarlo, quindi un file troppo pesante è raro. Il logo precedente resta finché non ne passa uno valido.
+  caricarlo (in JPEG se il PNG supera 2 MB, come succede con le foto dell'iPhone), quindi un file troppo pesante è
+  raro. Il logo precedente resta finché non ne passa uno valido.
 - `settings.update.ok` riporta ogni campo cambiato con il valore prima → dopo; lo storico completo è in `audit_log`
   (`action = settings_update`).
 
