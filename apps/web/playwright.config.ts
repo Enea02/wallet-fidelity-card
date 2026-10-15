@@ -4,7 +4,7 @@ import { mkdirSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
 /*
- * Test end-to-end del web pubblico (Fase 5) contro la build di produzione (`next build` prima)
+ * Test end-to-end del web pubblico (Fase 5) e del pannello interno (Fase 9) contro la build di produzione (`next build` prima)
  * e il Supabase locale (`pnpm db:start`). OTP di prova (123456) e chiavi di prova di Turnstile.
  * I log JSON del server finiscono in e2e-logs/server.log: l'ultimo test controlla che non
  * contengano telefoni né nomi.
@@ -19,16 +19,21 @@ mkdirSync("e2e-logs", { recursive: true });
 process.env.E2E_UNSUBSCRIBE_SECRET ??= randomBytes(32).toString("hex");
 
 // Google Wallet "configurato" con una chiave di prova: il link "Salva in Google Wallet" si firma in locale;
-// le chiamate all'API Google vanno a una porta chiusa e falliscono senza effetti (registrate e ritentate)
+// le chiamate all'API Google falliscono con credenziali rifiutate (registrate e ritentate, senza effetti)
 const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const googleKey = Buffer.from(
   JSON.stringify({
     type: "service_account",
     client_email: "e2e@progetto-di-prova.iam.gserviceaccount.com",
     private_key: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
-    token_uri: "http://127.0.0.1:9/token",
+    // endpoint del token di e2e/global-setup.ts: risponde 401 come con credenziali sbagliate (E_GOOGLE_AUTH)
+    token_uri: "http://127.0.0.1:3199/token",
   }),
 ).toString("base64");
+
+// per il setup globale (membro del team interno con 2FA)
+process.env.E2E_SUPABASE_URL = status.API_URL ?? "";
+process.env.E2E_SUPABASE_ANON_KEY = status.ANON_KEY ?? "";
 
 const serverEnv: Record<string, string> = {
   GOOGLE_WALLET_ISSUER_ID: "3388000000099999999",
@@ -60,6 +65,7 @@ const serverEnv: Record<string, string> = {
 
 export default defineConfig({
   testDir: "e2e",
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
@@ -75,5 +81,6 @@ export default defineConfig({
   projects: [
     { name: "iscrizione", testMatch: /enroll\.spec\.ts/, use: { ...devices["Pixel 7"] } },
     { name: "privacy", testMatch: /privacy\.spec\.ts/, dependencies: ["iscrizione"] },
+    { name: "interno", testMatch: /interno\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
   ],
 });
