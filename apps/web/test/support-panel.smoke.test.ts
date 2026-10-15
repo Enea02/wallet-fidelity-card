@@ -163,8 +163,9 @@ describe("ricerca e timeline", () => {
     const requestId = rejected.res.headers.get("x-request-id")!;
     await flushLogs();
 
+    // in parallelo più richieste possono avere lo stesso codice (finestra di 32 ms): la nostra è tra i risultati
     const r = await asSupport(() => search(supportCodeFromRequestId(requestId), enea));
-    expect(r.redirect).toBe(`/interno/richieste/${requestId}`);
+    expect(r.hits.map((h) => h.href)).toContain(`/interno/richieste/${requestId}`);
     const { blocks } = await loadTimeline({ kind: "richiesta", requestIds: [requestId] });
     expect(blocks).toHaveLength(1);
     expect(blocks[0]!.errors.map((e) => e.code)).toEqual(["E_STAMP_COOLDOWN"]);
@@ -199,7 +200,7 @@ describe("ricerca e timeline", () => {
     });
     expect(sent.status).toBe(200);
     const r = await asSupport(() => search(code, enea));
-    expect(r.redirect).toBe(`/interno/richieste/${requestId}`);
+    expect(r.hits.map((h) => h.href)).toContain(`/interno/richieste/${requestId}`);
     const { blocks } = await loadTimeline({ kind: "richiesta", requestIds: [requestId] });
     expect(blocks[0]!.items[0]!.source).toBe("app");
     expect(blocks[0]!.errors.map((e) => e.code)).toEqual(["E_NETWORK"]);

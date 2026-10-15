@@ -33,6 +33,10 @@ export const serverEnvSchema = z
       .enum(["stdout", "none"])
       .default("stdout")
       .describe("destinazione dei log: stdout (inoltrato dal Log Drain di Vercel) o none"),
+    LOG_DB_SINK: z
+      .enum(["on", "off"])
+      .optional()
+      .describe("copia dei log in Postgres per la vista Assistenza del pannello interno (default on)"),
     IP_HASH_SALT: z
       .string()
       .min(16, { message: "troppo corto: usare almeno 16 caratteri casuali (openssl rand -hex 16)" })

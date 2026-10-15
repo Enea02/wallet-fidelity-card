@@ -52,6 +52,8 @@ funzionano lo stesso, senza il pulsante "Aggiungi a Google Wallet".
 | `pnpm test:smoke`                 | iscrizione, timbro, permessi e diagnostica sul Supabase locale (richiede `pnpm db:start`) |
 | `pnpm runbook` / `runbook:check`  | rigenera / verifica eventi ed errori in `docs/runbook-assistenza.md`                      |
 | `pnpm diag list\|enable\|disable` | modalità diagnostica per negozio, staff o cliente (vedi runbook)                          |
+| `pnpm support:add <email>`        | aggiunge una persona al team del pannello interno (`--name`, `--by`)                      |
+| `pnpm support:phone-hash`         | hash del telefono per le carte esistenti (ricerca per telefono, una volta dopo la Fase 9) |
 | `pnpm api:try`                    | esegue la raccolta Bruno delle API esercente (server avviato)                             |
 | `pnpm db:start` / `db:stop`       | avvia / ferma Supabase locale                                                             |
 | `pnpm db:reset`                   | ricrea il DB locale da migrazioni + seed (**cancella i dati locali**)                     |
@@ -197,11 +199,29 @@ build di sviluppo si fanno in locale con `expo run:ios` / `expo run:android`.
   `{ "error": { "code", "message", "support_code" } }` con il codice assistenza `ERR-XXXXX` da comunicarci.
 - Token, password, OTP, JWT, chiavi, `qr_token` e telefoni vengono redatti automaticamente in ogni riga.
 
+## Pannello interno e vista Assistenza
+
+Su `/interno` (stessa app web, non indicizzato): negozi (creazione con invito del titolare, sospensione, dati per
+l'informativa), vista Assistenza (ricerca per codice `ERR-…`, ticket `DIAG-…`, codice errore, carta, telefono, email
+staff, negozio; timeline unificata; stato della carta su Google con "Risincronizza"; GDPR), modalità diagnostica e
+pacchetti "Invia diagnostica". Guida d'uso in [`docs/runbook-assistenza.md`](docs/runbook-assistenza.md).
+
+Accesso solo al team, con password e codice dell'app di autenticazione (TOTP, attivo anche nel Supabase locale):
+
+```bash
+pnpm support:add tu@esempio.it --name "Il tuo nome" --by "setup"   # chiede la password (min 12 caratteri)
+pnpm dev                                                               # poi http://localhost:3000/interno
+```
+
+Al primo accesso il pannello mostra il QR da inquadrare con Google Authenticator, 1Password o simili.
+I log del server sono copiati anche in Postgres (`log_events`, 30 giorni) per la timeline: `LOG_DB_SINK=off` li
+spegne. Codice: pagine in `apps/web/src/app/(internal)/interno/`, logica in `apps/web/src/lib/support/`.
+
 ## Struttura
 
 ```
 apps/
-  web/            Next.js 16: API, pagine pubbliche di iscrizione, (poi) pannello interno
+  web/            Next.js 16: API, pagine pubbliche di iscrizione, pannello interno (/interno)
   merchant/       app esercente Expo (iOS, Android, Web)
 packages/
   shared/         codice condiviso: catalogo eventi di log, catalogo errori, logger e redazione, request_id, env
