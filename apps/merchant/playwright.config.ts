@@ -96,7 +96,7 @@ export default defineConfig({
     },
     {
       name: "desktop",
-      testMatch: /desktop\.spec\.ts/,
+      testMatch: /(desktop|owner)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
     },
   ],
