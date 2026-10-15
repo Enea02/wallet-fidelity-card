@@ -59,6 +59,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Supabase locale (migrazioni e seed; Storage per i loghi, Mailpit per gli inviti)
         run: supabase start -x realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - name: Attesa che Supabase risponda stabilmente (subito dopo l'avvio il gateway può dare 502)
+        run: node scripts/wait-supabase.mjs
       - run: pnpm test:smoke
 
   e2e:
@@ -77,6 +79,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Supabase locale
         run: supabase start -x realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - name: Attesa che Supabase risponda stabilmente
+        run: node scripts/wait-supabase.mjs
       - name: Chromium per Playwright
         run: pnpm --filter @loyalty/web exec playwright install --with-deps chromium
       - name: Build di produzione e test end-to-end (OTP di prova, chiavi di prova di Turnstile)

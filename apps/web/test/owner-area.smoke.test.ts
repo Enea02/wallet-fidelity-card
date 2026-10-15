@@ -40,7 +40,12 @@ describe("statistiche della dashboard", () => {
     // un cliente che completa la carta questa settimana (salone-demo: 10 timbri, cooldown aggirato con force)
     const c = await newCustomer(SALONE);
     for (let i = 0; i < 10; i++) {
-      await call("stamp", { token: G, shopId: SALONE, body: { customerId: c.id, ...(i > 0 && { force: true }) } });
+      const r = await call("stamp", {
+        token: G,
+        shopId: SALONE,
+        body: { customerId: c.id, ...(i > 0 && { force: true }) },
+      });
+      expect([i, r.status, r.code]).toEqual([i, 200, undefined]);
     }
     // due clienti inattivi da 90 giorni, uno con consenso marketing
     const [old1, old2] = await Promise.all([
