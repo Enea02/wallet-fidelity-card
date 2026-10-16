@@ -199,6 +199,15 @@ build di sviluppo si fanno in locale con `expo run:ios` / `expo run:android`.
   `{ "error": { "code", "message", "support_code" } }` con il codice assistenza `ERR-XXXXX` da comunicarci.
 - Token, password, OTP, JWT, chiavi, `qr_token` e telefoni vengono redatti automaticamente in ogni riga.
 
+## Tessere prepagate (Fase 9.5)
+
+Accanto alla carta fedeltà, il negozio può vendere tessere a consumo: il titolare le crea nell'app (sezione
+**Tessere**: nome, unità, scadenza facoltativa, cartello A5 con il QR), il cliente se la crea da
+`/<negozio>/t/<tessera>` e la salva nel wallet, lo staff la attiva in cassa dopo il pagamento (fuori dall'app), scala
+le unità e la ricarica sulla stessa carta. Nella schermata **Carta** si può spegnere la carta fedeltà per i negozi
+che vendono solo tessere. Codice: `apps/web/src/lib/prepaid.ts`, `wallet/prepaid-sync.ts`,
+`apps/merchant/src/features/prepaid/`, route `/tessera/[id]` e `/tessere`; funzioni Postgres `prepaid_*`.
+
 ## Pannello interno e vista Assistenza
 
 Su `/interno` (stessa app web, non indicizzato): negozi (creazione con invito del titolare, sospensione, dati per

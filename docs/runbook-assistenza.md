@@ -411,6 +411,30 @@ pnpm diag disable <id> --by <chi>
 - In produzione lo script va eseguito con le variabili dell'ambiente di produzione; di norma si usa il pannello.
 - Le righe di diagnostica copiate per la vista Assistenza si tengono 7 giorni (le altre 30).
 
+## Tessere prepagate (Fase 9.5)
+
+Oltre alla carta fedeltà un negozio può vendere tessere a consumo (es. «Tessera fotocopie», 150 pagine). Il cliente
+la crea da `/<negozio>/t/<tessera>` (stesso flusso con SMS); nasce **da attivare**; lo staff la attiva in cassa dopo
+il pagamento (fuori dall'app), scala le unità usate e la ricarica sulla stessa carta. Nel pannello: cercare il codice
+della tessera (8 caratteri, come quello della carta) → pagina della tessera con stato, saldo, Google e timeline.
+
+| Segnalazione | Cosa cercare | Cosa fare |
+| --- | --- | --- |
+| "Non riesco a scalare" | `prepaid.consume.rejected_inactive` (`E_PREPAID_NOT_ACTIVE`) | La tessera non è mai stata attivata: se il cliente ha pagato, «Attiva (pagamento ricevuto)» dalla scheda in cassa |
+| "Dice che è scaduta" | `prepaid.consume.rejected_expired` | Scadenza del tipo di tessera: ricaricarla (la scadenza riparte) o, se il negozio vuole, correzione del titolare |
+| "Non bastano le unità" | `prepaid.consume.rejected_insufficient` | Il messaggio dice quante ne restano: scalare quelle o ricaricare |
+| "Attivata due volte?" | `prepaid.activate.ok` (una riga), `E_PREPAID_ALREADY_ACTIVE` | Un secondo tocco con la stessa chiave non agisce; un'attivazione su tessera già attiva è rifiutata: se ha pagato di nuovo, «Ricarica» |
+| "La tessera nel wallet non cambia" | `wallet.google.prepaid.upsert.*` | Pagina della tessera nel pannello → confronto con Google → «Risincronizza» |
+| "Il QR della tessera non si apre" | `enroll.shop.unavailable` con `/t/` | Tessera resa non disponibile dal titolare (sezione Tessere) o indirizzo sbagliato |
+
+- Ogni operazione resta nello storico (`prepaid_enroll`, `prepaid_activate`, `prepaid_consume`, `prepaid_recharge`,
+  `prepaid_undo`, `prepaid_adjust`) con chi l'ha fatta; attivazione e ricarica hanno il motivo "pagamento ricevuto
+  fuori dall'app".
+- La cancellazione del cliente cancella anche le sue tessere (disattivate su Google dal cron); l'esportazione GDPR le
+  comprende con i movimenti.
+- Negozio con la carta fedeltà spenta ("Carta fedeltà" nell'app): la pagina del negozio propone solo le tessere e le
+  carte fedeltà non vanno su Google.
+
 ## Pannello interno: accesso
 
 - Solo chi è in `support_members` (`pnpm support:add <email> --name <nome> --by <chi>`), con password e **codice
