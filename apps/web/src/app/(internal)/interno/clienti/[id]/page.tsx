@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { log } from "@/lib/observability/logger";
 import { googleCardStatus } from "@/lib/support/card-status";
 import { customerSummary } from "@/lib/support/customers";
+import { prepaidOfCustomer } from "@/lib/support/prepaid";
 import { openModesFor } from "@/lib/support/diagnostics";
 import { supportPage } from "@/lib/support/run";
 import { loadTimeline } from "@/lib/support/timeline";
@@ -20,7 +21,11 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
   if (!UUID_RE.test(id)) notFound();
   return supportPage(`/interno/clienti/${id}`, async (user) => {
     const c = await customerSummary(id);
-    const [google, modes] = await Promise.all([googleCardStatus(c.shop.id, c.id), openModesFor("customer", c.id)]);
+    const [google, modes, prepaid] = await Promise.all([
+      googleCardStatus(c.shop.id, c.id),
+      openModesFor("customer", c.id),
+      prepaidOfCustomer(c.id),
+    ]);
     const { blocks, rows } = await loadTimeline({
       kind: "cliente",
       customerId: c.id,
@@ -114,6 +119,28 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
           </section>
           <DiagnosticPanel scopeType="customer" scopeId={c.id} open={modes} back={`/interno/clienti/${c.id}`} />
         </div>
+        {prepaid.length > 0 && (
+          <section className="int-card" data-testid="tessere-cliente">
+            <h2>Tessere prepagate</h2>
+            <table>
+              <tbody>
+                {prepaid.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <Link href={`/interno/tessere/${p.id}`}>
+                        {p.product} · <span className="int-code">{p.shortCode}</span>
+                      </Link>
+                    </td>
+                    <td>{p.deleted ? "cancellata" : p.state.replace("_", " ")}</td>
+                    <td>
+                      {p.balance} {p.unitPlural}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
         <section>
           <h2>Timeline (14 giorni)</h2>
           <Timeline blocks={blocks} />

@@ -18,6 +18,7 @@ import { supabaseAdmin } from "../supabase";
 export type Subject =
   | { kind: "negozio"; shopId: string }
   | { kind: "cliente"; customerId: string; shopId: string; shortCode: string }
+  | { kind: "tessera"; cardId: string; shopId: string; shortCode: string }
   | { kind: "richiesta"; requestIds: string[] }
   | { kind: "utente staff"; userId: string };
 
@@ -136,7 +137,7 @@ export async function loadTimeline(subject: Subject, days = 14): Promise<{ block
     logs = l.data as LogRow[];
     audit = a.data as AuditRow[];
     bundles = b.data ?? [];
-  } else if (subject.kind === "cliente") {
+  } else if (subject.kind === "cliente" || subject.kind === "tessera") {
     const [l, a] = await Promise.all([
       db
         .from("log_events")
@@ -148,8 +149,8 @@ export async function loadTimeline(subject: Subject, days = 14): Promise<{ block
       db
         .from("audit_log")
         .select(AUDIT_COLS)
-        .eq("entity", "customer")
-        .eq("entity_id", subject.customerId)
+        .eq("entity", subject.kind === "tessera" ? "prepaid_card" : "customer")
+        .eq("entity_id", subject.kind === "tessera" ? subject.cardId : subject.customerId)
         .order("ts", { ascending: false })
         .limit(LIMIT),
     ]);
