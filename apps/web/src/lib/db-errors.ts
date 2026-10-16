@@ -64,6 +64,16 @@ const describe: Partial<Record<ErrorCode, (d: Detail) => { message: string; user
     userMessage: `Puoi inviare una sola promozione a settimana: la prossima dal ${dayIt(d.next_allowed_at)}.`,
   }),
   E_PROMO_NO_RECIPIENTS: () => ({ message: "nessun cliente attivo con consenso marketing" }),
+  E_PREPAID_NOT_ACTIVE: (d) => ({ message: `la tessera ${str(d.short_code)} non è ancora attiva` }),
+  E_PREPAID_ALREADY_ACTIVE: (d) => ({
+    message: `la tessera ${str(d.short_code)} è già attiva dal ${str(d.activated_at)}`,
+  }),
+  E_PREPAID_INSUFFICIENT: (d) => ({
+    message: `richieste ${str(d.quantity)} ${str(d.unit_plural)} sulla tessera ${str(d.short_code)}, ne restano ${str(d.balance)}`,
+    userMessage: `Sulla tessera restano solo ${str(d.balance)} ${str(d.unit_plural)}: scalane al massimo ${str(d.balance)} o ricaricala.`,
+  }),
+  E_PREPAID_EXPIRED: (d) => ({ message: `la tessera ${str(d.short_code)} è scaduta il ${str(d.expires_at)}` }),
+  E_PREPAID_PRODUCT_NOT_FOUND: (d) => ({ message: `tipo di tessera ${str(d.product_id)} inesistente o disattivato` }),
   E_SHOP_SLUG_TAKEN: (d) => ({ message: `lo slug ${str(d.slug)} non è disponibile (${str(d.reason)})` }),
   E_SUPPORT_FORBIDDEN: (d) => ({ message: str(d.reason) }),
 };

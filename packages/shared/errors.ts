@@ -485,6 +485,48 @@ export const errors = {
     action:
       "Cercare il negozio con quello slug nel pannello; se è un doppione usare quello esistente, altrimenti cambiare slug.",
   },
+  E_PREPAID_NOT_ACTIVE: {
+    status: 409,
+    userMessage: "La tessera non è ancora attiva: attivala dopo che il cliente ha pagato.",
+    description: "Operazione su una tessera prepagata ancora da attivare (scalo, ricarica o correzione).",
+    probableCause:
+      "Il cliente si è creato la tessera ma non l'ha ancora pagata in negozio, oppure si è saltata l'attivazione.",
+    action:
+      "Se il cliente ha pagato, dalla scheda della tessera usare «Attiva (pagamento ricevuto)», poi ripetere l'operazione.",
+  },
+  E_PREPAID_ALREADY_ACTIVE: {
+    status: 409,
+    userMessage: "Questa tessera è già attiva: per aggiungere unità usa «Ricarica».",
+    description: "Richiesta di attivazione su una tessera già attivata in precedenza.",
+    probableCause:
+      "Doppia attivazione (due persone in cassa o doppio tocco su dispositivi diversi), oppure si voleva ricaricare.",
+    action:
+      "Controllare il saldo nella scheda della tessera: se il cliente ha pagato di nuovo, usare «Ricarica»; altrimenti nessuna azione.",
+  },
+  E_PREPAID_INSUFFICIENT: {
+    status: 409,
+    userMessage: "Unità insufficienti sulla tessera: scala al massimo il saldo rimasto o ricaricala.",
+    description: "Scalo rifiutato perché la quantità richiesta supera le unità rimaste sulla tessera.",
+    probableCause: "Quantità digitata male, oppure tessera quasi esaurita che il cliente deve ricaricare.",
+    action:
+      "Il saldo rimasto è nel messaggio: scalare al massimo quel numero o, se il cliente paga, ricaricare la tessera e ripetere.",
+  },
+  E_PREPAID_EXPIRED: {
+    status: 409,
+    userMessage: "Tessera scaduta: per usarla di nuovo va ricaricata.",
+    description: "Scalo rifiutato perché la tessera ha superato la sua scadenza.",
+    probableCause: "Tessera con durata (es. 12 mesi) non ricaricata entro la scadenza.",
+    action:
+      "Se il negozio vuole concedere le unità rimaste, il titolare può ricaricarla (la scadenza riparte) o correggere il saldo; altrimenti è il comportamento previsto.",
+  },
+  E_PREPAID_PRODUCT_NOT_FOUND: {
+    status: 404,
+    userMessage: "Questa tessera non è (più) disponibile in questo negozio.",
+    description: "Tipo di tessera inesistente, di un altro negozio o disattivato dal titolare.",
+    probableCause: "QR o link di una tessera disattivata o cancellata, oppure indirizzo scritto male.",
+    action:
+      "Controllare nell'app (sezione Tessere) che il tipo di tessera esista e sia attivo; se va riattivato lo fa il titolare.",
+  },
 } as const satisfies Record<string, ErrorDef>;
 
 export type ErrorCode = keyof typeof errors;
