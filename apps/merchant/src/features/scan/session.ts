@@ -1,4 +1,5 @@
 import type { ScanMode } from "@loyalty/shared/logging/events";
+import type { PrepaidView } from "@loyalty/shared/api";
 import type { CardData } from "../card/state";
 
 /*
@@ -21,3 +22,19 @@ export const setScanned = (s: ScannedCard) => {
 /** La lettura per questa carta, se è quella appena fatta. */
 export const scannedFor = (customerId: string): ScannedCard | null =>
   current && current.data.card.id === customerId ? current : null;
+
+/** Tessera prepagata appena letta (Fase 9.5): la sua scheda parte da questi dati. */
+export interface ScannedPrepaid {
+  prepaid: PrepaidView;
+  mode: ScanMode;
+  scannedAt: number;
+}
+
+let currentPrepaid: ScannedPrepaid | null = null;
+
+export const setScannedPrepaid = (s: ScannedPrepaid) => {
+  currentPrepaid = s;
+};
+
+export const scannedPrepaidFor = (cardId: string): ScannedPrepaid | null =>
+  currentPrepaid && currentPrepaid.prepaid.id === cardId ? currentPrepaid : null;
