@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { networkInterfaces } from "node:os";
 import type { NextConfig } from "next";
 import pkg from "./package.json" with { type: "json" };
 
@@ -13,6 +14,14 @@ function gitCommit(): string {
   }
 }
 
+/** Indirizzi IPv4 del Mac sulla rete locale: pagine aperte dal telefono sulla stessa rete (solo `next dev`). */
+function lanAddresses(): string[] {
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((i) => i && i.family === "IPv4" && !i.internal)
+    .map((i) => i!.address);
+}
+
 const nextConfig: NextConfig = {
   // google-auth-library usa moduli Node: resta lato server
   serverExternalPackages: ["jsonwebtoken", "@react-pdf/renderer"],
@@ -22,8 +31,8 @@ const nextConfig: NextConfig = {
   },
   // packages/shared è TypeScript sorgente: lo compila Next
   transpilePackages: ["@loyalty/shared"],
-  // solo `next dev`: la pagina di iscrizione aperta da un telefono tramite tunnel (prova del cartello, README)
-  allowedDevOrigins: ["*.trycloudflare.com"],
+  // solo `next dev`: pagine aperte da un telefono tramite tunnel (prova del cartello, README) o sulla rete locale
+  allowedDevOrigins: ["*.trycloudflare.com", ...lanAddresses()],
   // versione e commit finiscono nel log di avvio e (dalla Fase 1) in ogni riga
   env: { APP_VERSION: pkg.version, APP_COMMIT_SHA: gitCommit() },
   // le istruzioni per gli agenti stanno in CLAUDE.md alla radice
