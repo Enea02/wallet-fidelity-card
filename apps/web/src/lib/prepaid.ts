@@ -62,6 +62,18 @@ export async function getProductByCode(shopId: string, code: string): Promise<Pr
   return data;
 }
 
+/** Tessere disponibili del negozio (pagina pubblica). */
+export async function activeProducts(shopId: string): Promise<PrepaidProduct[]> {
+  const { data, error } = await supabaseAdmin()
+    .from("prepaid_products")
+    .select(PREPAID_PRODUCT_COLS)
+    .eq("shop_id", shopId)
+    .eq("active", true)
+    .order("created_at");
+  if (error) throw error;
+  return (data ?? []) as PrepaidProduct[];
+}
+
 async function personName(customerId: string): Promise<string> {
   const { data, error } = await supabaseAdmin().from("customers").select("name").eq("id", customerId).single();
   if (error) throw error;

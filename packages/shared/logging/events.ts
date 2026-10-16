@@ -2000,9 +2000,10 @@ export const events = {
     description:
       "Qualcuno ha aperto un link pubblico firmato non valido (scaduto, manomesso o di una carta cancellata).",
     msg: (f) =>
-      `Aperto un link ${f.link_kind === "carta" ? "per salvare la carta" : "di disiscrizione"} non valido (${f.reason}): mostrata la pagina di link scaduto.`,
+      `Aperto un link ${f.link_kind === "carta" ? "per salvare la carta" : f.link_kind === "tessera" ? "per salvare la tessera prepagata" : "di disiscrizione"} non valido (${f.reason}): mostrata la pagina di link scaduto.`,
     examples: [
       { link_kind: "carta", reason: "scaduto" },
+      { link_kind: "tessera", reason: "tessera cancellata" },
       { link_kind: "disiscrizione", reason: "firma non valida" },
     ],
   }),
