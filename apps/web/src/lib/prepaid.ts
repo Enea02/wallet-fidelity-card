@@ -143,7 +143,14 @@ export async function lookupPrepaid(
   if (error) throw error;
   if (!data) {
     if (!isQr) return { view: null, elsewhere: false };
-    const other = await db.from("prepaid_cards").select("id").eq("qr_token", code).limit(1).maybeSingle();
+    const other = await db
+      .from("prepaid_cards")
+      .select("id")
+      .eq("qr_token", code)
+      .neq("shop_id", shop.id)
+      .is("deleted_at", null)
+      .limit(1)
+      .maybeSingle();
     if (other.error) throw other.error;
     return { view: null, elsewhere: other.data !== null };
   }

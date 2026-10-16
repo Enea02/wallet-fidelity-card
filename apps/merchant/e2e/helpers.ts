@@ -179,3 +179,7 @@ export const TINY_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
   "base64",
 );
+
+/** Chiamata a una funzione Postgres (service role, solo nei test). */
+export const rpcCall = <T>(fn: string, body: Record<string, unknown>) =>
+  rest<T>(`rpc/${fn}`, { method: "POST", body: JSON.stringify(body) });

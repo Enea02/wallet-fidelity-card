@@ -198,6 +198,40 @@ test.describe("pannello con un accesso solo (un codice TOTP vale una volta)", ()
     await diagnose(page, code, "E_QR_OTHER_SHOP", /.+/);
   });
 
+  test("alla cieca: tessera prepagata non ancora attivata", async ({ request }) => {
+    const { data: product, error } = await admin.rpc("prepaid_product_save", {
+      p_shop_id: SALONE,
+      p_product_id: null,
+      p_fields: {
+        code: `cieca-${Date.now() % 100000}`,
+        name: "Tessera fotocopie",
+        units: 150,
+        unit_singular: "pagina",
+        unit_plural: "pagine",
+      },
+      p_meta: { actor_type: "staff", actor_id: "22222222-2222-4222-8222-222222222222" },
+    });
+    if (error) throw error;
+    const { data: card, error: e2 } = await admin.rpc("prepaid_enroll", {
+      p_product_id: product.id,
+      p_name: "Tina Tessera",
+      p_phone: `+39347${String(Date.now()).slice(-7)}`,
+      p_consent_privacy: true,
+      p_consent_marketing: false,
+      p_meta: {},
+    });
+    if (e2) throw e2;
+    try {
+      const r = await merchant(request, "/prepaid/consume", { cardId: card.card_id, quantity: 1 }, { key: true });
+      expect((r.json.error as { code: string }).code).toBe("E_PREPAID_NOT_ACTIVE");
+      await waitForLog(r.requestId, "prepaid.consume.rejected_inactive");
+      await diagnose(page, (r.json.error as { support_code: string }).support_code, "E_PREPAID_NOT_ACTIVE", /Attiva/);
+    } finally {
+      await admin.from("customers").delete().eq("id", card.customer_id);
+      await admin.from("prepaid_products").delete().eq("id", product.id);
+    }
+  });
+
   test("alla cieca: rete assente nell'app, il codice è solo nel pacchetto di diagnostica", async ({ request }) => {
     const requestId = newRequestId();
     const code = supportCodeFromRequestId(requestId);
