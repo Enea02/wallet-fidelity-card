@@ -15,6 +15,7 @@ import { historyLine, longDate } from "../format";
 import { LoadState } from "../Loading";
 import { useApi } from "../useApi";
 import { AdjustSheet, type AdjustTarget } from "./AdjustSheet";
+import { PrepaidCards } from "./PrepaidCards";
 import { DeleteSheet } from "./DeleteSheet";
 import type { Customer } from "./useCustomers";
 
@@ -156,6 +157,8 @@ export function CustomerDetail({
           testID="cancella-cliente"
         />
       </View>
+
+      <PrepaidCards shopId={shop.id} cards={d.prepaidCards} online={online} onChanged={() => void detail.reload()} />
 
       <View style={{ gap: space.xs }}>
         <T variant="bodyStrong" style={{ fontSize: 17 }}>

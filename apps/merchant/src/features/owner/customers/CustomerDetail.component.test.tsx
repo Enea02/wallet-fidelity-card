@@ -29,6 +29,7 @@ const mockDetail = {
     stampsRequired: 10,
     rewardLabel: "Taglio gratis",
   },
+  prepaidCards: [],
   history: [
     { at: "2026-10-10T08:12:00.000Z", action: "stamp", actorName: "Sara", before: null, after: null, reason: null },
     { at: "2026-03-03T10:00:00.000Z", action: "enroll", actorName: "cliente", before: null, after: null, reason: null },

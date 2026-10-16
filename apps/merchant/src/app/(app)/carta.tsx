@@ -1,5 +1,6 @@
 import { taglineFor } from "@loyalty/shared/copy";
 import { cardColors, gridLayout, type StampIcon } from "@loyalty/shared/theme";
+import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { CardPreview } from "@/features/owner/settings/CardPreview";
@@ -67,6 +68,7 @@ export default function Carta() {
   const [hexText, setHexText] = useState("");
   const [logo, setLogo] = useState<PreparedLogo | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loyaltyBusy, setLoyaltyBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -143,6 +145,22 @@ export default function Carta() {
     setDone(false);
   };
 
+  async function toggleLoyalty() {
+    if (!saved) return;
+    setLoyaltyBusy(true);
+    setError(null);
+    try {
+      const r = await api.call("updateSettings", { shopId: shop.id, body: { loyaltyEnabled: !saved.loyaltyEnabled } });
+      setSaved(r.settings);
+      void refreshShops();
+    } catch (e) {
+      if (!(e instanceof ApiError)) throw e;
+      setError(e);
+    } finally {
+      setLoyaltyBusy(false);
+    }
+  }
+
   const form = (
     <View style={{ gap: space.xl }}>
       <View style={{ gap: 4 }}>
@@ -151,6 +169,34 @@ export default function Carta() {
         </T>
         <T tone="ink2">Le modifiche arrivano su tutte le carte nei wallet entro qualche minuto.</T>
       </View>
+
+      <Card style={{ gap: space.sm }} testID="programmi">
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <T variant="bodyStrong">Carta fedeltà {saved.loyaltyEnabled ? "attiva" : "spenta"}</T>
+            <T variant="small" tone="ink2">
+              {saved.loyaltyEnabled
+                ? "I clienti accumulano timbri e ricevono il premio."
+                : "Il negozio offre solo tessere prepagate: la pagina del QR propone le tessere."}
+            </T>
+          </View>
+          <Button
+            label={saved.loyaltyEnabled ? "Spegni" : "Attiva"}
+            variant="secondary"
+            loading={loyaltyBusy}
+            disabled={!online || loyaltyBusy}
+            onPress={() => void toggleLoyalty()}
+            testID="carta-fedelta-interruttore"
+          />
+        </View>
+        <Button
+          label="Tessere prepagate →"
+          variant="ghost"
+          onPress={() => router.push("/tessere")}
+          style={{ alignSelf: "flex-start" }}
+          testID="apri-tessere"
+        />
+      </Card>
 
       <View style={{ flexDirection: "row", gap: space.lg, alignItems: "center" }}>
         <Monogram
