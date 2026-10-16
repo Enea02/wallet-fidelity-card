@@ -15,7 +15,8 @@ Il sistema ha tre parti:
 - Il **cliente finale non ha account, login né area personale**. Interagisce solo con:
   1. la pagina web di iscrizione (raggiunta dal QR al bancone);
   2. la carta nel suo Google Wallet / Apple Wallet.
-- **Tutte** le funzioni operative e gestionali (timbri, riscatti, dashboard, clienti, impostazioni carta, staff) stanno nell'**app esercente**, disponibile come app iOS, app Android e **web app** (da browser, es. PC o tablet in cassa). Stesse funzioni e stesso account su tutte e tre.
+- Due tipi di carta, anche insieme nello stesso negozio: la **carta fedeltà a timbri** (ogni N timbri un premio) e la **tessera prepagata a consumo** (es. 150 pagine pagate in negozio e scalate a ogni utilizzo; Fase 9.5). Il pagamento delle tessere avviene sempre **fuori dall'app**: l'esercente attiva o ricarica la tessera dopo aver incassato.
+- **Tutte** le funzioni operative e gestionali (timbri, riscatti, attivazione e consumo delle tessere, dashboard, clienti, impostazioni carta, staff) stanno nell'**app esercente**, disponibile come app iOS, app Android e **web app** (da browser, es. PC o tablet in cassa). Stesse funzioni e stesso account su tutte e tre.
 - Oltre a iscrizione e app esercente esiste solo un **pannello interno minimo** per noi (creazione negozi e abbonamenti), non esposto agli esercenti.
 
 ## Punto di partenza
@@ -162,7 +163,8 @@ Vista **Assistenza** nel pannello interno:
 | 7 | App esercente: scanner e timbratura | 6 | interno |
 | 8 | App esercente: area titolare | 7 | interno |
 | 9 | Pannello interno e vista Assistenza | 2, 3 | interno |
-| 10 | Pilota: deploy, monitoraggio, distribuzione di test | 5, 8, 9 | **MVP** con il primo negozio |
+| 9.5 | Tessere prepagate a consumo | 4, 5, 8, 9 | interno |
+| 10 | Pilota: deploy, monitoraggio, distribuzione di test | 5, 8, 9, 9.5 | **MVP** con il primo negozio |
 | 11 | Immagini dinamiche della carta | 10 | aggiornamento |
 | 12 | Apple Wallet | 10 | aggiornamento |
 | 13 | Billing e onboarding nuovi negozi | 10 | aggiornamento |
@@ -445,6 +447,39 @@ Vista **Assistenza** nel pannello interno:
 
 **Definition of Done**
 - Ogni tipo di problema simulato (credenziali Google errate, cooldown, QR di altro negozio, rete assente lato app) è diagnosticabile solo dalla vista Assistenza.
+
+---
+
+### Fase 9.5 — Tessere prepagate a consumo
+**Obiettivo**: oltre alla carta fedeltà, il negozio vende tessere a consumo (es. "Tessera fotocopie, 150 pagine"). Il cliente se la crea dalla pagina del negozio e la salva nel wallet; resta **da attivare** finché l'esercente non la attiva in cassa dopo il pagamento (fuori app); a ogni utilizzo l'esercente scala le unità usate; a fine tessera la **ricarica sulla stessa carta**.
+
+**Regole**
+- Un negozio può avere la carta fedeltà (disattivabile: `loyalty_enabled`) e più tipi di tessera; lo stesso cliente può averle tutte. Una sola tessera per tipo per telefono: chi si iscrive di nuovo ritrova la sua.
+- Tipo di tessera (titolare): nome, unità (es. 150), nome dell'unità al singolare/plurale, durata facoltativa in mesi, attiva sì/no.
+- Stati della tessera: **da attivare** → **attiva** → **esaurita** (0 unità) o **scaduta**. Prima dell'attivazione e dopo la scadenza non si può scalare; mai sotto zero.
+- Attivazione e ricarica (titolare o operatore, "pagamento ricevuto"): aggiungono le unità del tipo di tessera; la scadenza, se prevista, riparte da quel giorno.
+- Scalo con quantità a scelta (proposta 1), con chiave di idempotenza come il timbro; "Annulla" entro 5 minuti; correzione del saldo solo dal titolare, con motivo.
+- Tutto passa da funzioni Postgres atomiche con `audit_log` e da `notifyCardChanged`.
+
+**Attività**
+1. Modello dati: `prepaid_products`, `prepaid_cards` (QR e codice breve propri, saldo, stato, scadenza), `shops.loyalty_enabled`; funzioni di iscrizione, attivazione, scalo, ricarica, annullamento, correzione; sincronizzazione wallet estesa alle tessere.
+2. Google Wallet: un template per tipo di tessera; la carta mostra stato, unità rimaste ("138 di 150 pagine") e scadenza (validità della carta su Google). Apple con la Fase 12.
+3. Web pubblico: iscrizione alla tessera su `/<negozio>/t/<tessera>` con lo stesso flusso OTP; la pagina del negozio propone anche le tessere.
+4. App esercente: la scansione riconosce la tessera e apre la sua scheda (Attiva, Scala con quantità, Ricarica, Annulla); area titolare con sezione "Tessere" (crea, modifica, anteprima), tessere nella scheda cliente, cartello A5 per tessera.
+5. Pannello interno: ricerca per codice della tessera, tessere nella timeline, nell'esportazione GDPR e nel confronto con Google.
+
+**Log**: `prepaid.product.created`, `prepaid.product.updated`, `prepaid.enroll.created`, `prepaid.activate.ok`, `prepaid.consume.ok`, `prepaid.consume.rejected_inactive`, `prepaid.consume.rejected_expired`, `prepaid.consume.rejected_insufficient`, `prepaid.recharge.ok`, `prepaid.undo.ok`, `prepaid.adjust.ok`. Errori `E_PREPAID_NOT_ACTIVE`, `E_PREPAID_ALREADY_ACTIVE`, `E_PREPAID_INSUFFICIENT`, `E_PREPAID_EXPIRED`, `E_PREPAID_PRODUCT_NOT_FOUND`.
+
+**Test**
+- Unitari: testi della carta, calcolo di saldo e scadenza.
+- Smoke: tutte le funzioni Postgres (sotto zero, scaduta, non attiva, doppio tocco, permessi tra negozi e ruoli).
+- End-to-end: iscrizione alla tessera, attivazione, scalo e ricarica dall'app web; prova "alla cieca" nel pannello con una tessera non attiva.
+
+**Definition of Done**
+- Una tessera creata dal cliente è inutilizzabile finché l'esercente non la attiva.
+- Attivazione, scalo e ricarica si vedono sulla carta nel wallet senza reinstallarla.
+- Non si scala mai sotto zero né dopo la scadenza.
+- Ogni operazione è nello storico e nei log; l'assistenza la ritrova dal codice della tessera.
 
 ---
 
