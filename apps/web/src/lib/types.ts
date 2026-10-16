@@ -21,6 +21,8 @@ export interface Shop {
   tagline: string | null;
   /** Icona dei timbri: scissors | cup | pizza | sparkle | gift | check. */
   stamp_icon: string;
+  /** false: il negozio offre solo tessere prepagate (Fase 9.5). */
+  loyalty_enabled: boolean;
 }
 
 export interface Customer {
@@ -45,3 +47,34 @@ export interface CardState {
 }
 
 export type StaffRole = "owner" | "operator";
+
+/** Tipo di tessera prepagata del negozio (Fase 9.5). */
+export interface PrepaidProduct {
+  id: string;
+  shop_id: string;
+  code: string;
+  name: string;
+  units: number;
+  unit_singular: string;
+  unit_plural: string;
+  validity_months: number | null;
+  active: boolean;
+  card_version: number;
+}
+
+/** Tessera prepagata di un cliente: "pending" finché non viene attivata dopo il pagamento. */
+export interface PrepaidCard {
+  id: string;
+  shop_id: string;
+  product_id: string;
+  customer_id: string;
+  qr_token: string;
+  short_code: string;
+  status: "pending" | "active";
+  balance: number;
+  charged_units: number;
+  activated_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  deleted_at: string | null;
+}

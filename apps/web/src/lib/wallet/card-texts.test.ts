@@ -21,6 +21,7 @@ const shop: Shop = {
   privacy_email: "privacy@salonenora.it",
   tagline: null,
   stamp_icon: "scissors",
+  loyalty_enabled: true,
 };
 
 describe("testi della carta (design: Testi della carta)", () => {

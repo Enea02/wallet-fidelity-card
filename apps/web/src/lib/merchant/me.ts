@@ -19,6 +19,7 @@ interface Row {
     reward_label: string;
     stamp_icon: StampIcon;
     status: "active" | "suspended";
+    loyalty_enabled: boolean;
   };
 }
 
@@ -26,7 +27,7 @@ async function memberships(userId: string): Promise<Row[]> {
   const { data, error } = await supabaseAdmin()
     .from("staff")
     .select(
-      "role, display_name, shops!inner(id, name, slug, hex_color, logo_url, stamps_required, reward_label, stamp_icon, status)",
+      "role, display_name, shops!inner(id, name, slug, hex_color, logo_url, stamps_required, reward_label, stamp_icon, status, loyalty_enabled)",
     )
     .eq("user_id", userId)
     .order("display_name");
@@ -62,6 +63,7 @@ export async function myShops(user: AuthUser): Promise<z.input<typeof ShopsRespo
       rewardLabel: r.shops.reward_label,
       stampIcon: r.shops.stamp_icon,
       status: r.shops.status,
+      loyaltyEnabled: r.shops.loyalty_enabled,
     })),
   };
 }

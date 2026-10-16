@@ -225,7 +225,10 @@ describe("impostazioni e logo", () => {
       .order("id", { ascending: false })
       .limit(1)
       .single();
-    expect(data).toMatchObject({ before: { hex_color: "#7c3aed" }, after: { hex_color: "#0f766e" } });
+    expect(data).toMatchObject({
+      before: { hex_color: String(original.hexColor).toLowerCase() },
+      after: { hex_color: "#0f766e" },
+    });
 
     const bad = await call("updateSettings", { token: G, shopId: SALONE, body: { vatNumber: "123" } });
     expect(bad.code).toBe("E_VALIDATION");

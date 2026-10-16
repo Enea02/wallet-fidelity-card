@@ -8,6 +8,7 @@ import type { Customer, Shop } from "../types";
 import { classifyGoogleError, googleRequest, type GoogleFailure } from "./google/client";
 import { classIdFor, googleEnabled, objectIdFor } from "./google/config";
 import { cardStateFor, classBody, objectBody } from "./google/payload";
+import { reconcilePrepaid, resyncShopPrepaid, syncPrepaidCard, syncPrepaidClass } from "./prepaid-sync";
 
 /*
  * Motore di sincronizzazione con Google Wallet. Invia sempre lo stato completo (idempotente),
@@ -16,7 +17,7 @@ import { cardStateFor, classBody, objectBody } from "./google/payload";
  * registra con gli eventi wallet.google.* e restituisce false.
  */
 
-interface RecordResult {
+export interface RecordResult {
   attempt?: number;
   retry_in_min?: number | null;
   next_retry_at?: string | null;
@@ -31,12 +32,13 @@ const GOOGLE_WHY: Partial<Record<ErrorCode, string>> = {
   E_GOOGLE_UNAVAILABLE: "Google non risponde",
 };
 
-async function record(
-  kind: "object" | "class" | "message",
+export async function record(
+  kind: "object" | "class" | "message" | "prepaid_object" | "prepaid_class",
   shopId: string,
   customerId: string | null,
   outcome: { ok: true; synced?: Record<string, unknown> } | { ok: false; failure: GoogleFailure },
   payload: Record<string, unknown> = {},
+  prepaid: { cardId?: string; productId?: string } = {},
 ): Promise<RecordResult> {
   const { data, error } = await supabaseAdmin().rpc("wallet_sync_record", {
     p_kind: kind,
@@ -51,12 +53,14 @@ async function record(
       : `status ${outcome.failure.httpStatus ?? "nessuna risposta"}: ${outcome.failure.providerResponse}`,
     p_request_id: getContext()?.request_id ?? null,
     p_payload: payload,
+    p_prepaid_card_id: prepaid.cardId ?? null,
+    p_prepaid_product_id: prepaid.productId ?? null,
   });
   if (error) throw error;
   return data as RecordResult;
 }
 
-const failureFields = (f: GoogleFailure, rec: RecordResult) => ({
+export const failureFields = (f: GoogleFailure, rec: RecordResult) => ({
   http_status: f.httpStatus,
   error_code: f.code,
   provider_response: f.providerResponse,
@@ -64,7 +68,7 @@ const failureFields = (f: GoogleFailure, rec: RecordResult) => ({
 });
 
 /** Dopo un errore: riga di nuovo tentativo pianificato, oppure di tentativi esauriti. */
-function afterFailure(targetKind: string, target: string, f: GoogleFailure, rec: RecordResult): void {
+export function afterFailure(targetKind: string, target: string, f: GoogleFailure, rec: RecordResult): void {
   if (rec.exhausted) {
     log.event("wallet.sync.retry.exhausted", {
       target_kind: targetKind,
@@ -101,7 +105,7 @@ async function loadCard(customerId: string): Promise<{ shop: Shop; customer: Cus
   return { customer: data, shop: await loadShop(data.shop_id) };
 }
 
-const isConflict = (e: unknown) =>
+export const isConflict = (e: unknown) =>
   typeof e === "object" && e !== null && (e as { context?: { http_status?: unknown } }).context?.http_status === 409;
 
 /* ------------------------------------------------------------------ */
@@ -328,9 +332,11 @@ export async function sendCardMessage(
 /* ------------------------------------------------------------------ */
 
 interface FailureRow {
-  kind: "object" | "class" | "message";
+  kind: "object" | "class" | "message" | "prepaid_object" | "prepaid_class";
   shop_id: string;
   customer_id: string | null;
+  prepaid_card_id: string | null;
+  prepaid_product_id: string | null;
   attempt: number;
   payload: { message_id?: string; header?: string; body?: string; message_kind?: string };
 }
@@ -344,30 +350,34 @@ export async function processDueRetries(limit: number): Promise<{ total: number;
   for (const row of (data ?? []) as FailureRow[]) {
     const attempt = row.attempt + 1;
     const done =
-      row.kind === "class"
-        ? await syncClass(row.shop_id, attempt)
-        : row.kind === "message" && row.customer_id
-          ? (
-              await sendCardMessage(
-                row.customer_id,
-                {
-                  id: row.payload.message_id ?? "",
-                  header: row.payload.header ?? "",
-                  body: row.payload.body ?? "",
-                  kind: row.payload.message_kind ?? "messaggio",
-                },
-                { attempt, track: true },
-              )
-            ).ok
-          : row.customer_id
-            ? await syncCard(row.customer_id, { attempt, origin: "retry" })
-            : false;
+      row.kind === "prepaid_class" && row.prepaid_product_id
+        ? await syncPrepaidClass(row.prepaid_product_id, attempt)
+        : row.kind === "prepaid_object" && row.prepaid_card_id
+          ? await syncPrepaidCard(row.prepaid_card_id, { attempt, origin: "retry" })
+          : row.kind === "class"
+            ? await syncClass(row.shop_id, attempt)
+            : row.kind === "message" && row.customer_id
+              ? (
+                  await sendCardMessage(
+                    row.customer_id,
+                    {
+                      id: row.payload.message_id ?? "",
+                      header: row.payload.header ?? "",
+                      body: row.payload.body ?? "",
+                      kind: row.payload.message_kind ?? "messaggio",
+                    },
+                    { attempt, track: true },
+                  )
+                ).ok
+              : row.customer_id
+                ? await syncCard(row.customer_id, { attempt, origin: "retry" })
+                : false;
     if (done) ok += 1;
   }
   return { total: (data ?? []).length, ok };
 }
 
-/** Riallinea le carte rimaste indietro rispetto al database (saldo, stato, impostazioni). */
+/** Riallinea carte e tessere rimaste indietro rispetto al database (saldo, stato, impostazioni). */
 export async function reconcile(limit: number): Promise<number> {
   if (!googleEnabled()) return 0;
   const { data, error } = await supabaseAdmin().rpc("wallet_sync_drifted", { p_limit: limit });
@@ -376,22 +386,29 @@ export async function reconcile(limit: number): Promise<number> {
   for (const row of (data ?? []) as Array<{ customer_id: string; reason: string }>) {
     if (await syncCard(row.customer_id, { origin: "reconcile", reconcileReason: row.reason })) ok += 1;
   }
-  return ok;
+  return ok + (await reconcilePrepaid(limit));
 }
 
 /** Risincronizza template e tutte le carte di un negozio (es. dopo sospensione/riattivazione). */
 export async function resyncShop(shopId: string): Promise<{ cards: number; ok: number; classOk: boolean }> {
   const shop = await loadShop(shopId);
-  const classOk = await syncClass(shop);
-  const { data, error } = await supabaseAdmin()
-    .from("customers")
-    .select("id")
-    .eq("shop_id", shopId)
-    .order("created_at");
-  if (error) throw error;
+  // carta fedeltà solo se il negozio la offre; tessere prepagate sempre (Fase 9.5)
+  let classOk = true;
+  let cards = 0;
   let ok = 0;
-  for (const c of data ?? []) if (await syncCard(c.id as string, { origin: "resync" })) ok += 1;
-  return { cards: (data ?? []).length, ok, classOk };
+  if (shop.loyalty_enabled) {
+    classOk = await syncClass(shop);
+    const { data, error } = await supabaseAdmin()
+      .from("customers")
+      .select("id")
+      .eq("shop_id", shopId)
+      .order("created_at");
+    if (error) throw error;
+    cards = (data ?? []).length;
+    for (const c of data ?? []) if (await syncCard(c.id as string, { origin: "resync" })) ok += 1;
+  }
+  const prepaid = await resyncShopPrepaid(shop);
+  return { cards: cards + prepaid.cards, ok: ok + prepaid.ok, classOk: classOk && prepaid.classesOk };
 }
 
 export { classIdFor };

@@ -932,6 +932,11 @@ export interface PrepaidRejectedFields extends ActorFields, PrepaidCardFields {
   expires_at: string | null;
 }
 
+export interface PrepaidLookupFields extends CustomerLookupFields, PrepaidCardFields {
+  prepaid_state: PrepaidWalletState;
+  balance: number;
+}
+
 export interface PrepaidUndoFields extends ActorFields, PrepaidCardFields {
   quantity: number;
   balance_after: number;
@@ -2506,6 +2511,18 @@ export const events = {
     examples: [
       { ...tessera, enrollment_id: "8a1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d", returning: false },
       { ...tessera, enrollment_id: "8a1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d", returning: true },
+    ],
+  }),
+
+  "prepaid.lookup.ok": defineEvent<PrepaidLookupFields>({
+    level: "info",
+    description: "Lo staff ha letto una tessera prepagata allo scanner (QR o codice breve).",
+    msg: (f) =>
+      `${cap(actor(f))} ha aperto la ${prepaidCard(f)} con ${f.method}: ${f.prepaid_state}` +
+      (f.prepaid_state === "da attivare" ? "." : `, ${units(f.balance, f)}.`),
+    examples: [
+      { ...giulia, ...tessera, method: "QR", prepaid_state: "attiva", balance: 138 },
+      { ...giulia, ...tessera, method: "codice breve", prepaid_state: "da attivare", balance: 0 },
     ],
   }),
 

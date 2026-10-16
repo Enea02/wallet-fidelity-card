@@ -57,3 +57,69 @@ export function cardModule(o: CardModuleInput): { header: string; body: string }
       };
   }
 }
+
+/* ---------- tessere prepagate (Fase 9.5) ---------- */
+
+export type PrepaidCopyState = "da_attivare" | "attiva" | "esaurita" | "scaduta";
+
+export interface PrepaidModuleInput {
+  state: PrepaidCopyState;
+  balance: number;
+  /** Saldo dopo l'ultima attivazione o ricarica ("138 di 150"). */
+  chargedUnits: number;
+  /** Unità di una tessera nuova o di una ricarica. */
+  units: number;
+  unitSingular: string;
+  unitPlural: string;
+  /** ISO; null = senza scadenza. */
+  expiresAt: string | null;
+}
+
+const day = new Intl.DateTimeFormat("it-IT", {
+  timeZone: "Europe/Rome",
+  day: "numeric",
+  month: "numeric",
+  year: "numeric",
+});
+/** "03/11/2027" */
+export const prepaidDate = (iso: string) => day.format(new Date(iso));
+
+/** "1 pagina" · "12 pagine". */
+export const prepaidUnits = (o: Pick<PrepaidModuleInput, "unitSingular" | "unitPlural">, k: number) =>
+  `${k} ${k === 1 ? o.unitSingular : o.unitPlural}`;
+
+/** Saldo in breve per la carta: "138 / 150". */
+export const prepaidBalance = (o: Pick<PrepaidModuleInput, "balance" | "chargedUnits" | "state">) =>
+  o.state === "da_attivare" ? "—" : `${o.balance} / ${Math.max(o.chargedUnits, o.balance)}`;
+
+/**
+ * Modulo di testo della tessera nel Wallet e nelle anteprime dell'app: da attivare, attiva
+ * ("Ti restano 138 pagine"), esaurita, scaduta. Il pagamento è sempre in negozio.
+ */
+export function prepaidModule(o: PrepaidModuleInput): { header: string; body: string } {
+  const until = o.expiresAt ? `, valida fino al ${prepaidDate(o.expiresAt)}` : "";
+  switch (o.state) {
+    case "da_attivare":
+      return {
+        header: "Da attivare in negozio",
+        body: `Paga la tessera in cassa: la attiviamo subito e qui trovi le tue ${prepaidUnits(o, o.units)}.`,
+      };
+    case "esaurita":
+      return {
+        header: "Tessera esaurita",
+        body: `Ricaricala in negozio: altre ${prepaidUnits(o, o.units)} su questa stessa carta.`,
+      };
+    case "scaduta":
+      return {
+        header: "Tessera scaduta",
+        body:
+          `Scaduta${o.expiresAt ? ` il ${prepaidDate(o.expiresAt)}` : ""} con ${prepaidUnits(o, o.balance)}. ` +
+          "Ricaricala in negozio per usarla di nuovo.",
+      };
+    default:
+      return {
+        header: `Ti ${o.balance === 1 ? "resta" : "restano"} ${prepaidUnits(o, o.balance)}`,
+        body: `Su ${Math.max(o.chargedUnits, o.balance)} caricate${until}. Mostra il QR in cassa a ogni utilizzo.`,
+      };
+  }
+}
