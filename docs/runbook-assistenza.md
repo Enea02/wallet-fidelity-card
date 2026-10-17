@@ -659,6 +659,7 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | `wallet.google.prepaid.upsert.failed` | error | Aggiornamento della tessera su Google Wallet fallito. L'operazione è salvata nel database; la tessera sul telefono resta indietro finché un tentativo non riesce. | Aggiornamento su Google Wallet fallito per la tessera K7M2Q9XA (Tessera fotocopie): credenziali del service account rifiutate (401). L'operazione è salvata; verrà ritentato tra 5 minuti. Azione: verificare la chiave GOOGLE_WALLET_SA_KEY_B64 e il ruolo del service account nella Wallet Console. |
 | `wallet.google.prepaid_class.upsert.ok` | info | Template di un tipo di tessera creato o aggiornato su Google Wallet (nome, colore e logo del negozio). | Template Google Wallet della tessera «Tessera fotocopie» del negozio Cartoleria Rossi aggiornato (3388.shop-cartoleria-rossi-t-fotocopie) in 280 ms. |
 | `wallet.google.prepaid_class.upsert.failed` | error | Aggiornamento del template di un tipo di tessera su Google Wallet fallito. | Aggiornamento del template Google Wallet della tessera «Tessera fotocopie» (Cartoleria Rossi) fallito: credenziali del service account rifiutate (401); verrà ritentato tra 5 minuti. Azione: verificare la chiave GOOGLE_WALLET_SA_KEY_B64 e il ruolo del service account nella Wallet Console. |
+| `wallet.google.points.ok` | info | Carta a punti creata o aggiornata su Google Wallet (punti, livello, vantaggio). | Carta a punti A3F2C91B aggiornata su Google Wallet (230 punti, livello Silver) in 310 ms. |
 
 ### marketing
 
@@ -757,6 +758,26 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | `prepaid.recharge.ok` | info | Tessera ricaricata in cassa dopo un nuovo pagamento (fuori dall'app); la scadenza riparte. | Giulia (operatore, iOS 1.4.0) ha ricaricato la tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi) dopo il pagamento: +150 pagine, 3 → 153. |
 | `prepaid.undo.ok` | info | Annullato l'ultimo scalo di una tessera (entro 5 minuti, dalla stessa persona). | Giulia (operatore, iOS 1.4.0) ha annullato l'ultimo scalo di 12 pagine sulla tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi): saldo tornato a 150. |
 | `prepaid.adjust.ok` | info | Il titolare ha corretto a mano il saldo di una tessera, con il motivo. | Mario (titolare, web) ha corretto il saldo della tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi): 138 → 140 pagine. Motivo: due pagine stampate male. |
+
+### points
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `points.lookup.ok` | info | Lo staff ha aperto una carta a punti allo scanner. | Giulia (operatore, iOS 1.4.0) ha aperto la carta a punti A3F2C91B del negozio Salone Mario con QR: 230 punti, livello Silver. |
+| `points.add.ok` | info | Punti dati in cassa da un importo di scontrino (punti per euro del negozio, arrotondati per difetto). | Giulia (operatore, iOS 1.4.0) ha dato 23 punti alla carta A3F2C91B del negozio Salone Mario per uno scontrino di 23,50 €: 207 → 230, livello Silver. |
+| `points.add.duplicate_ignored` | info | Stesso tocco ripetuto (stessa chiave): i punti non sono stati dati due volte. | Punti alla carta A3F2C91B del negozio Salone Mario richiesti di nuovo da Giulia (operatore, iOS 1.4.0) con lo stesso tocco di 3 secondi fa: già dati, nessun doppione. |
+| `points.undo.ok` | info | Annullati gli ultimi punti dati (entro 5 minuti, dalla stessa persona). | Giulia (operatore, iOS 1.4.0) ha annullato gli ultimi 23 punti della carta A3F2C91B del negozio Salone Mario: ora 207 punti, livello Silver. |
+| `points.adjust.ok` | info | Il titolare ha corretto a mano i punti di una carta, con il motivo. | Mario (titolare, web) ha corretto i punti della carta A3F2C91B del negozio Salone Mario: 230 → 600, livello Gold. Motivo: punti della vecchia tessera di carta. |
+| `points.level.changed` | info | Il cliente ha cambiato livello (di solito è salito): notifica sulla carta, una volta sola. | La carta A3F2C91B del negozio Salone Mario passa da Silver a Gold con 512 punti totali: nuovo vantaggio «-5% sui trattamenti». |
+| `points.settings.updated` | info | Il titolare ha cambiato modalità (timbri/punti), regola dei punti o livelli. | Mario (titolare, web) ha aggiornato la carta a punti del negozio Salone Mario: modalità timbri → punti, livelli Silver 0 · Gold 500 · Platinum 1500. |
+
+### membership
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `membership.lookup.ok` | info | Lo staff ha letto una membership o un abbonamento allo scanner: valida, scaduta o da attivare. | Giulia (operatore, iOS 1.4.0) ha aperto l'abbonamento K7M2Q9XA (Socio 12 mesi, Palestra Rossi) con QR: valida, fino al 17/10/2027 12:00 (ora italiana). |
+| `membership.activate.ok` | info | Abbonamento o membership attivato in cassa dopo il pagamento (fuori dall'app). | Giulia (operatore, iOS 1.4.0) ha attivato l'abbonamento K7M2Q9XA (Socio 12 mesi, Palestra Rossi) dopo il pagamento: «accesso illimitato», fino al 17/10/2027 12:00 (ora italiana). |
+| `membership.renew.ok` | info | Abbonamento rinnovato in cassa dopo il pagamento: allunga dalla scadenza se ancora valido, altrimenti da oggi. | Giulia (operatore, iOS 1.4.0) ha rinnovato l'abbonamento K7M2Q9XA (Socio 12 mesi, Palestra Rossi) dopo il pagamento: scadenza 17/10/2027 12:00 (ora italiana) → 17/10/2028 12:00 (ora italiana). |
 
 ## Errori
 
@@ -1216,5 +1237,26 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Tipo di tessera inesistente, di un altro negozio o disattivato dal titolare.
 - **Causa probabile**: QR o link di una tessera disattivata o cancellata, oppure indirizzo scritto male.
 - **Cosa fare**: Controllare nell'app (sezione Tessere) che il tipo di tessera esista e sia attivo; se va riattivato lo fa il titolare.
+
+### `E_POINTS_AMOUNT_INVALID` (HTTP 400)
+
+- **L'utente vede**: Importo non valido: scrivi l'importo dello scontrino (da 0,01 a 10.000 €).
+- **Cosa è successo**: Punti richiesti con un importo assente, nullo o oltre 10.000 €.
+- **Causa probabile**: Importo digitato male (virgola, zeri in più) o campo vuoto.
+- **Cosa fare**: Far riscrivere l'importo dello scontrino. Se i punti dati sono sbagliati, il titolare corregge il saldo con un motivo.
+
+### `E_POINTS_MODE_REQUIRED` (HTTP 409)
+
+- **L'utente vede**: Questo negozio usa la carta a timbri, non a punti.
+- **Cosa è successo**: Operazione sui punti in un negozio la cui carta fedeltà è a timbri.
+- **Causa probabile**: Il titolare ha cambiato modalità mentre l'app era aperta, oppure app non aggiornata.
+- **Cosa fare**: Controllare in Carta → modalità timbri/punti; ricaricare l'app sul dispositivo dello staff.
+
+### `E_MEMBERSHIP_NOT_RENEWABLE` (HTTP 409)
+
+- **L'utente vede**: Questa membership non ha scadenza: non serve rinnovarla.
+- **Cosa è successo**: Rinnovo richiesto per una membership senza durata.
+- **Causa probabile**: Tipo di tessera creato senza scadenza; il rinnovo non cambia nulla.
+- **Cosa fare**: Nessuna: la membership resta valida. Se il negozio vuole una durata, il titolare la imposta nella sezione Tessere.
 
 <!-- FINE SEZIONE GENERATA -->
