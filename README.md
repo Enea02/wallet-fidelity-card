@@ -32,6 +32,7 @@ Dati di prova (`supabase/seed.sql`, **solo locale**):
 | Negozio              | `salone-demo` → <http://localhost:3000/salone-demo>                                        |
 | Titolare             | `staff@salone-demo.test` / `password-demo-locale` (Giulia, salone-demo)                    |
 | Operatore            | `operatore@salone-demo.test` / `password-demo-locale` (Marco, salone-demo e barbiere-demo) |
+| Titolare (a punti)   | `titolare@bar-punti.test` / `password-demo-locale` (Paola, bar-punti-demo)                 |
 | Secondo negozio      | `barbiere-demo`, senza tempo minimo tra due timbri (test)                                  |
 | Cliente con QR fisso | contenuto del QR: `0123456789abcdef0123456789abcdef`, codice breve `DEMA2345`              |
 | Supabase Studio      | <http://127.0.0.1:54323>                                                                   |
@@ -207,6 +208,16 @@ Accanto alla carta fedeltà, il negozio può vendere tessere a consumo: il titol
 le unità e la ricarica sulla stessa carta. Nella schermata **Carta** si può spegnere la carta fedeltà per i negozi
 che vendono solo tessere. Codice: `apps/web/src/lib/prepaid.ts`, `wallet/prepaid-sync.ts`,
 `apps/merchant/src/features/prepaid/`, route `/tessera/[id]` e `/tessere`; funzioni Postgres `prepaid_*`.
+
+## Carta a punti e abbonamenti (Fase 9.6)
+
+La carta fedeltà di un negozio è a timbri **oppure** a punti (app → **Carta** → «Timbri o punti»: punti per euro,
+spesa minima, da 1 a 5 livelli con soglia e vantaggio). In cassa si scrive l'importo dello scontrino (punti per
+difetto, anteprima prima di confermare, annullamento entro 5 minuti); il livello segue i punti totali e quando sale
+la carta nel wallet riceve una notifica. Nella sezione **Tessere** si possono creare anche abbonamenti/membership
+(vantaggio e durata, attivazione e rinnovo in cassa). Codice: `apps/web/src/lib/points.ts`, route `/points/*` e
+`/customers/{id}/points`, `apps/merchant/src/features/points/`, schermata `/punti/[id]`; funzioni Postgres
+`points_action`, `adjust_points`, `update_points_settings`. Negozio demo: `bar-punti-demo`.
 
 ## Pannello interno e vista Assistenza
 

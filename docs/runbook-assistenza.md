@@ -435,6 +435,30 @@ della tessera (8 caratteri, come quello della carta) → pagina della tessera co
 - Negozio con la carta fedeltà spenta ("Carta fedeltà" nell'app): la pagina del negozio propone solo le tessere e le
   carte fedeltà non vanno su Google.
 
+## Carta a punti e abbonamenti (Fase 9.6)
+
+**Carta a punti.** La carta fedeltà di un negozio è a timbri **oppure** a punti (app → Carta → «Timbri o punti»). A
+punti, in cassa si scrive l'importo dello scontrino: punti = euro × punti per euro, **per difetto**, zero sotto la
+spesa minima; massimo 10.000 € per scontrino. Il livello dipende dai **punti totali**, che non si perdono (in questa
+fase i punti non si spendono). Il cambio di modalità o dei livelli ricalcola i livelli e riallinea le carte su Google
+con il cron (qualche minuto). Negozio demo: `bar-punti-demo` (titolare `titolare@bar-punti.test`).
+
+| Segnalazione | Cosa cercare | Cosa fare |
+| --- | --- | --- |
+| "Non mi dà i punti, chiede i timbri" (o il contrario) | `E_POINTS_MODE_REQUIRED` / `E_STAMPS_MODE_REQUIRED` | La modalità è cambiata con l'app aperta: ricaricare l'app; controllare la modalità in Carta |
+| "Ha dato 0 punti" | `points.add.ok` con `points_added: 0` | Importo sotto la spesa minima o sotto 1 € (con 1 punto per euro): è corretto |
+| "I punti sono sbagliati" | `points.add.ok`, `points.undo.ok`, `points.adjust.ok` | Timeline del cliente; il titolare corregge con «Correggi punti» (motivo obbligatorio) |
+| "Ho dato i punti due volte" | `points.add.duplicate_ignored` | Doppio tocco riconosciuto: punti dati una volta sola. Se sono due righe `points.add.ok`, annullare entro 5 minuti o correggere |
+| "Non è salito di livello" | `points.level.changed`, `wallet.google.message.*` | Il livello segue i punti totali: controllare le soglie in Carta; la notifica parte solo salendo |
+| "La carta nel wallet mostra ancora i timbri" | `wallet.google.points.ok` | Dopo il cambio di modalità le carte si riallineano con il cron; altrimenti «Risincronizza» dal pannello |
+
+**Abbonamenti e membership.** Nella sezione Tessere il titolare sceglie «Abbonamento»: nome, vantaggio (es.
+«accesso illimitato», «-10% su tutto») e durata facoltativa. Il cliente lo crea da `/<negozio>/t/<tessera>`, nasce
+**da attivare**; in cassa «Attiva (pagamento ricevuto)» e poi «Rinnova». Il rinnovo **allunga dalla scadenza** se è
+ancora valido, altrimenti riparte da oggi; senza durata non si rinnova (`E_MEMBERSHIP_NOT_RENEWABLE`). Niente scalo
+(rifiutato con `E_VALIDATION`). Eventi `membership.lookup.ok`, `membership.activate.ok`, `membership.renew.ok`;
+nello storico restano `prepaid_activate` e `prepaid_recharge`.
+
 ## Pannello interno: accesso
 
 - Solo chi è in `support_members` (`pnpm support:add <email> --name <nome> --by <chi>`), con password e **codice
