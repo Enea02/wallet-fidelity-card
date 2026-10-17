@@ -83,3 +83,50 @@ test("in cassa: attiva dopo il pagamento, scala 12, annulla, ricarica", async ({
     await restDelete(`prepaid_products?id=eq.${product.id}`);
   }
 });
+
+test("abbonamento: creato dalla sezione Tessere, attivato e rinnovato in cassa", async ({ page }) => {
+  const name = `Socio e2e ${Date.now() % 100000}`;
+  await login(page, OWNER);
+  await page.getByTestId("nav-tessere").click();
+  await page.getByTestId("nuova-tessera").click();
+  await page.getByTestId("tipo-abbonamento").click();
+  await expect(page.getByTestId("tessera-unita")).toHaveCount(0);
+  await page.getByTestId("tessera-nome-campo").fill(name);
+  await page.getByTestId("tessera-vantaggio").fill("accesso illimitato");
+  await page.getByTestId("scadenza-12").click();
+  await page.getByTestId("salva-tessera").click();
+  await expect(page.getByText(`Abbonamento «${name}» creato`)).toBeVisible();
+  const [p] = await restSelect<Array<{ id: string; kind: string; units: number | null }>>(
+    `prepaid_products?shop_id=eq.${SALONE}&name=eq.${encodeURIComponent(name)}&select=id,kind,units`,
+  );
+  expect(p).toMatchObject({ kind: "abbonamento", units: null });
+  const card = await rpcCall<{ card_id: string; qr_token: string; customer_id: string }>("prepaid_enroll", {
+    p_product_id: p!.id,
+    p_name: "Sofia Socia",
+    p_phone: `+39347${String(Math.floor(Math.random() * 1e7)).padStart(7, "0")}`,
+    p_consent_privacy: true,
+    p_consent_marketing: false,
+    p_meta: {},
+  });
+  try {
+    await page.getByTestId("nav-scanner").click();
+    await page.getByTestId("modalita-lettore").click();
+    await readerScan(page, card.qr_token);
+    await expect(page).toHaveURL(/\/tessera\//);
+    await expect(page.getByTestId("tessera-stato")).toHaveText("Da attivare");
+    await page.getByTestId("tessera-attiva").click();
+    await page.getByTestId("conferma-pagamento").click();
+    await expect(page.getByTestId("tessera-stato")).toHaveText("Valido");
+    await expect(page.getByTestId("tessera-saldo")).toHaveText("accesso illimitato");
+    await expect(page.getByTestId("tessera-scala")).toHaveCount(0);
+    await expectLogLine((l) => l.event === "membership.activate.ok" && String(l.msg).includes(name));
+
+    await page.getByTestId("tessera-ricarica").click();
+    await page.getByTestId("conferma-pagamento").click();
+    await expect(page.getByText("Abbonamento rinnovato")).toBeVisible();
+    await expectLogLine((l) => l.event === "membership.renew.ok" && String(l.msg).includes(name));
+  } finally {
+    await restDelete(`customers?id=eq.${card.customer_id}`);
+    await restDelete(`prepaid_products?id=eq.${p!.id}`);
+  }
+});

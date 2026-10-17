@@ -36,6 +36,49 @@ test("cliente nuovo da Android: codice, carta pronta e pulsante Google Wallet", 
   );
 });
 
+test("negozio a punti: frase dei punti, niente griglia, carta pronta con livello (Fase 9.6)", async ({ page }) => {
+  await page.goto("/bar-punti-demo");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("1 punto per ogni euro: da 100 punti sei Gold.");
+  await expect(page.locator("img.lw-strip")).toHaveCount(0);
+  await fillAndSubmit(page, "bar-punti-demo", newPhone());
+  await typeCode(page, "123456");
+  await expect(page.getByRole("heading", { name: "Ciao Zefiro, la tua carta è pronta." })).toBeVisible();
+  await expect(page.getByTestId("punti-saldo")).toHaveText("0 punti");
+  await expect(page.getByTestId("punti-livello")).toHaveText("Sei Silver · 0 punti");
+  await expect(page.getByText("Ancora 100 punti per diventare Gold.")).toBeVisible();
+});
+
+test("abbonamento: pagina con il vantaggio, tessera da attivare in negozio (Fase 9.6)", async ({ page }) => {
+  const { data: product, error } = await admin.rpc("prepaid_product_save", {
+    p_shop_id: "11111111-1111-4111-8111-111111111111",
+    p_product_id: null,
+    p_fields: {
+      code: `socio-${Date.now() % 100000}`,
+      name: "Socio 12 mesi",
+      kind: "abbonamento",
+      benefit: "accesso illimitato",
+      validity_months: 12,
+    },
+    p_meta: { actor_type: "staff", actor_id: "22222222-2222-4222-8222-222222222222" },
+  });
+  if (error) throw error;
+  try {
+    await page.goto(`/salone-demo/t/${product.code as string}`);
+    await expect(page.getByTestId("tessera-titolo")).toHaveText("Accesso illimitato, con la tessera sul telefono.");
+    await expect(page.getByText(/il rinnovo in negozio allunga dalla scadenza/)).toBeVisible();
+    await page.getByLabel("Nome").fill(NAME);
+    await page.getByLabel("Telefono").fill(newPhone());
+    await page.getByRole("checkbox", { name: /Accetto l'informativa privacy/ }).check();
+    await page.getByRole("button", { name: "Crea la mia tessera" }).click();
+    await typeCode(page, "123456");
+    await expect(page.getByTestId("tessera-stato")).toHaveText("Da attivare in negozio");
+    await expect(page.locator("p.lw-lead")).toContainText("Paga l'abbonamento in cassa: lo attiviamo subito.");
+  } finally {
+    await admin.from("prepaid_cards").delete().eq("product_id", product.id);
+    await admin.from("prepaid_products").delete().eq("id", product.id);
+  }
+});
+
 test.describe("da computer", () => {
   test.use({ userAgent: UA.desktop, viewport: { width: 1280, height: 900 }, isMobile: false, hasTouch: false });
   test("QR per aprire la carta sul telefono, che porta al Salva in Google Wallet", async ({ page }) => {
