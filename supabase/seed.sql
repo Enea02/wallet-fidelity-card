@@ -40,19 +40,31 @@ select '00000000-0000-0000-0000-000000000000', u.id, 'authenticated', 'authentic
        '', '', '', '', '', '', '', ''
 from (values
   ('22222222-2222-4222-8222-222222222222'::uuid, 'staff@salone-demo.test', 'Giulia Demo'),
-  ('55555555-5555-4555-8555-555555555555'::uuid, 'operatore@salone-demo.test', 'Marco Demo')
+  ('55555555-5555-4555-8555-555555555555'::uuid, 'operatore@salone-demo.test', 'Marco Demo'),
+  ('99999999-9999-4999-8999-999999999999'::uuid, 'titolare@bar-punti.test', 'Paola Demo')
 ) as u(id, email, name);
 
 insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 select id, id, id, jsonb_build_object('sub', id, 'email', email, 'email_verified', true), 'email', now(), now(), now()
 from auth.users
-where id in ('22222222-2222-4222-8222-222222222222', '55555555-5555-4555-8555-555555555555');
+where id in ('22222222-2222-4222-8222-222222222222', '55555555-5555-4555-8555-555555555555',
+             '99999999-9999-4999-8999-999999999999');
 
 insert into staff (user_id, shop_id, role, display_name)
 values
   ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111', 'owner', 'Giulia'),
   ('55555555-5555-4555-8555-555555555555', '11111111-1111-4111-8111-111111111111', 'operator', 'Marco'),
   ('55555555-5555-4555-8555-555555555555', '44444444-4444-4444-8444-444444444444', 'operator', 'Marco');
+
+-- Carta a punti (Fase 9.6): negozio a punti con un titolare tutto suo (gli altri utenti demo non cambiano)
+--   titolare@bar-punti.test   Paola Demo, titolare di bar-punti-demo (password-demo-locale)
+insert into shops (id, slug, name, stamps_required, reward_label, hex_color, stamp_cooldown_minutes, legal_name,
+                   privacy_email, program_name, loyalty_mode, points_per_euro, points_min_cents, points_levels)
+values ('88888888-8888-4888-8888-888888888888', 'bar-punti-demo', 'Bar Punti Demo', 10, 'Caffè gratis', '#9a3412', 0,
+        'Bar Punti Demo di Paola Bianchi', 'privacy@bar-punti.test', 'Club Bar', 'punti', 1, 0,
+        '[{"name":"Silver","min":0,"perk":""},{"name":"Gold","min":100,"perk":"-5% su tutto"},{"name":"Platinum","min":300,"perk":"-10% su tutto"}]');
+insert into staff (user_id, shop_id, role, display_name)
+values ('99999999-9999-4999-8999-999999999999', '88888888-8888-4888-8888-888888888888', 'owner', 'Paola');
 
 -- Cliente di prova con QR fisso, per provare /staff senza iscriversi.
 -- Contenuto del QR: 0123456789abcdef0123456789abcdef · codice breve: DEMA2345

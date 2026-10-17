@@ -53,12 +53,25 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
           <section className="int-card">
             <h2>Saldo nel database</h2>
             <dl>
-              <dt>Timbri</dt>
-              <dd data-testid="cliente-timbri">
-                {c.stamps} / {c.shop.stamps_required}
-              </dd>
-              <dt>Premi</dt>
-              <dd>{c.rewards}</dd>
+              {c.shop.loyalty_mode === "punti" ? (
+                <>
+                  <dt>Punti</dt>
+                  <dd data-testid="cliente-punti">
+                    {c.points} (totale {c.pointsTotal})
+                  </dd>
+                  <dt>Livello</dt>
+                  <dd data-testid="cliente-livello">{c.pointsLevel ?? "—"}</dd>
+                </>
+              ) : (
+                <>
+                  <dt>Timbri</dt>
+                  <dd data-testid="cliente-timbri">
+                    {c.stamps} / {c.shop.stamps_required}
+                  </dd>
+                  <dt>Premi</dt>
+                  <dd>{c.rewards}</dd>
+                </>
+              )}
               <dt>Telefono</dt>
               <dd>{c.phoneMasked ?? "—"}</dd>
               <dt>Promozioni</dt>

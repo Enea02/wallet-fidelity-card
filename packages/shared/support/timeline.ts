@@ -89,6 +89,10 @@ const AUDIT_LABEL: Record<string, string> = {
   prepaid_adjust: "correzione del saldo della tessera",
   prepaid_product_create: "nuovo tipo di tessera",
   prepaid_product_update: "modifica del tipo di tessera",
+  points_add: "punti dati per uno scontrino",
+  points_undo: "annullamento dei punti",
+  points_adjust: "correzione dei punti",
+  points_settings_update: "carta a punti: modalità, regola o livelli",
 };
 
 const ACTOR_LABEL: Record<string, string> = {

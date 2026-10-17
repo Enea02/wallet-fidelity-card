@@ -79,9 +79,13 @@ export async function googleCardStatus(shopId: string, customerId: string): Prom
     o.textModulesData?.find((m) => m.id === "stato")?.header ?? "—";
   const checks: FieldCheck[] = [
     { label: "Stato", db: want.state, google: got.state ?? "—" },
-    { label: "Timbri", db: want.loyaltyPoints.balance.string, google: got.loyaltyPoints?.balance?.string ?? "—" },
     {
-      label: "Premi",
+      label: want.loyaltyPoints.label,
+      db: want.loyaltyPoints.balance.string,
+      google: got.loyaltyPoints?.balance?.string ?? "—",
+    },
+    {
+      label: want.secondaryLoyaltyPoints.label,
       db: want.secondaryLoyaltyPoints.balance.string,
       google: got.secondaryLoyaltyPoints?.balance?.string ?? "—",
     },
