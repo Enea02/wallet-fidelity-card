@@ -143,6 +143,21 @@ async function cardsBy(column: "short_code" | "phone_hash", value: string): Prom
   }));
 }
 
+/** Tessere prepagate con quel codice breve (Fase 9.5). */
+async function prepaidBy(shortCode: string): Promise<SearchHit[]> {
+  const { data, error } = await supabaseAdmin()
+    .from("prepaid_cards")
+    .select("id, short_code, balance, status, deleted_at, prepaid_products(name), shops(name)")
+    .eq("short_code", shortCode)
+    .limit(20);
+  if (error) throw error;
+  return (data ?? []).map((t) => ({
+    href: `/interno/tessere/${t.id as string}`,
+    title: `Tessera ${t.short_code as string} · ${(t.prepaid_products as unknown as { name: string } | null)?.name ?? "tessera"} · ${(t.shops as unknown as { name: string } | null)?.name ?? "negozio"}`,
+    detail: t.deleted_at ? "cancellata" : t.status === "pending" ? "da attivare" : `saldo ${t.balance as number}`,
+  }));
+}
+
 async function run(c: Classified): Promise<SearchResult> {
   const db = supabaseAdmin();
   switch (c.kind) {
@@ -219,7 +234,7 @@ async function run(c: Classified): Promise<SearchResult> {
     case "telefono":
       return { kind: c.kind, hits: await cardsBy("phone_hash", phoneHash(c.value)) };
     case "carta":
-      return { kind: c.kind, hits: await cardsBy("short_code", c.value) };
+      return { kind: c.kind, hits: [...(await cardsBy("short_code", c.value)), ...(await prepaidBy(c.value))] };
     case "negozio": {
       const term = c.value.replace(/[%,()]/g, "");
       const { data, error } = await db

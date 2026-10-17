@@ -46,3 +46,29 @@ export type CardView = z.infer<typeof CardView>;
 export const CustomerIdBody = z.object({ customerId: z.uuid() });
 export const IdParams = z.object({ id: z.uuid() });
 export const UserIdParams = z.object({ userId: z.uuid() });
+
+/** Stato della tessera prepagata: da attivare (non pagata), attiva, esaurita (0 unità), scaduta. */
+export const PrepaidState = z.enum(["da_attivare", "attiva", "esaurita", "scaduta"]);
+export type PrepaidState = z.infer<typeof PrepaidState>;
+
+/** Tessera prepagata come la vede lo staff: niente telefono, niente QR. */
+export const PrepaidView = z.object({
+  id: z.uuid(),
+  shortCode: ShortCode,
+  /** Nome del cliente. */
+  name: z.string(),
+  productId: z.uuid(),
+  productName: z.string(),
+  unitSingular: z.string(),
+  unitPlural: z.string(),
+  /** Unità aggiunte da un'attivazione o una ricarica. */
+  units: z.number().int().min(1),
+  state: PrepaidState,
+  balance: z.number().int().min(0),
+  /** Saldo dopo l'ultima attivazione o ricarica ("138 di 150"). */
+  chargedUnits: z.number().int().min(0),
+  activatedAt: z.string().nullable(),
+  expiresAt: z.string().nullable(),
+});
+export type PrepaidView = z.infer<typeof PrepaidView>;
+export const CardIdBody = z.object({ cardId: z.uuid() });

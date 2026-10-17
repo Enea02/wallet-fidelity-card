@@ -411,6 +411,30 @@ pnpm diag disable <id> --by <chi>
 - In produzione lo script va eseguito con le variabili dell'ambiente di produzione; di norma si usa il pannello.
 - Le righe di diagnostica copiate per la vista Assistenza si tengono 7 giorni (le altre 30).
 
+## Tessere prepagate (Fase 9.5)
+
+Oltre alla carta fedeltà un negozio può vendere tessere a consumo (es. «Tessera fotocopie», 150 pagine). Il cliente
+la crea da `/<negozio>/t/<tessera>` (stesso flusso con SMS); nasce **da attivare**; lo staff la attiva in cassa dopo
+il pagamento (fuori dall'app), scala le unità usate e la ricarica sulla stessa carta. Nel pannello: cercare il codice
+della tessera (8 caratteri, come quello della carta) → pagina della tessera con stato, saldo, Google e timeline.
+
+| Segnalazione | Cosa cercare | Cosa fare |
+| --- | --- | --- |
+| "Non riesco a scalare" | `prepaid.consume.rejected_inactive` (`E_PREPAID_NOT_ACTIVE`) | La tessera non è mai stata attivata: se il cliente ha pagato, «Attiva (pagamento ricevuto)» dalla scheda in cassa |
+| "Dice che è scaduta" | `prepaid.consume.rejected_expired` | Scadenza del tipo di tessera: ricaricarla (la scadenza riparte) o, se il negozio vuole, correzione del titolare |
+| "Non bastano le unità" | `prepaid.consume.rejected_insufficient` | Il messaggio dice quante ne restano: scalare quelle o ricaricare |
+| "Attivata due volte?" | `prepaid.activate.ok` (una riga), `E_PREPAID_ALREADY_ACTIVE` | Un secondo tocco con la stessa chiave non agisce; un'attivazione su tessera già attiva è rifiutata: se ha pagato di nuovo, «Ricarica» |
+| "La tessera nel wallet non cambia" | `wallet.google.prepaid.upsert.*` | Pagina della tessera nel pannello → confronto con Google → «Risincronizza» |
+| "Il QR della tessera non si apre" | `enroll.shop.unavailable` con `/t/` | Tessera resa non disponibile dal titolare (sezione Tessere) o indirizzo sbagliato |
+
+- Ogni operazione resta nello storico (`prepaid_enroll`, `prepaid_activate`, `prepaid_consume`, `prepaid_recharge`,
+  `prepaid_undo`, `prepaid_adjust`) con chi l'ha fatta; attivazione e ricarica hanno il motivo "pagamento ricevuto
+  fuori dall'app".
+- La cancellazione del cliente cancella anche le sue tessere (disattivate su Google dal cron); l'esportazione GDPR le
+  comprende con i movimenti.
+- Negozio con la carta fedeltà spenta ("Carta fedeltà" nell'app): la pagina del negozio propone solo le tessere e le
+  carte fedeltà non vanno su Google.
+
 ## Pannello interno: accesso
 
 - Solo chi è in `support_members` (`pnpm support:add <email> --name <nome> --by <chi>`), con password e **codice
@@ -631,6 +655,10 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | `wallet.card.deactivated` | info | Carta resa non utilizzabile su Google Wallet (stato INACTIVE): cliente cancellato o negozio sospeso. | Carta A3F2C91B del negozio Salone Mario disattivata su Google Wallet: cliente cancellato. |
 | `wallet.sync.reconciled` | info | La riconciliazione periodica ha trovato una carta non allineata al database e l'ha riallineata. | Carta A3F2C91B del negozio Salone Mario riallineata su Google Wallet dalla riconciliazione (differenza: saldo). |
 | `wallet.sync.unexpected_error` | error | Errore imprevisto (non di Google) durante un lavoro verso i wallet: la riga contiene lo stack. La carta verrà riallineata dalla riconciliazione. | Errore imprevisto durante sincronizzazione carta verso i wallet: fetch failed (Supabase non raggiungibile). La carta verrà riallineata dalla riconciliazione; azione: passare lo stack di questa riga allo sviluppo. |
+| `wallet.google.prepaid.upsert.ok` | info | Tessera prepagata creata o aggiornata su Google Wallet con lo stato completo (saldo, stato, scadenza). | Tessera K7M2Q9XA (Tessera fotocopie) aggiornata su Google Wallet: attiva, 138 pagine, in 320 ms. |
+| `wallet.google.prepaid.upsert.failed` | error | Aggiornamento della tessera su Google Wallet fallito. L'operazione è salvata nel database; la tessera sul telefono resta indietro finché un tentativo non riesce. | Aggiornamento su Google Wallet fallito per la tessera K7M2Q9XA (Tessera fotocopie): credenziali del service account rifiutate (401). L'operazione è salvata; verrà ritentato tra 5 minuti. Azione: verificare la chiave GOOGLE_WALLET_SA_KEY_B64 e il ruolo del service account nella Wallet Console. |
+| `wallet.google.prepaid_class.upsert.ok` | info | Template di un tipo di tessera creato o aggiornato su Google Wallet (nome, colore e logo del negozio). | Template Google Wallet della tessera «Tessera fotocopie» del negozio Cartoleria Rossi aggiornato (3388.shop-cartoleria-rossi-t-fotocopie) in 280 ms. |
+| `wallet.google.prepaid_class.upsert.failed` | error | Aggiornamento del template di un tipo di tessera su Google Wallet fallito. | Aggiornamento del template Google Wallet della tessera «Tessera fotocopie» (Cartoleria Rossi) fallito: credenziali del service account rifiutate (401); verrà ritentato tra 5 minuti. Azione: verificare la chiave GOOGLE_WALLET_SA_KEY_B64 e il ruolo del service account nella Wallet Console. |
 
 ### marketing
 
@@ -712,6 +740,23 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | --- | --- | --- | --- |
 | `log.db_sink.failed` | warn | Le righe di log non sono state copiate nel database (tabella log_events): mancheranno nella timeline della vista Assistenza, restano nel servizio di log. | 12 righe di log non copiate nel database per la vista Assistenza: fetch failed (Supabase non raggiungibile). Restano nel servizio di log esterno; se si ripete controllare Supabase. |
 | `log.retention.purged` | info | Pulizia dei log copiati nel database: oltre 30 giorni (7 per quelli di modalità diagnostica). | Pulizia dei log della vista Assistenza: tolte 5000 righe più vecchie di 30 giorni e 120 righe di modalità diagnostica più vecchie di 7 giorni. |
+
+### prepaid
+
+| Evento | Livello | Quando compare | Esempio di `msg` |
+| --- | --- | --- | --- |
+| `prepaid.product.created` | info | Il titolare ha creato un tipo di tessera prepagata (es. 150 pagine) che i clienti possono richiedere. | Mario (titolare, web) ha creato la tessera «Tessera fotocopie» del negozio Cartoleria Rossi: 150 pagine, valida 12 mesi dall'attivazione. |
+| `prepaid.product.updated` | info | Il titolare ha modificato un tipo di tessera (le tessere già attive non cambiano saldo). | Mario (titolare, web) ha modificato la tessera «Tessera fotocopie» del negozio Cartoleria Rossi: unità 150 → 200, scadenza nessuna → 12 mesi. |
+| `prepaid.enroll.created` | info | Un cliente si è creato una tessera prepagata dal web: resta da attivare finché non paga in negozio. | Nuova tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi) creata dal web: da attivare in negozio dopo il pagamento. |
+| `prepaid.lookup.ok` | info | Lo staff ha letto una tessera prepagata allo scanner (QR o codice breve). | Giulia (operatore, iOS 1.4.0) ha aperto la tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi) con QR: attiva, 138 pagine. |
+| `prepaid.activate.ok` | info | Tessera attivata in cassa dopo il pagamento (fuori dall'app): da qui si può usare. | Giulia (operatore, iOS 1.4.0) ha attivato la tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi) dopo il pagamento: 150 pagine disponibili, valida fino al 03/11/2027 10:32 (ora italiana). |
+| `prepaid.consume.ok` | info | Unità scalate da una tessera prepagata. | Giulia (operatore, iOS 1.4.0) ha scalato 12 pagine dalla tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi): 150 → 138. |
+| `prepaid.consume.rejected_inactive` | warn | Scalo rifiutato: la tessera è ancora da attivare (il cliente non l'ha pagata o non è stata attivata). | Scalo di 1 pagina di Giulia (operatore, iOS 1.4.0) rifiutato sulla tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi): la tessera non è ancora attiva. Se il cliente ha pagato, va attivata dalla scheda della tessera. |
+| `prepaid.consume.rejected_expired` | warn | Scalo rifiutato: la tessera è scaduta. | Scalo di 2 pagine di Giulia (operatore, iOS 1.4.0) rifiutato sulla tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi): tessera scaduta il 01/11/2026 01:00 (ora italiana) con 40 pagine rimaste. Per usarla va ricaricata. |
+| `prepaid.consume.rejected_insufficient` | warn | Scalo rifiutato: la quantità richiesta supera le unità rimaste. | Scalo di 12 pagine di Giulia (operatore, iOS 1.4.0) rifiutato sulla tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi): ne restano solo 5. |
+| `prepaid.recharge.ok` | info | Tessera ricaricata in cassa dopo un nuovo pagamento (fuori dall'app); la scadenza riparte. | Giulia (operatore, iOS 1.4.0) ha ricaricato la tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi) dopo il pagamento: +150 pagine, 3 → 153. |
+| `prepaid.undo.ok` | info | Annullato l'ultimo scalo di una tessera (entro 5 minuti, dalla stessa persona). | Giulia (operatore, iOS 1.4.0) ha annullato l'ultimo scalo di 12 pagine sulla tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi): saldo tornato a 150. |
+| `prepaid.adjust.ok` | info | Il titolare ha corretto a mano il saldo di una tessera, con il motivo. | Mario (titolare, web) ha corretto il saldo della tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi): 138 → 140 pagine. Motivo: due pagine stampate male. |
 
 ## Errori
 
@@ -1136,5 +1181,40 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Creazione di un negozio con uno slug già usato da un altro negozio o riservato a una pagina del sito.
 - **Causa probabile**: Negozio già creato in precedenza, oppure slug come «interno» o «api» che sono percorsi del sito.
 - **Cosa fare**: Cercare il negozio con quello slug nel pannello; se è un doppione usare quello esistente, altrimenti cambiare slug.
+
+### `E_PREPAID_NOT_ACTIVE` (HTTP 409)
+
+- **L'utente vede**: La tessera non è ancora attiva: attivala dopo che il cliente ha pagato.
+- **Cosa è successo**: Operazione su una tessera prepagata ancora da attivare (scalo, ricarica o correzione).
+- **Causa probabile**: Il cliente si è creato la tessera ma non l'ha ancora pagata in negozio, oppure si è saltata l'attivazione.
+- **Cosa fare**: Se il cliente ha pagato, dalla scheda della tessera usare «Attiva (pagamento ricevuto)», poi ripetere l'operazione.
+
+### `E_PREPAID_ALREADY_ACTIVE` (HTTP 409)
+
+- **L'utente vede**: Questa tessera è già attiva: per aggiungere unità usa «Ricarica».
+- **Cosa è successo**: Richiesta di attivazione su una tessera già attivata in precedenza.
+- **Causa probabile**: Doppia attivazione (due persone in cassa o doppio tocco su dispositivi diversi), oppure si voleva ricaricare.
+- **Cosa fare**: Controllare il saldo nella scheda della tessera: se il cliente ha pagato di nuovo, usare «Ricarica»; altrimenti nessuna azione.
+
+### `E_PREPAID_INSUFFICIENT` (HTTP 409)
+
+- **L'utente vede**: Unità insufficienti sulla tessera: scala al massimo il saldo rimasto o ricaricala.
+- **Cosa è successo**: Scalo rifiutato perché la quantità richiesta supera le unità rimaste sulla tessera.
+- **Causa probabile**: Quantità digitata male, oppure tessera quasi esaurita che il cliente deve ricaricare.
+- **Cosa fare**: Il saldo rimasto è nel messaggio: scalare al massimo quel numero o, se il cliente paga, ricaricare la tessera e ripetere.
+
+### `E_PREPAID_EXPIRED` (HTTP 409)
+
+- **L'utente vede**: Tessera scaduta: per usarla di nuovo va ricaricata.
+- **Cosa è successo**: Scalo rifiutato perché la tessera ha superato la sua scadenza.
+- **Causa probabile**: Tessera con durata (es. 12 mesi) non ricaricata entro la scadenza.
+- **Cosa fare**: Se il negozio vuole concedere le unità rimaste, il titolare può ricaricarla (la scadenza riparte) o correggere il saldo; altrimenti è il comportamento previsto.
+
+### `E_PREPAID_PRODUCT_NOT_FOUND` (HTTP 404)
+
+- **L'utente vede**: Questa tessera non è (più) disponibile in questo negozio.
+- **Cosa è successo**: Tipo di tessera inesistente, di un altro negozio o disattivato dal titolare.
+- **Causa probabile**: QR o link di una tessera disattivata o cancellata, oppure indirizzo scritto male.
+- **Cosa fare**: Controllare nell'app (sezione Tessere) che il tipo di tessera esista e sia attivo; se va riattivato lo fa il titolare.
 
 <!-- FINE SEZIONE GENERATA -->

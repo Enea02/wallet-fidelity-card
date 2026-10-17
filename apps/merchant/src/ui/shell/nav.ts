@@ -6,6 +6,7 @@ export const ICON: Record<SectionKey, IconName> = {
   panoramica: "home",
   clienti: "users",
   carta: "card",
+  tessere: "ticket",
   staff: "staff",
   messaggi: "message",
   cartello: "print",

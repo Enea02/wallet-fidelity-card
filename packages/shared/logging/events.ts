@@ -810,7 +810,8 @@ export interface SupportSearchFields extends SupportActorFields {
   results: number;
 }
 
-export type SupportSubjectKind = "negozio" | "cliente" | "richiesta" | "utente staff" | "pacchetto diagnostica";
+export type SupportSubjectKind =
+  "negozio" | "cliente" | "tessera" | "richiesta" | "utente staff" | "pacchetto diagnostica";
 export interface SupportTimelineViewedFields extends SupportActorFields {
   subject_kind: SupportSubjectKind;
   /** Nome del negozio, codice carta, codice assistenza o email mascherata. */
@@ -879,6 +880,91 @@ export interface LogRetentionPurgedFields {
   diagnostic: number;
 }
 
+/* ---------- tessere prepagate a consumo (Fase 9.5) ---------- */
+
+/** Tessera coinvolta: codice breve della tessera (mai nome o telefono), negozio e tipo di tessera. */
+export interface PrepaidCardFields extends CardFields {
+  product_name: string;
+  unit_singular: string;
+  unit_plural: string;
+}
+
+export interface PrepaidProductCreatedFields extends ActorFields {
+  shop_name: string;
+  product_name: string;
+  units: number;
+  unit_plural: string;
+  /** null = senza scadenza */
+  validity_months: number | null;
+}
+
+export interface PrepaidProductUpdatedFields extends ActorFields {
+  shop_name: string;
+  product_name: string;
+  /** "unità 150 → 200, scadenza nessuna → 12 mesi" */
+  changes: string;
+}
+
+export interface PrepaidEnrollFields extends PrepaidCardFields {
+  enrollment_id: string;
+  /** true = il cliente aveva già questa tessera: ritrovata */
+  returning: boolean;
+}
+
+export interface PrepaidChargeFields extends ActorFields, PrepaidCardFields {
+  quantity: number;
+  balance_before: number;
+  balance_after: number;
+  /** ISO; null = senza scadenza */
+  expires_at: string | null;
+}
+
+export interface PrepaidConsumeFields extends ActorFields, PrepaidCardFields {
+  quantity: number;
+  balance_before: number;
+  balance_after: number;
+}
+
+export interface PrepaidRejectedFields extends ActorFields, PrepaidCardFields {
+  error_code: ErrorCode;
+  quantity: number;
+  balance: number;
+  /** ISO, solo per la tessera scaduta */
+  expires_at: string | null;
+}
+
+export interface PrepaidLookupFields extends CustomerLookupFields, PrepaidCardFields {
+  prepaid_state: PrepaidWalletState;
+  balance: number;
+}
+
+export interface PrepaidUndoFields extends ActorFields, PrepaidCardFields {
+  quantity: number;
+  balance_after: number;
+}
+
+export interface PrepaidAdjustFields extends ActorFields, PrepaidCardFields {
+  balance_before: number;
+  balance_after: number;
+  reason: string;
+}
+
+export type PrepaidWalletState = "da attivare" | "attiva" | "esaurita" | "scaduta" | "disattivata";
+export interface GooglePrepaidFields extends PrepaidCardFields {
+  balance: number;
+  prepaid_state: PrepaidWalletState;
+  duration_ms: number;
+  attempt: number;
+}
+
+export interface GooglePrepaidClassFields {
+  shop_name: string;
+  product_name: string;
+  class_id: string;
+  duration_ms: number;
+  attempt: number;
+}
+
 const diagnostic: DiagnosticModeFields = {
   diagnostic_id: "5f1c2a9e-0d1b-4f43-9a51-7d1e2b3c4d5e",
   scope_type: "shop",
@@ -893,6 +979,19 @@ const diagnostic: DiagnosticModeFields = {
 
 const enea: SupportActorFields = { support_name: "Enea" };
 const cardSupport = { ...enea, customer_ref: "A3F2C91B", shop_name: "Salone Mario" };
+
+const tessera: PrepaidCardFields = {
+  customer_ref: "K7M2Q9XA",
+  shop_name: "Cartoleria Rossi",
+  product_name: "Tessera fotocopie",
+  unit_singular: "pagina",
+  unit_plural: "pagine",
+};
+/** "1 pagina", "12 pagine" */
+const units = (n: number, f: Pick<PrepaidCardFields, "unit_singular" | "unit_plural">) =>
+  `${n} ${n === 1 ? f.unit_singular : f.unit_plural}`;
+const prepaidCard = (f: PrepaidCardFields) => `tessera ${f.customer_ref} (${f.product_name}, ${f.shop_name})`;
+const expiry = (iso: string | null) => (iso ? `, valida fino al ${when(iso)}` : "");
 
 const giulia: ActorFields = { actor_name: "Giulia", actor_role: "operator", platform: "ios", app_version: "1.4.0" };
 const titolare: ActorFields = { actor_name: "Mario", actor_role: "owner", platform: "web", app_version: "n/d" };
@@ -1902,9 +2001,10 @@ export const events = {
     description:
       "Qualcuno ha aperto un link pubblico firmato non valido (scaduto, manomesso o di una carta cancellata).",
     msg: (f) =>
-      `Aperto un link ${f.link_kind === "carta" ? "per salvare la carta" : "di disiscrizione"} non valido (${f.reason}): mostrata la pagina di link scaduto.`,
+      `Aperto un link ${f.link_kind === "carta" ? "per salvare la carta" : f.link_kind === "tessera" ? "per salvare la tessera prepagata" : "di disiscrizione"} non valido (${f.reason}): mostrata la pagina di link scaduto.`,
     examples: [
       { link_kind: "carta", reason: "scaduto" },
+      { link_kind: "tessera", reason: "tessera cancellata" },
       { link_kind: "disiscrizione", reason: "firma non valida" },
     ],
   }),
@@ -2359,6 +2459,224 @@ export const events = {
     msg: (f) =>
       `Pulizia dei log della vista Assistenza: tolte ${f.expired} righe più vecchie di 30 giorni e ${f.diagnostic} righe di modalità diagnostica più vecchie di 7 giorni.`,
     examples: [{ expired: 5000, diagnostic: 120 }],
+  }),
+
+  "prepaid.product.created": defineEvent<PrepaidProductCreatedFields>({
+    level: "info",
+    description:
+      "Il titolare ha creato un tipo di tessera prepagata (es. 150 pagine) che i clienti possono richiedere.",
+    msg: (f) =>
+      `${cap(actor(f))} ha creato la tessera «${f.product_name}» del negozio ${f.shop_name}: ${f.units} ${f.unit_plural}` +
+      (f.validity_months ? `, valida ${f.validity_months} mesi dall'attivazione.` : ", senza scadenza."),
+    examples: [
+      {
+        ...titolare,
+        shop_name: "Cartoleria Rossi",
+        product_name: "Tessera fotocopie",
+        units: 150,
+        unit_plural: "pagine",
+        validity_months: 12,
+      },
+      {
+        ...titolare,
+        shop_name: "Cartoleria Rossi",
+        product_name: "Tessera fotocopie",
+        units: 150,
+        unit_plural: "pagine",
+        validity_months: null,
+      },
+    ],
+  }),
+
+  "prepaid.product.updated": defineEvent<PrepaidProductUpdatedFields>({
+    level: "info",
+    description: "Il titolare ha modificato un tipo di tessera (le tessere già attive non cambiano saldo).",
+    msg: (f) =>
+      `${cap(actor(f))} ha modificato la tessera «${f.product_name}» del negozio ${f.shop_name}: ${f.changes}.`,
+    examples: [
+      {
+        ...titolare,
+        shop_name: "Cartoleria Rossi",
+        product_name: "Tessera fotocopie",
+        changes: "unità 150 → 200, scadenza nessuna → 12 mesi",
+      },
+    ],
+  }),
+
+  "prepaid.enroll.created": defineEvent<PrepaidEnrollFields>({
+    level: "info",
+    description: "Un cliente si è creato una tessera prepagata dal web: resta da attivare finché non paga in negozio.",
+    msg: (f) =>
+      f.returning
+        ? `Il cliente aveva già la ${prepaidCard(f)}: ritrovata, nessuna tessera nuova.`
+        : `Nuova ${prepaidCard(f)} creata dal web: da attivare in negozio dopo il pagamento.`,
+    examples: [
+      { ...tessera, enrollment_id: "8a1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d", returning: false },
+      { ...tessera, enrollment_id: "8a1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d", returning: true },
+    ],
+  }),
+
+  "prepaid.lookup.ok": defineEvent<PrepaidLookupFields>({
+    level: "info",
+    description: "Lo staff ha letto una tessera prepagata allo scanner (QR o codice breve).",
+    msg: (f) =>
+      `${cap(actor(f))} ha aperto la ${prepaidCard(f)} con ${f.method}: ${f.prepaid_state}` +
+      (f.prepaid_state === "da attivare" ? "." : `, ${units(f.balance, f)}.`),
+    examples: [
+      { ...giulia, ...tessera, method: "QR", prepaid_state: "attiva", balance: 138 },
+      { ...giulia, ...tessera, method: "codice breve", prepaid_state: "da attivare", balance: 0 },
+    ],
+  }),
+
+  "prepaid.activate.ok": defineEvent<PrepaidChargeFields>({
+    level: "info",
+    description: "Tessera attivata in cassa dopo il pagamento (fuori dall'app): da qui si può usare.",
+    msg: (f) =>
+      `${cap(actor(f))} ha attivato la ${prepaidCard(f)} dopo il pagamento: ${units(f.balance_after, f)} disponibili${expiry(f.expires_at)}.`,
+    examples: [
+      {
+        ...giulia,
+        ...tessera,
+        quantity: 150,
+        balance_before: 0,
+        balance_after: 150,
+        expires_at: "2027-11-03T09:32:14.000Z",
+      },
+      { ...giulia, ...tessera, quantity: 150, balance_before: 0, balance_after: 150, expires_at: null },
+    ],
+  }),
+
+  "prepaid.consume.ok": defineEvent<PrepaidConsumeFields>({
+    level: "info",
+    description: "Unità scalate da una tessera prepagata.",
+    msg: (f) =>
+      `${cap(actor(f))} ha scalato ${units(f.quantity, f)} dalla ${prepaidCard(f)}: ${f.balance_before} → ${f.balance_after}` +
+      (f.balance_after === 0 ? ", tessera esaurita." : "."),
+    examples: [
+      { ...giulia, ...tessera, quantity: 12, balance_before: 150, balance_after: 138 },
+      { ...giulia, ...tessera, quantity: 1, balance_before: 1, balance_after: 0 },
+    ],
+  }),
+
+  "prepaid.consume.rejected_inactive": defineEvent<PrepaidRejectedFields>({
+    level: "warn",
+    description:
+      "Scalo rifiutato: la tessera è ancora da attivare (il cliente non l'ha pagata o non è stata attivata).",
+    msg: (f) =>
+      `Scalo di ${units(f.quantity, f)} di ${actor(f)} rifiutato sulla ${prepaidCard(f)}: la tessera non è ancora attiva. ` +
+      `Se il cliente ha pagato, va attivata dalla scheda della tessera.`,
+    examples: [
+      { ...giulia, ...tessera, error_code: "E_PREPAID_NOT_ACTIVE", quantity: 1, balance: 0, expires_at: null },
+    ],
+  }),
+
+  "prepaid.consume.rejected_expired": defineEvent<PrepaidRejectedFields>({
+    level: "warn",
+    description: "Scalo rifiutato: la tessera è scaduta.",
+    msg: (f) =>
+      `Scalo di ${units(f.quantity, f)} di ${actor(f)} rifiutato sulla ${prepaidCard(f)}: tessera scaduta` +
+      `${f.expires_at ? ` il ${when(f.expires_at)}` : ""} con ${units(f.balance, f)} rimaste. Per usarla va ricaricata.`,
+    examples: [
+      {
+        ...giulia,
+        ...tessera,
+        error_code: "E_PREPAID_EXPIRED",
+        quantity: 2,
+        balance: 40,
+        expires_at: "2026-11-01T00:00:00.000Z",
+      },
+    ],
+  }),
+
+  "prepaid.consume.rejected_insufficient": defineEvent<PrepaidRejectedFields>({
+    level: "warn",
+    description: "Scalo rifiutato: la quantità richiesta supera le unità rimaste.",
+    msg: (f) =>
+      `Scalo di ${units(f.quantity, f)} di ${actor(f)} rifiutato sulla ${prepaidCard(f)}: ne restano solo ${f.balance}.`,
+    examples: [
+      { ...giulia, ...tessera, error_code: "E_PREPAID_INSUFFICIENT", quantity: 12, balance: 5, expires_at: null },
+    ],
+  }),
+
+  "prepaid.recharge.ok": defineEvent<PrepaidChargeFields>({
+    level: "info",
+    description: "Tessera ricaricata in cassa dopo un nuovo pagamento (fuori dall'app); la scadenza riparte.",
+    msg: (f) =>
+      `${cap(actor(f))} ha ricaricato la ${prepaidCard(f)} dopo il pagamento: +${units(f.quantity, f)}, ` +
+      `${f.balance_before} → ${f.balance_after}${expiry(f.expires_at)}.`,
+    examples: [{ ...giulia, ...tessera, quantity: 150, balance_before: 3, balance_after: 153, expires_at: null }],
+  }),
+
+  "prepaid.undo.ok": defineEvent<PrepaidUndoFields>({
+    level: "info",
+    description: "Annullato l'ultimo scalo di una tessera (entro 5 minuti, dalla stessa persona).",
+    msg: (f) =>
+      `${cap(actor(f))} ha annullato l'ultimo scalo di ${units(f.quantity, f)} sulla ${prepaidCard(f)}: saldo tornato a ${f.balance_after}.`,
+    examples: [{ ...giulia, ...tessera, quantity: 12, balance_after: 150 }],
+  }),
+
+  "prepaid.adjust.ok": defineEvent<PrepaidAdjustFields>({
+    level: "info",
+    description: "Il titolare ha corretto a mano il saldo di una tessera, con il motivo.",
+    msg: (f) =>
+      `${cap(actor(f))} ha corretto il saldo della ${prepaidCard(f)}: ${f.balance_before} → ${f.balance_after} ${f.unit_plural}. Motivo: ${f.reason}.`,
+    examples: [
+      { ...titolare, ...tessera, balance_before: 138, balance_after: 140, reason: "due pagine stampate male" },
+    ],
+  }),
+
+  "wallet.google.prepaid.upsert.ok": defineEvent<GooglePrepaidFields>({
+    level: "info",
+    description:
+      "Tessera prepagata creata o aggiornata su Google Wallet con lo stato completo (saldo, stato, scadenza).",
+    msg: (f) =>
+      `Tessera ${f.customer_ref} (${f.product_name}) aggiornata su Google Wallet: ${f.prepaid_state}, ${units(f.balance, f)}, in ${f.duration_ms} ms.`,
+    examples: [{ ...tessera, balance: 138, prepaid_state: "attiva", duration_ms: 320, attempt: 1 }],
+  }),
+
+  "wallet.google.prepaid.upsert.failed": defineEvent<GooglePrepaidFields & GoogleFailureFields>({
+    level: "error",
+    description:
+      "Aggiornamento della tessera su Google Wallet fallito. L'operazione è salvata nel database; la tessera sul telefono resta indietro finché un tentativo non riesce.",
+    msg: (f) =>
+      `Aggiornamento su Google Wallet fallito per la tessera ${f.customer_ref} (${f.product_name}): ${googleWhy(f)}. ` +
+      `L'operazione è salvata; ${googleNext(f)}. Azione: ${googleAction(f)}.`,
+    examples: [{ ...tessera, balance: 138, prepaid_state: "attiva", duration_ms: 120, attempt: 1, ...google401 }],
+  }),
+
+  "wallet.google.prepaid_class.upsert.ok": defineEvent<GooglePrepaidClassFields>({
+    level: "info",
+    description:
+      "Template di un tipo di tessera creato o aggiornato su Google Wallet (nome, colore e logo del negozio).",
+    msg: (f) =>
+      `Template Google Wallet della tessera «${f.product_name}» del negozio ${f.shop_name} aggiornato (${f.class_id}) in ${f.duration_ms} ms.`,
+    examples: [
+      {
+        shop_name: "Cartoleria Rossi",
+        product_name: "Tessera fotocopie",
+        class_id: "3388.shop-cartoleria-rossi-t-fotocopie",
+        duration_ms: 280,
+        attempt: 1,
+      },
+    ],
+  }),
+
+  "wallet.google.prepaid_class.upsert.failed": defineEvent<GooglePrepaidClassFields & GoogleFailureFields>({
+    level: "error",
+    description: "Aggiornamento del template di un tipo di tessera su Google Wallet fallito.",
+    msg: (f) =>
+      `Aggiornamento del template Google Wallet della tessera «${f.product_name}» (${f.shop_name}) fallito: ${googleWhy(f)}; ` +
+      `${googleNext(f)}. Azione: ${googleAction(f)}.`,
+    examples: [
+      {
+        shop_name: "Cartoleria Rossi",
+        product_name: "Tessera fotocopie",
+        class_id: "3388.shop-cartoleria-rossi-t-fotocopie",
+        duration_ms: 90,
+        attempt: 1,
+        ...google401,
+      },
+    ],
   }),
 
   "app.invite.accepted": defineEvent<AppEmailFields>({

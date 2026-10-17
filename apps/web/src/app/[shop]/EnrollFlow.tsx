@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { z } from "zod";
 import { PublicApiError, publicPost } from "../_components/public-api";
 import { SupportCode } from "../_components/SupportCode";
-import { stripUrl, type PublicShop } from "@/lib/public/shop-view";
+import { stripUrl, type PublicProduct, type PublicShop } from "@/lib/public/shop-view";
 import { useTurnstile } from "./useTurnstile";
 
 /*
@@ -73,11 +73,13 @@ function validate(v: FormValues): FieldErrors {
 
 function EnrollForm({
   shop,
+  product,
   siteKey,
   initial,
   onStarted,
 }: {
   shop: PublicShop;
+  product: PublicProduct | undefined;
   siteKey: string;
   initial: FormValues;
   onStarted: (s: Started, values: FormValues) => void;
@@ -108,6 +110,7 @@ function EnrollForm({
         consentPrivacy: true,
         consentMarketing: v.marketing,
         captchaToken,
+        ...(product && { productCode: product.code }),
       });
       onStarted(started, v);
     } catch (err) {
@@ -226,7 +229,7 @@ function EnrollForm({
 
       <div className="lw-bottom">
         <button className="lw-btn" type="submit" disabled={busy}>
-          {busy ? "Un momento…" : "Crea la mia carta"}
+          {busy ? "Un momento…" : product ? "Crea la mia tessera" : "Crea la mia carta"}
         </button>
         <span className="lw-note">Niente app da scaricare. Gratis, per sempre.</span>
       </div>
@@ -448,35 +451,69 @@ function Done({ shop, verified, enrollmentId }: { shop: PublicShop; verified: Ve
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <span className="lw-done-label">Fatto</span>
         <h1 className="lw-done-title">
-          {verified.status === "returning"
-            ? `Ciao ${verified.firstName}, hai già una carta qui: eccola.`
-            : `Ciao ${verified.firstName}, la tua carta è pronta.`}
+          {verified.prepaid
+            ? verified.status === "returning"
+              ? `Ciao ${verified.firstName}, hai già questa tessera: eccola.`
+              : `Ciao ${verified.firstName}, la tua tessera è pronta.`
+            : verified.status === "returning"
+              ? `Ciao ${verified.firstName}, hai già una carta qui: eccola.`
+              : `Ciao ${verified.firstName}, la tua carta è pronta.`}
         </h1>
       </div>
 
-      <div className="lw-card" aria-label={`Carta ${shop.name}: ${card.stamps} timbri su ${card.stampsRequired}`}>
-        <div className="top">
-          {/* eslint-disable-next-line @next/next/no-img-element -- logo o monogramma generato */}
-          <img src={shop.logo} alt="" />
-          <strong>{shop.name}</strong>
-          <span className="count">
-            {card.stamps} / {card.stampsRequired}
-          </span>
+      {verified.prepaid ? (
+        <div
+          className="lw-card"
+          aria-label={`${verified.prepaid.productName} di ${shop.name}: ${verified.prepaid.module.header}`}
+        >
+          <div className="top">
+            {/* eslint-disable-next-line @next/next/no-img-element -- logo o monogramma generato */}
+            <img src={shop.logo} alt="" />
+            <strong>{verified.prepaid.productName}</strong>
+            <span className="count" data-testid="tessera-saldo">
+              {verified.prepaid.state === "da_attivare"
+                ? "—"
+                : `${verified.prepaid.balance} ${verified.prepaid.unitPlural}`}
+            </span>
+          </div>
+          <div style={{ padding: "4px 18px 18px", display: "grid", gap: 4 }}>
+            <strong data-testid="tessera-stato">{verified.prepaid.module.header}</strong>
+            <span style={{ opacity: 0.85 }}>{verified.prepaid.module.body}</span>
+          </div>
         </div>
-        {/* eslint-disable-next-line @next/next/no-img-element -- SVG generato */}
-        <img
-          src={stripUrl(shop, card.stamps, card.rewardsAvailable)}
-          alt=""
-          className="lw-strip"
-          style={{ width: "100%", height: "auto", borderRadius: 0 }}
-        />
-      </div>
+      ) : (
+        <div className="lw-card" aria-label={`Carta ${shop.name}: ${card.stamps} timbri su ${card.stampsRequired}`}>
+          <div className="top">
+            {/* eslint-disable-next-line @next/next/no-img-element -- logo o monogramma generato */}
+            <img src={shop.logo} alt="" />
+            <strong>{shop.name}</strong>
+            <span className="count">
+              {card.stamps} / {card.stampsRequired}
+            </span>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element -- SVG generato */}
+          <img
+            src={stripUrl(shop, card.stamps, card.rewardsAvailable)}
+            alt=""
+            className="lw-strip"
+            style={{ width: "100%", height: "auto", borderRadius: 0 }}
+          />
+        </div>
+      )}
 
       <p className="lw-lead">
-        {verified.status === "returning" ? "I tuoi timbri sono conservati. " : ""}
+        {verified.prepaid
+          ? verified.prepaid.state === "da_attivare"
+            ? "Paga la tessera in cassa: la attiviamo subito. "
+            : ""
+          : verified.status === "returning"
+            ? "I tuoi timbri sono conservati. "
+            : ""}
         {wallet === "apple-in-arrivo"
           ? "Mostra questo QR alla cassa a ogni visita: ti conviene fare uno screenshot."
-          : "Salvala nel wallet: la trovi sempre sul telefono e si aggiorna da sola a ogni timbro."}
+          : verified.prepaid
+            ? "Salvala nel wallet: si aggiorna da sola quando la attiviamo e a ogni utilizzo."
+            : "Salvala nel wallet: la trovi sempre sul telefono e si aggiorna da sola a ogni timbro."}
       </p>
 
       <div className="lw-bottom" style={{ gap: 14 }}>
@@ -524,7 +561,18 @@ function Done({ shop, verified, enrollmentId }: { shop: PublicShop; verified: Ve
 
 /* ------------------------------------------------------------------ */
 
-export function EnrollFlow({ shop, siteKey, header }: { shop: PublicShop; siteKey: string; header: React.ReactNode }) {
+export function EnrollFlow({
+  shop,
+  product,
+  siteKey,
+  header,
+}: {
+  shop: PublicShop;
+  /** Iscrizione a una tessera prepagata (Fase 9.5); assente = carta fedeltà. */
+  product?: PublicProduct;
+  siteKey: string;
+  header: React.ReactNode;
+}) {
   const [values, setValues] = useState<FormValues>({
     name: "",
     prefix: "+39",
@@ -542,6 +590,7 @@ export function EnrollFlow({ shop, siteKey, header }: { shop: PublicShop; siteKe
       {header}
       <EnrollForm
         shop={shop}
+        product={product}
         siteKey={siteKey}
         initial={values}
         onStarted={(s, v) => {

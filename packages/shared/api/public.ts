@@ -17,6 +17,13 @@ export const EnrollStartBody = z.object({
   consentMarketing: z.boolean().default(false),
   /** Token di Cloudflare Turnstile. */
   captchaToken: z.string().min(1).max(4096),
+  /** Iscrizione a una tessera prepagata (/<negozio>/t/<code>, Fase 9.5); assente = carta fedeltà. */
+  productCode: z
+    .string()
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+    .min(2)
+    .max(30)
+    .optional(),
 });
 export const EnrollStartResponse = z.object({
   enrollmentId: z.uuid(),
@@ -38,6 +45,18 @@ export const PublicCard = z.object({
   rewardsAvailable: z.number().int(),
   rewardLabel: z.string(),
 });
+/** Tessera prepagata appena creata o ritrovata (Fase 9.5): resta da attivare finché non si paga in negozio. */
+export const PublicPrepaid = z.object({
+  productName: z.string(),
+  state: z.enum(["da_attivare", "attiva", "esaurita", "scaduta"]),
+  balance: z.number().int(),
+  units: z.number().int(),
+  unitSingular: z.string(),
+  unitPlural: z.string(),
+  expiresAt: z.string().nullable(),
+  /** Stesso testo della tessera nel wallet ("Da attivare in negozio", "Ti restano 138 pagine"). */
+  module: z.object({ header: z.string(), body: z.string() }),
+});
 export const EnrollVerifyResponse = z.object({
   status: z.enum(["created", "returning"]),
   firstName: z.string(),
@@ -46,6 +65,8 @@ export const EnrollVerifyResponse = z.object({
   googleSaveUrl: z.string().nullable(),
   /** Link breve firmato da aprire sul telefono (QR mostrato sul computer). */
   phoneLink: z.string(),
+  /** Valorizzato se l'iscrizione era a una tessera prepagata: `card` ne riporta QR e codice. */
+  prepaid: PublicPrepaid.nullable(),
 });
 
 export const FunnelBody = z.object({

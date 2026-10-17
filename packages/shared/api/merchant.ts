@@ -1,5 +1,16 @@
 import { z } from "zod";
-import { CardView, CustomerIdBody, HexColor, IdParams, Role, ShortCode, StampIconName, UserIdParams } from "./common";
+import {
+  CardIdBody,
+  CardView,
+  CustomerIdBody,
+  HexColor,
+  IdParams,
+  PrepaidView,
+  Role,
+  ShortCode,
+  StampIconName,
+  UserIdParams,
+} from "./common";
 
 /*
  * Contratti delle API dell'app esercente (/api/v1/merchant/*): richiesta e risposta di
@@ -32,6 +43,8 @@ export const ShopSummary = z.object({
   /** Icona dei timbri pieni (packages/shared/theme.ts, STAMP_ICONS). */
   stampIcon: StampIconName,
   status: z.enum(["active", "suspended"]),
+  /** false: il negozio offre solo tessere prepagate (niente carta fedeltà). */
+  loyaltyEnabled: z.boolean(),
 });
 export const ShopsResponse = z.object({ shops: z.array(ShopSummary) });
 
@@ -49,11 +62,16 @@ export const LookupBody = z.object({
     }),
 });
 export const CardResponse = z.object({
+  kind: z.literal("fedelta"),
   card: CardView,
   /** Data d'iscrizione (ISO) e numero di timbri ricevuti in tutto: "Cliente da marzo · 17 visite". */
   since: z.string(),
   visits: z.number().int().min(0),
 });
+/** Tessera prepagata letta allo scanner (Fase 9.5). */
+export const PrepaidLookupResponse = z.object({ kind: z.literal("tessera"), prepaid: PrepaidView });
+/** La scansione riconosce da sola carta fedeltà o tessera prepagata. */
+export const LookupResponse = z.discriminatedUnion("kind", [CardResponse, PrepaidLookupResponse]);
 /** Risposta delle azioni che restituiscono solo la carta aggiornata (annullamento, riscatto). */
 export const CardOnlyResponse = z.object({ card: CardView });
 /** Timbro: `force` lo dà anche durante il cooldown (resta nell'audit con chi l'ha dato). */
@@ -131,6 +149,8 @@ export const HistoryEntry = z.object({
 export const CustomerDetailResponse = z.object({
   customer: CustomerItem.extend({ stampsRequired: z.number().int(), rewardLabel: z.string() }),
   history: z.array(HistoryEntry),
+  /** Tessere prepagate del cliente in questo negozio (Fase 9.5). */
+  prepaidCards: z.array(PrepaidView),
 });
 export { IdParams };
 
@@ -165,6 +185,8 @@ export const ShopSettings = z.object({
   stampIcon: StampIconName,
   /** Frase d'apertura della pagina di iscrizione e del cartello (null = automatica). */
   tagline: z.string().nullable(),
+  /** false: il negozio offre solo tessere prepagate. */
+  loyaltyEnabled: z.boolean(),
 });
 export const SettingsResponse = z.object({ settings: ShopSettings });
 export const SettingsUpdateBody = z
@@ -189,6 +211,8 @@ export const SettingsUpdateBody = z
     stampUnitPlural: z.string().trim().min(2).max(20),
     stampIcon: StampIconName,
     tagline: z.string().trim().max(80).nullable(),
+    /** false: il negozio offre solo tessere prepagate (Fase 9.5). */
+    loyaltyEnabled: z.boolean(),
   })
   .partial()
   .refine((o) => Object.keys(o).length > 0, { message: "nessun campo da aggiornare" });
@@ -257,3 +281,44 @@ export const DiagnosticsBody = z.object({
   note: z.string().trim().max(500).optional(),
 });
 export const DiagnosticsResponse = z.object({ ticketCode: z.string() });
+
+/* ---------- tessere prepagate (Fase 9.5) ---------- */
+
+export const UnitName = z.string().trim().min(2).max(20);
+export const PrepaidProduct = z.object({
+  id: z.uuid(),
+  /** Parte dell'indirizzo di iscrizione: /<negozio>/t/<code>. */
+  code: z.string(),
+  name: z.string(),
+  units: z.number().int(),
+  unitSingular: z.string(),
+  unitPlural: z.string(),
+  /** null = senza scadenza. */
+  validityMonths: z.number().int().nullable(),
+  active: z.boolean(),
+  /** Tessere dei clienti per stato. */
+  cards: z.object({ pending: z.number().int(), active: z.number().int() }),
+});
+export const PrepaidProductsResponse = z.object({ products: z.array(PrepaidProduct) });
+export const PrepaidProductResponse = z.object({ product: PrepaidProduct });
+export const PrepaidProductCreateBody = z.object({
+  name: z.string().trim().min(2, "nome da 2 a 40 caratteri").max(40, "nome da 2 a 40 caratteri"),
+  units: z.number().int().min(1, "almeno 1 unità").max(10000, "al massimo 10000 unità"),
+  unitSingular: UnitName,
+  unitPlural: UnitName,
+  validityMonths: z.number().int().min(1).max(60).nullable(),
+});
+export const PrepaidProductUpdateBody = PrepaidProductCreateBody.partial()
+  .extend({ active: z.boolean().optional() })
+  .refine((b) => Object.keys(b).length > 0, { message: "nessuna modifica" });
+
+export { CardIdBody, PrepaidView };
+export const PrepaidConsumeBody = CardIdBody.extend({
+  quantity: z.number().int().min(1, "almeno 1").max(10000),
+});
+export const PrepaidResponse = z.object({ prepaid: PrepaidView, duplicate: z.boolean() });
+export const PrepaidAdjustBody = z.object({
+  balance: z.number().int().min(0).max(100000),
+  reason: z.string().trim().min(5, "il motivo è obbligatorio (almeno 5 caratteri)").max(200),
+});
+export const ProductQuery = z.object({ product: z.uuid().optional() });

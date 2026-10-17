@@ -62,3 +62,29 @@ export function stripUrl(s: PublicShop, filled: number, rewards = 0): string {
     }),
   );
 }
+
+/** Tessera prepagata offerta dal negozio (Fase 9.5): pagina /<negozio>/t/<code>. */
+export interface PublicProduct {
+  code: string;
+  name: string;
+  units: number;
+  unitSingular: string;
+  unitPlural: string;
+  validityMonths: number | null;
+}
+
+export const publicProduct = (p: {
+  code: string;
+  name: string;
+  units: number;
+  unit_singular: string;
+  unit_plural: string;
+  validity_months: number | null;
+}): PublicProduct => ({
+  code: p.code,
+  name: p.name,
+  units: p.units,
+  unitSingular: p.unit_singular,
+  unitPlural: p.unit_plural,
+  validityMonths: p.validity_months,
+});

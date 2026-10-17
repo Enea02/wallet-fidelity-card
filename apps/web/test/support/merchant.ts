@@ -25,6 +25,13 @@ import * as staff from "@/app/api/v1/merchant/staff/route";
 import * as stamp from "@/app/api/v1/merchant/stamp/route";
 import * as stats from "@/app/api/v1/merchant/stats/route";
 import * as undo from "@/app/api/v1/merchant/undo/route";
+import * as prepaidActivate from "@/app/api/v1/merchant/prepaid/activate/route";
+import * as prepaidConsume from "@/app/api/v1/merchant/prepaid/consume/route";
+import * as prepaidRecharge from "@/app/api/v1/merchant/prepaid/recharge/route";
+import * as prepaidUndo from "@/app/api/v1/merchant/prepaid/undo/route";
+import * as prepaidAdjust from "@/app/api/v1/merchant/prepaid-cards/[id]/adjust/route";
+import * as prepaidProduct from "@/app/api/v1/merchant/prepaid-products/[id]/route";
+import * as prepaidProducts from "@/app/api/v1/merchant/prepaid-products/route";
 
 type Handler = (req: Request, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
 
@@ -54,6 +61,14 @@ export const ROUTES: Record<MerchantEndpoint, Handler> = {
   queuePromotion: promotions.POST,
   counterQr: counterQr.GET,
   diagnostics: diagnostics.POST,
+  prepaidProducts: prepaidProducts.GET,
+  createPrepaidProduct: prepaidProducts.POST,
+  updatePrepaidProduct: prepaidProduct.PATCH,
+  prepaidActivate: prepaidActivate.POST,
+  prepaidConsume: prepaidConsume.POST,
+  prepaidRecharge: prepaidRecharge.POST,
+  prepaidUndo: prepaidUndo.POST,
+  prepaidAdjust: prepaidAdjust.POST,
 };
 
 export const SALONE = "11111111-1111-4111-8111-111111111111";

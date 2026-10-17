@@ -293,7 +293,8 @@ describe("riconciliazione e impostazioni", () => {
     const c = await testCustomer();
     await admin.from("customers").update({ stamps: 5 }).eq("id", c.id); // il timbro c'è, la sync no
     await age(c.id);
-    await runWalletCron();
+    // al massimo 50 carte per giro di tutti i negozi: con altri test in parallelo si gira finché tocca a lei
+    for (let i = 0; i < 5 && balance(c.id) !== "5 / 10"; i++) await runWalletCron();
     expect(balance(c.id)).toBe("5 / 10");
     expect(ev("wallet.sync.reconciled").find((l) => l.customer_ref === c.shortCode)?.reason).toBe("saldo");
   });

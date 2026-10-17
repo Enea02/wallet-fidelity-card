@@ -34,6 +34,11 @@ export function verifyPhoneLinkToken(token: string, now = Date.now()): string | 
 export const phoneLink = (slug: string, customerId: string) =>
   `${requireEnv("APP_BASE_URL").replace(/\/$/, "")}/${slug}/c/${phoneLinkToken(customerId)}`;
 
+/** Prefisso dell'id nel token per una tessera prepagata (Fase 9.5): "t:<id della tessera>". */
+export const PREPAID_LINK_PREFIX = "t:";
+export const prepaidPhoneLink = (slug: string, cardId: string) =>
+  `${requireEnv("APP_BASE_URL").replace(/\/$/, "")}/${slug}/c/${phoneLinkToken(`${PREPAID_LINK_PREFIX}${cardId}`)}`;
+
 /** Impronta del telefono per i limiti OTP e per la ricerca dell'assistenza (mai il numero in chiaro). */
 export const phoneHash = (e164: string) =>
   createHmac("sha256", requireEnv("IP_HASH_SALT")).update(`tel:${e164}`).digest("hex").slice(0, 32);

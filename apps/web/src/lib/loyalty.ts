@@ -1,10 +1,11 @@
 import "server-only";
-import type { CardView } from "@loyalty/shared/api";
+import type { CardView, PrepaidView } from "@loyalty/shared/api";
 import { AppError, type ErrorCode } from "@loyalty/shared/errors";
 import type { ActorFields, ActorRole, CardFields } from "@loyalty/shared/logging/events";
 import { getContext, setContext } from "./observability/context";
 import { log } from "./observability/logger";
 import { callDomain, domainMeta, type DomainActor } from "./merchant/domain-call";
+import { lookupPrepaid } from "./prepaid";
 import { supabaseAdmin } from "./supabase";
 import { CUSTOMER_COLS, SHOP_COLS } from "./db-columns";
 import type { Customer, Shop } from "./types";
@@ -35,7 +36,7 @@ interface CardResult {
 }
 
 /** Campi "chi ha agito" per i log, dai dati restituiti dal database. */
-function actorFields(src: { staff_name?: unknown; staff_role?: unknown }): ActorFields {
+export function actorFields(src: { staff_name?: unknown; staff_role?: unknown }): ActorFields {
   const ctx = getContext() ?? {};
   return {
     actor_name: typeof src.staff_name === "string" ? src.staff_name : "sconosciuto",
@@ -54,7 +55,7 @@ const cardFields = (customer: Customer, shop: Shop): CardFields => ({
  * Se l'errore è uno dei codici attesi, scrive l'evento di rifiuto e marca l'errore come
  * già registrato (withApi non lo ripete a livello warn). Poi lo rilancia sempre.
  */
-function onRejected(e: unknown, codes: readonly ErrorCode[], write: (err: AppError) => void): never {
+export function onRejected(e: unknown, codes: readonly ErrorCode[], write: (err: AppError) => void): never {
   if (e instanceof AppError && codes.includes(e.code)) {
     write(e);
     e.logged = true;
@@ -188,7 +189,9 @@ export async function lookupCard(
   shop: Shop,
   code: string,
   actor: ActorFields,
-): Promise<{ card: CardView; since: string; visits: number }> {
+): Promise<
+  { kind: "fedelta"; card: CardView; since: string; visits: number } | { kind: "tessera"; prepaid: PrepaidView }
+> {
   const isQr = /^[0-9a-f]{32}$/.test(code);
   const method = isQr ? "QR" : "codice breve";
   const { data, error } = await supabaseAdmin()
@@ -200,11 +203,14 @@ export async function lookupCard(
   if (error) throw error;
 
   if (!data) {
+    // non è una carta fedeltà: può essere una tessera prepagata (Fase 9.5)
+    const prepaid = await lookupPrepaid(shop, code, actor);
+    if (prepaid.view) return { kind: "tessera", prepaid: prepaid.view };
     const other = isQr
       ? await supabaseAdmin().from("customers").select("id").eq("qr_token", code).limit(1).maybeSingle()
       : { data: null, error: null };
     if (other.error) throw other.error;
-    const elsewhere = other.data !== null;
+    const elsewhere = other.data !== null || prepaid.elsewhere;
     log.event(elsewhere ? "customer.lookup.other_shop" : "customer.lookup.not_found", {
       ...actor,
       shop_name: shop.name,
@@ -245,7 +251,7 @@ export async function lookupCard(
   ]);
   if (e1) throw e1;
   if (e2) throw e2;
-  return { card: cardView(customer, shop), since: String(since.created_at), visits: count ?? 0 };
+  return { kind: "fedelta", card: cardView(customer, shop), since: String(since.created_at), visits: count ?? 0 };
 }
 
 /* ------------------------------------------------------------------ */

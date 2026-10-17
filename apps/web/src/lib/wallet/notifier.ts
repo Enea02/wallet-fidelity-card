@@ -2,12 +2,13 @@ import "server-only";
 import type { Shop } from "../types";
 import { rewardUnlockedMessage } from "./card-texts";
 import { deferWalletWork } from "./defer";
+import { syncPrepaidCard, syncPrepaidClass, syncShopPrepaidClasses } from "./prepaid-sync";
 import { sendCardMessage, syncCard, syncClass } from "./sync";
 
 /*
  * Unico punto in cui il dominio parla con i wallet. Il lavoro parte dopo la risposta all'app
  * (deferWalletWork): un errore di un wallet non annulla mai il timbro, viene registrato e ritentato.
- * Apple Wallet si aggiunge qui in Fase 12.
+ * Anche le tessere prepagate (Fase 9.5) passano da qui. Apple Wallet si aggiunge qui in Fase 12.
  */
 
 export interface CardChange {
@@ -32,5 +33,19 @@ export function notifyCardChanged(shop: Shop, customerId: string, change: CardCh
 
 /** Dopo un cambio di impostazioni visibile sulla carta: template subito, carte dalla riconciliazione. */
 export function notifyShopChanged(shop: Shop): Promise<void> {
-  return deferWalletWork("aggiornamento template", () => syncClass(shop.id));
+  return deferWalletWork("aggiornamento template", async () => {
+    if (shop.loyalty_enabled) await syncClass(shop.id);
+    // colore, logo e nome del negozio sono anche sulle tessere prepagate
+    await syncShopPrepaidClasses(shop);
+  });
+}
+
+/** Tessera prepagata cambiata (attivazione, scalo, ricarica, correzione, cancellazione). */
+export function notifyPrepaidChanged(cardId: string): Promise<void> {
+  return deferWalletWork("sincronizzazione tessera", () => syncPrepaidCard(cardId, { origin: "change" }));
+}
+
+/** Tipo di tessera cambiato (nome, unità): template subito, tessere dalla riconciliazione. */
+export function notifyPrepaidProductChanged(productId: string): Promise<void> {
+  return deferWalletWork("aggiornamento template tessera", () => syncPrepaidClass(productId));
 }

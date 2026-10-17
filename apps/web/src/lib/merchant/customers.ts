@@ -1,4 +1,5 @@
 import "server-only";
+import { prepaidCardsOf } from "../prepaid";
 import type { CustomerDetailResponse, CustomerItem, CustomersQuery, CustomersResponse } from "@loyalty/shared/api";
 import { ShortCode } from "@loyalty/shared/api";
 import { AppError } from "@loyalty/shared/errors";
@@ -160,6 +161,7 @@ export async function customerDetail(shop: Shop, customerId: string): Promise<z.
 
   return {
     customer: { ...toItem(row), stampsRequired: shop.stamps_required, rewardLabel: shop.reward_label },
+    prepaidCards: await prepaidCardsOf(shop.id, customerId),
     history: ((audit ?? []) as AuditRow[]).map((a) => ({
       at: new Date(a.ts).toISOString(),
       action: a.action,

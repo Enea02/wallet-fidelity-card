@@ -7,7 +7,7 @@ import { fetchExternal } from "../observability/fetch-external";
 import { log } from "../observability/logger";
 import { cardColors } from "@loyalty/shared/theme";
 import { taglineFor } from "../public/shop-view";
-import type { Shop } from "../types";
+import type { PrepaidProduct, Shop } from "../types";
 
 /*
  * Cartello A5 da bancone (docs/design/Cartello A5.dc.html): fondo nel colore del negozio con
@@ -76,12 +76,14 @@ const initials = (name: string) =>
 
 interface SignProps {
   shop: Shop;
+  /** Cartello di una tessera prepagata (Fase 9.5): niente timbri, testi della tessera. */
+  product: PrepaidProduct | null;
   url: string;
   qrDataUrl: string;
   logo: { data: Buffer; format: "png" | "jpg" } | null;
 }
 
-function Sign({ shop, url, qrDataUrl, logo }: SignProps) {
+function Sign({ shop, product, url, qrDataUrl, logo }: SignProps) {
   // colori della carta (corretti per il contrasto, come la carta nel Wallet e la pagina di iscrizione)
   const c = cardColors(shop.hex_color.toUpperCase());
   const filled = Math.round(shop.stamps_required * 0.6);
@@ -100,25 +102,31 @@ function Sign({ shop, url, qrDataUrl, logo }: SignProps) {
             )}
             <View>
               <Text style={s.shopName}>{shop.name}</Text>
-              <Text style={[s.program, { color: c.label, opacity: 1 }]}>{shop.program_name}</Text>
+              <Text style={[s.program, { color: c.label, opacity: 1 }]}>{product?.name ?? shop.program_name}</Text>
             </View>
           </View>
-          <Text style={s.headline}>{taglineFor(shop)}</Text>
-          <View style={s.stamps}>
-            {Array.from({ length: shop.stamps_required }, (_, i) => (
-              <View
-                key={i}
-                style={{
-                  width: dot,
-                  height: dot,
-                  borderRadius: dot / 2,
-                  borderWidth: 2,
-                  borderColor: i < filled ? c.fg : c.ring,
-                  backgroundColor: i < filled ? c.fg : "transparent",
-                }}
-              />
-            ))}
-          </View>
+          <Text style={s.headline}>
+            {product
+              ? `${product.units} ${product.units === 1 ? product.unit_singular : product.unit_plural} sul telefono. Paghi in negozio, la attiviamo subito.`
+              : taglineFor(shop)}
+          </Text>
+          {!product && (
+            <View style={s.stamps}>
+              {Array.from({ length: shop.stamps_required }, (_, i) => (
+                <View
+                  key={i}
+                  style={{
+                    width: dot,
+                    height: dot,
+                    borderRadius: dot / 2,
+                    borderWidth: 2,
+                    borderColor: i < filled ? c.fg : c.ring,
+                    backgroundColor: i < filled ? c.fg : "transparent",
+                  }}
+                />
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={s.panel}>
@@ -130,7 +138,14 @@ function Sign({ shop, url, qrDataUrl, logo }: SignProps) {
           </View>
           <View style={s.steps}>
             <Text style={s.stepsTitle}>Niente app da scaricare.</Text>
-            {["Inquadra il QR con la fotocamera", "Scrivi nome e telefono", "Salva la carta nel wallet"].map((t, i) => (
+            {(product
+              ? [
+                  "Inquadra il QR con la fotocamera",
+                  "Crea la tessera e salvala nel wallet",
+                  "Paga in cassa: la attiviamo subito",
+                ]
+              : ["Inquadra il QR con la fotocamera", "Scrivi nome e telefono", "Salva la carta nel wallet"]
+            ).map((t, i) => (
               <View key={t} style={s.step}>
                 <View style={[s.stepNum, { backgroundColor: c.bg }]}>
                   <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700 }}>{i + 1}</Text>
@@ -164,15 +179,19 @@ async function loadLogo(shop: Shop): Promise<SignProps["logo"]> {
 }
 
 /** PDF del cartello; actor = chi lo scarica dall'app (null = pagina pubblica /<slug>/qr). */
-export async function counterQrPdf(shop: Shop, actor: ActorFields | null): Promise<Response> {
+export async function counterQrPdf(
+  shop: Shop,
+  actor: ActorFields | null,
+  product: PrepaidProduct | null = null,
+): Promise<Response> {
   const started = performance.now();
   const base = (process.env.APP_BASE_URL ?? "").replace(/\/$/, "");
-  const url = `${base}/${shop.slug}`;
+  const url = product ? `${base}/${shop.slug}/t/${product.code}` : `${base}/${shop.slug}`;
   const [qrDataUrl, logo] = await Promise.all([
     QRCode.toDataURL(url, { margin: 0, width: 600, color: { dark: "#1E1915", light: "#FFFFFF" } }),
     loadLogo(shop),
   ]);
-  const pdf = await renderToBuffer(<Sign shop={shop} url={url} qrDataUrl={qrDataUrl} logo={logo} />);
+  const pdf = await renderToBuffer(<Sign shop={shop} product={product} url={url} qrDataUrl={qrDataUrl} logo={logo} />);
 
   const done = { shop_name: shop.name, size_bytes: pdf.length, duration_ms: Math.round(performance.now() - started) };
   if (actor) log.event("counter_qr.downloaded", { ...actor, ...done });
@@ -180,7 +199,7 @@ export async function counterQrPdf(shop: Shop, actor: ActorFields | null): Promi
   return new Response(new Uint8Array(pdf), {
     headers: {
       "content-type": "application/pdf",
-      "content-disposition": `attachment; filename="cartello-${shop.slug}.pdf"`,
+      "content-disposition": `attachment; filename="cartello-${shop.slug}${product ? `-${product.code}` : ""}.pdf"`,
       "cache-control": "no-store",
     },
   });

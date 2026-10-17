@@ -9,7 +9,16 @@ import { getContext, setContext } from "../observability/context";
 import { log } from "../observability/logger";
 import { supabaseAdmin } from "../supabase";
 import type { Shop } from "../types";
-import { phoneHash, phoneLink } from "./links";
+import { prepaidModule } from "@loyalty/shared/copy";
+import { domainMeta } from "../merchant/domain-call";
+import { getProductByCode } from "../prepaid";
+import { prepaidState } from "../prepaid-state";
+import { PREPAID_CARD_COLS, PREPAID_PRODUCT_COLS } from "../db-columns";
+import type { PrepaidCard, PrepaidProduct } from "../types";
+import { googleEnabled } from "../wallet/google/config";
+import { prepaidSaveUrl } from "../wallet/google/prepaid-payload";
+import { notifyPrepaidChanged } from "../wallet/notifier";
+import { phoneHash, phoneLink, prepaidPhoneLink } from "./links";
 import { otpProvider } from "./otp";
 import { verifyCaptcha } from "./turnstile";
 
@@ -120,6 +129,15 @@ export async function startEnrollment(input: z.output<typeof EnrollStartBody>) {
     platform: getContext()?.platform ?? "public-web",
   });
 
+  // tessera prepagata (Fase 9.5): deve esistere ed essere disponibile prima di mandare l'SMS
+  const product = input.productCode ? await getProductByCode(shop.id, input.productCode) : null;
+  if (input.productCode && (!product || !product.active)) {
+    throw new AppError(
+      "E_PREPAID_PRODUCT_NOT_FOUND",
+      `tessera "${input.productCode}" inesistente o non disponibile nel negozio ${shop.slug}`,
+    );
+  }
+
   const captcha = await verifyCaptcha(input.captchaToken);
   if (!captcha.ok) {
     log.event("enroll.captcha.failed", { shop_name: shop.name, reason: captcha.reason });
@@ -137,6 +155,13 @@ export async function startEnrollment(input: z.output<typeof EnrollStartBody>) {
   }).catch((e: unknown) => onLimit(e, shop));
 
   setContext({ enrollment_id: started.enrollment_id });
+  if (product) {
+    const { error } = await supabaseAdmin()
+      .from("enrollment_sessions")
+      .update({ prepaid_product_id: product.id })
+      .eq("id", started.enrollment_id);
+    if (error) throw error;
+  }
   await sendOtp(started.enrollment_id, shop, phone.e164, 1);
   return { enrollmentId: started.enrollment_id, phoneDisplay: phone.display, resendInSeconds: RESEND_S };
 }
@@ -147,6 +172,7 @@ interface SessionRow {
   phone: string;
   name: string;
   consent_marketing: boolean;
+  prepaid_product_id: string | null;
 }
 
 async function sessionShop(shopId: string): Promise<Shop> {
@@ -219,6 +245,8 @@ export async function verifyEnrollment(
   }
   log.event("enroll.otp.verified", { ...funnel, attempts: r.attempts ?? 1 });
 
+  if (s.prepaid_product_id) return verifyPrepaid(enrollmentId, s, shop);
+
   const result = await enroll({
     shop,
     shopSlug: shop.slug,
@@ -242,6 +270,88 @@ export async function verifyEnrollment(
     },
     googleSaveUrl: result.googleSaveUrl,
     phoneLink: phoneLink(shop.slug, result.customer.id),
+    prepaid: null,
+  };
+}
+
+/** Telefono verificato per una tessera prepagata: la crea (o la ritrova) da attivare in negozio. */
+async function verifyPrepaid(
+  enrollmentId: string,
+  s: SessionRow,
+  shop: Shop,
+): Promise<z.input<typeof EnrollVerifyResponse>> {
+  const r = await rpc<{
+    card_id: string;
+    customer_id: string;
+    returning: boolean;
+    product_name: string;
+  }>("prepaid_enroll", {
+    p_product_id: s.prepaid_product_id,
+    p_name: s.name,
+    p_phone: s.phone,
+    p_consent_privacy: true,
+    p_consent_marketing: s.consent_marketing,
+    p_meta: domainMeta({ type: "customer", customerId: "web" }),
+  });
+  await rpc("enrollment_complete", { p_id: enrollmentId, p_customer_id: r.customer_id });
+  const [{ data: card, error }, { data: product, error: e2 }, { data: person, error: e3 }] = await Promise.all([
+    supabaseAdmin().from("prepaid_cards").select(PREPAID_CARD_COLS).eq("id", r.card_id).single<PrepaidCard>(),
+    supabaseAdmin()
+      .from("prepaid_products")
+      .select(PREPAID_PRODUCT_COLS)
+      .eq("id", s.prepaid_product_id!)
+      .single<PrepaidProduct>(),
+    supabaseAdmin().from("customers").select("name").eq("id", r.customer_id).single(),
+  ]);
+  if (error) throw error;
+  if (e2) throw e2;
+  if (e3) throw e3;
+  setContext({ customer_ref: card.short_code });
+  log.event("prepaid.enroll.created", {
+    enrollment_id: enrollmentId,
+    customer_ref: card.short_code,
+    shop_name: shop.name,
+    product_name: product.name,
+    unit_singular: product.unit_singular,
+    unit_plural: product.unit_plural,
+    returning: r.returning,
+  });
+  // la tessera nasce su Google subito (da attivare): il link "Salva" la porta comunque completa
+  if (!r.returning) await notifyPrepaidChanged(card.id);
+  const state = prepaidState(card);
+  const input = {
+    state,
+    balance: card.balance,
+    chargedUnits: card.charged_units,
+    units: product.units,
+    unitSingular: product.unit_singular,
+    unitPlural: product.unit_plural,
+    expiresAt: card.expires_at ? new Date(card.expires_at).toISOString() : null,
+  };
+  const name = person.name as string;
+  return {
+    status: r.returning ? "returning" : "created",
+    firstName: (r.returning ? name : s.name).split(/\s+/)[0] ?? "",
+    card: {
+      shortCode: card.short_code,
+      qrToken: card.qr_token,
+      stamps: 0,
+      stampsRequired: shop.stamps_required,
+      rewardsAvailable: 0,
+      rewardLabel: shop.reward_label,
+    },
+    googleSaveUrl: googleEnabled() ? prepaidSaveUrl(shop, product, card, name) : null,
+    phoneLink: prepaidPhoneLink(shop.slug, card.id),
+    prepaid: {
+      productName: product.name,
+      state,
+      balance: card.balance,
+      units: input.units,
+      unitSingular: input.unitSingular,
+      unitPlural: input.unitPlural,
+      expiresAt: input.expiresAt,
+      module: prepaidModule(input),
+    },
   };
 }
 
@@ -250,7 +360,7 @@ export async function recordFunnelStep(enrollmentId: string, step: "link.shown" 
   setContext({ enrollment_id: enrollmentId });
   const { data } = await supabaseAdmin()
     .from("enrollment_sessions")
-    .select("shop_id, customer_id, status")
+    .select("shop_id, customer_id, status, prepaid_product_id")
     .eq("id", enrollmentId)
     .maybeSingle();
   if (!data || data.status !== "verified" || !data.customer_id) {
@@ -258,7 +368,16 @@ export async function recordFunnelStep(enrollmentId: string, step: "link.shown" 
   }
   const [{ data: shop }, { data: customer }] = await Promise.all([
     supabaseAdmin().from("shops").select("name").eq("id", data.shop_id).single(),
-    supabaseAdmin().from("customers").select("short_code").eq("id", data.customer_id).single(),
+    // per una tessera prepagata il codice nei log è quello della tessera
+    data.prepaid_product_id
+      ? supabaseAdmin()
+          .from("prepaid_cards")
+          .select("short_code")
+          .eq("customer_id", data.customer_id)
+          .eq("product_id", data.prepaid_product_id)
+          .is("deleted_at", null)
+          .single()
+      : supabaseAdmin().from("customers").select("short_code").eq("id", data.customer_id).single(),
   ]);
   setContext({ shop_id: data.shop_id as string, customer_ref: customer?.short_code as string });
   log.event(step === "link.shown" ? "enroll.wallet.link.shown" : "enroll.wallet.link.clicked", {

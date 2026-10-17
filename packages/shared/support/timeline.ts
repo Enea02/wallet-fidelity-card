@@ -81,6 +81,14 @@ const AUDIT_LABEL: Record<string, string> = {
   wallet_resync: "risincronizzazione con Google Wallet",
   diagnostic_enable: "attivazione della modalità diagnostica",
   diagnostic_disable: "disattivazione della modalità diagnostica",
+  prepaid_enroll: "creazione della tessera",
+  prepaid_activate: "attivazione della tessera (pagamento ricevuto)",
+  prepaid_consume: "scalo dalla tessera",
+  prepaid_recharge: "ricarica della tessera (pagamento ricevuto)",
+  prepaid_undo: "annullamento dello scalo",
+  prepaid_adjust: "correzione del saldo della tessera",
+  prepaid_product_create: "nuovo tipo di tessera",
+  prepaid_product_update: "modifica del tipo di tessera",
 };
 
 const ACTOR_LABEL: Record<string, string> = {

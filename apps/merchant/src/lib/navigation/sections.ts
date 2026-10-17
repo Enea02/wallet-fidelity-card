@@ -5,7 +5,8 @@ import type { Role } from "@loyalty/shared/api";
  * il titolare le sezioni del negozio (design Titolare T2) più scanner e profilo.
  * Il layout decide come mostrarle (tab su mobile, barra laterale da tablet orizzontale in su).
  */
-export type SectionKey = "panoramica" | "clienti" | "carta" | "staff" | "messaggi" | "cartello" | "scanner" | "profilo";
+export type SectionKey =
+  "panoramica" | "clienti" | "carta" | "tessere" | "staff" | "messaggi" | "cartello" | "scanner" | "profilo";
 
 export interface Section {
   key: SectionKey;
@@ -18,6 +19,8 @@ const OWNER: Section[] = [
   { key: "panoramica", label: "Panoramica", inTabs: true },
   { key: "clienti", label: "Clienti", inTabs: true },
   { key: "carta", label: "Carta", inTabs: true },
+  // tessere prepagate (Fase 9.5): su mobile si aprono dalla schermata Carta
+  { key: "tessere", label: "Tessere", inTabs: false },
   { key: "staff", label: "Staff", inTabs: true },
   { key: "messaggi", label: "Messaggi", inTabs: true },
   { key: "cartello", label: "Cartello", inTabs: false },

@@ -13,7 +13,7 @@ import { callDomain, staffMeta } from "./domain-call";
 
 const BUCKET = "logos";
 const COLS =
-  "name, slug, hex_color, stamps_required, reward_label, stamp_cooldown_minutes, logo_url, legal_name, vat_number, privacy_email, status, program_name, stamp_unit, stamp_unit_plural, stamp_icon, tagline";
+  "name, slug, hex_color, stamps_required, reward_label, stamp_cooldown_minutes, logo_url, legal_name, vat_number, privacy_email, status, program_name, stamp_unit, stamp_unit_plural, stamp_icon, tagline, loyalty_enabled";
 
 interface Row {
   name: string;
@@ -32,6 +32,7 @@ interface Row {
   stamp_unit_plural: string;
   stamp_icon: StampIcon;
   tagline: string | null;
+  loyalty_enabled: boolean;
 }
 
 const toSettings = (r: Row): z.input<typeof ShopSettings> => ({
@@ -51,6 +52,7 @@ const toSettings = (r: Row): z.input<typeof ShopSettings> => ({
   stampUnitPlural: r.stamp_unit_plural,
   stampIcon: r.stamp_icon,
   tagline: r.tagline,
+  loyaltyEnabled: r.loyalty_enabled,
 });
 
 export async function getSettings(shop: Shop) {
@@ -156,28 +158,41 @@ export async function updateSettings(
     changes.logo_url = await publicLogoUrl(shop, input.logoPath, actor);
   }
 
-  const r = await callDomain<{
-    before: Record<string, unknown>;
-    after: Record<string, unknown>;
-    shop_name: string;
-    card_changed: boolean;
-  }>("update_shop_settings", { p_shop_id: shop.id, p_changes: changes, p_meta: staffMeta(userId) });
+  // carta fedeltà attiva o no (Fase 9.5): funzione a parte, con il suo audit
+  let loyalty: string | null = null;
+  if (input.loyaltyEnabled !== undefined) {
+    const l = await callDomain<{ changed: boolean }>("set_loyalty_enabled", {
+      p_shop_id: shop.id,
+      p_enabled: input.loyaltyEnabled,
+      p_meta: staffMeta(userId),
+    });
+    if (l.changed) loyalty = `carta fedeltà ${input.loyaltyEnabled ? "spenta → attiva" : "attiva → spenta"}`;
+  }
+
+  const r =
+    Object.keys(changes).length > 0
+      ? await callDomain<{
+          before: Record<string, unknown>;
+          after: Record<string, unknown>;
+          shop_name: string;
+          card_changed: boolean;
+        }>("update_shop_settings", { p_shop_id: shop.id, p_changes: changes, p_meta: staffMeta(userId) })
+      : { before: {}, after: {}, shop_name: shop.name, card_changed: false };
   const changed = Object.keys(r.after).filter((k) => k !== "logo_path");
+  const parts = changed.map((k) =>
+    k === "logo_url" ? "logo sostituito" : `${LABELS[k] ?? k} ${show(r.before[k])} → ${show(r.after[k])}`,
+  );
+  if (loyalty) parts.push(loyalty);
   log.event("settings.update.ok", {
     ...actor,
     shop_name: r.shop_name,
-    changed_fields: changed,
-    changes:
-      changed.length === 0
-        ? "nessuna modifica (valori uguali a quelli già salvati)"
-        : changed
-            .map((k) =>
-              k === "logo_url" ? "logo sostituito" : `${LABELS[k] ?? k} ${show(r.before[k])} → ${show(r.after[k])}`,
-            )
-            .join(", "),
+    changed_fields: loyalty ? [...changed, "loyalty_enabled"] : changed,
+    changes: parts.length === 0 ? "nessuna modifica (valori uguali a quelli già salvati)" : parts.join(", "),
   });
   // template Google subito; le carte con la versione vecchia le riallinea la riconciliazione del cron
-  if (r.card_changed) await notifyShopChanged(shop);
+  if (r.card_changed || loyalty) {
+    await notifyShopChanged(loyalty ? { ...shop, loyalty_enabled: input.loyaltyEnabled === true } : shop);
+  }
   return getSettings(shop);
 }
 
