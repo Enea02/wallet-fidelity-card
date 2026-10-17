@@ -8,6 +8,8 @@ const view = (over: Partial<PrepaidView> = {}): PrepaidView => ({
   name: "Tina",
   productId: "22222222-2222-4222-8222-222222222222",
   productName: "Tessera fotocopie",
+  kind: "consumo",
+  benefit: null,
   unitSingular: "pagina",
   unitPlural: "pagine",
   units: 150,
@@ -59,5 +61,50 @@ describe("scheda della tessera in cassa", () => {
     });
     expect(prepaidSummary(view({ state: "da_attivare", balance: 0, chargedUnits: 0 })).balance).toBeNull();
     expect(prepaidSummary(view({ expiresAt: "2027-11-03T10:00:00Z" })).expiry).toBe("Valida fino al 03/11/2027");
+  });
+});
+
+describe("abbonamento in cassa (Fase 9.6)", () => {
+  const sub = (over: Partial<PrepaidView> = {}) =>
+    view({
+      kind: "abbonamento",
+      productName: "Socio 12 mesi",
+      benefit: "accesso illimitato",
+      units: null,
+      unitSingular: null,
+      unitPlural: null,
+      balance: 0,
+      chargedUnits: 0,
+      expiresAt: "2027-11-01T10:00:00.000Z",
+      ...over,
+    });
+
+  it("valido: niente scalo, si può rinnovare", () => {
+    const a = prepaidAvailability(sub(), base);
+    expect(a.consume).toBe(false);
+    expect(a.undo).toBe(false);
+    expect(a.recharge).toBe(true);
+    const s = prepaidSummary(sub());
+    expect(s.badge).toBe("Valido");
+    expect(s.balance).toBe("accesso illimitato");
+    expect(s.expiry).toBe("Valido fino al 01/11/2027");
+  });
+
+  it("scaduto: si rinnova", () => {
+    const s = prepaidSummary(sub({ state: "scaduta", expiresAt: "2026-01-01T10:00:00.000Z" }));
+    expect(s.badge).toBe("Scaduto");
+    expect(s.expiry).toMatch(/^Scaduto il /);
+    expect(prepaidAvailability(sub({ state: "scaduta" }), base).recharge).toBe(true);
+  });
+
+  it("senza scadenza: niente rinnovo", () => {
+    expect(prepaidAvailability(sub({ expiresAt: null }), base).recharge).toBe(false);
+    expect(prepaidSummary(sub({ expiresAt: null })).expiry).toBe("Senza scadenza");
+  });
+
+  it("da attivare: solo l'attivazione", () => {
+    const a = prepaidAvailability(sub({ state: "da_attivare", expiresAt: null }), base);
+    expect(a.activate).toBe(true);
+    expect(a.recharge).toBe(false);
   });
 });

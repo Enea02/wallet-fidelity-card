@@ -18,7 +18,7 @@ import { T } from "@/ui/Text";
 import { Toast } from "@/ui/Toast";
 import { space, useTheme } from "@/ui/theme";
 
-/** Scheda della tessera prepagata dopo una lettura (Fase 9.5). Senza lettura si torna allo scanner. */
+/** Scheda della tessera prepagata (Fase 9.5) o dell'abbonamento (Fase 9.6) dopo una lettura. Senza lettura si torna allo scanner. */
 export default function Tessera() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const scanned = scannedPrepaidFor(String(id));
@@ -55,6 +55,7 @@ function PrepaidScreen({ scanned }: { scanned: ScannedPrepaid }) {
 
   const next = () => (router.canGoBack() ? router.back() : router.replace("/scanner"));
   const first = p.name.trim().split(/\s+/)[0] ?? "";
+  const membership = p.kind === "abbonamento";
   const stateTone = p.state === "attiva" ? t.success : p.state === "da_attivare" ? t.warning : t.danger;
 
   return (
@@ -76,7 +77,7 @@ function PrepaidScreen({ scanned }: { scanned: ScannedPrepaid }) {
             </T>
           </View>
           {s.balance ? (
-            <T variant="number" testID="tessera-saldo">
+            <T variant={membership ? "subtitle" : "number"} center testID="tessera-saldo">
               {s.balance}
             </T>
           ) : null}
@@ -96,7 +97,9 @@ function PrepaidScreen({ scanned }: { scanned: ScannedPrepaid }) {
           {p.state === "da_attivare" ? (
             <>
               <T tone="ink2" center>
-                Il cliente paga {unitsText(p, p.units)} in cassa, poi attiva la tessera.
+                {membership
+                  ? "Il cliente paga l'abbonamento in cassa, poi attiva la tessera."
+                  : `Il cliente paga ${unitsText(p, p.units ?? 0)} in cassa, poi attiva la tessera.`}
               </T>
               <Button
                 label="Attiva (pagamento ricevuto)"
@@ -109,7 +112,7 @@ function PrepaidScreen({ scanned }: { scanned: ScannedPrepaid }) {
             </>
           ) : null}
 
-          {p.state === "attiva" ? (
+          {p.state === "attiva" && !membership ? (
             <>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                 <T variant="bodyStrong">Quante {p.unitPlural}?</T>
@@ -118,7 +121,7 @@ function PrepaidScreen({ scanned }: { scanned: ScannedPrepaid }) {
                   min={1}
                   max={Math.max(1, a.can.maxQuantity)}
                   onChange={setQuantity}
-                  label={p.unitPlural}
+                  label={p.unitPlural ?? ""}
                   testID="tessera-quantita"
                 />
               </View>
@@ -143,9 +146,9 @@ function PrepaidScreen({ scanned }: { scanned: ScannedPrepaid }) {
             />
           ) : null}
 
-          {p.state !== "da_attivare" ? (
+          {p.state !== "da_attivare" && (!membership || a.can.recharge || !online) ? (
             <Button
-              label={`Ricarica ${s.rechargeLabel} (pagamento ricevuto)`}
+              label={membership ? "Rinnova (pagamento ricevuto)" : `Ricarica ${s.rechargeLabel} (pagamento ricevuto)`}
               variant={p.state === "attiva" ? "secondary" : "primary"}
               onPress={() => setConfirm("recharge")}
               disabled={!a.can.recharge}
@@ -161,11 +164,16 @@ function PrepaidScreen({ scanned }: { scanned: ScannedPrepaid }) {
 
       <Sheet visible={confirm !== null} onClose={() => setConfirm(null)} testID="foglio-pagamento">
         <T variant="subtitle">
-          {confirm === "activate" ? `Attivare la tessera di ${first}?` : `Ricaricare la tessera di ${first}?`}
+          {confirm === "activate"
+            ? `Attivare ${membership ? "l'abbonamento" : "la tessera"} di ${first}?`
+            : membership
+              ? `Rinnovare l'abbonamento di ${first}?`
+              : `Ricaricare la tessera di ${first}?`}
         </T>
         <T tone="ink2">
-          Conferma solo dopo aver ricevuto il pagamento: aggiunge {unitsText(p, p.units)} alla tessera e resta nel
-          registro con il tuo nome.
+          {membership
+            ? "Conferma solo dopo aver ricevuto il pagamento: se è ancora valido, il rinnovo allunga dalla scadenza; resta nel registro con il tuo nome."
+            : `Conferma solo dopo aver ricevuto il pagamento: aggiunge ${unitsText(p, p.units ?? 0)} alla tessera e resta nel registro con il tuo nome.`}
         </T>
         <View style={{ flexDirection: "row", gap: space.md }}>
           <Button label="Annulla" variant="secondary" onPress={() => setConfirm(null)} style={{ flex: 1 }} />

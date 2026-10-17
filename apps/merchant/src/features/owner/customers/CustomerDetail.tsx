@@ -15,6 +15,7 @@ import { historyLine, longDate } from "../format";
 import { LoadState } from "../Loading";
 import { useApi } from "../useApi";
 import { AdjustSheet, type AdjustTarget } from "./AdjustSheet";
+import { PointsAdjustSheet, type PointsAdjustTarget } from "./PointsAdjustSheet";
 import { PrepaidCards } from "./PrepaidCards";
 import { DeleteSheet } from "./DeleteSheet";
 import type { Customer } from "./useCustomers";
@@ -45,6 +46,8 @@ export function CustomerDetail({
   const online = useOnline();
   const detail = useApi("customer", { shopId: shop.id, params: { id: customerId } });
   const [adjust, setAdjust] = useState<AdjustTarget | null>(null);
+  const [adjustPoints, setAdjustPoints] = useState<PointsAdjustTarget | null>(null);
+  const points = shop.loyaltyMode === "punti";
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -94,46 +97,67 @@ export function CustomerDetail({
         </View>
       </View>
 
-      <Card>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <T variant="label" tone="ink2">
-            SALDO
-          </T>
-          <T testID="dettaglio-saldo">
-            <T variant="number" style={{ fontSize: 36, lineHeight: 40 }}>
-              {c.stamps}
+      {points ? (
+        <Card>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <T variant="label" tone="ink2">
+              PUNTI
             </T>
-            <T variant="subtitle" tone="ink2">
-              /{c.stampsRequired}
+            <T variant="number" style={{ fontSize: 36, lineHeight: 40 }} testID="dettaglio-punti">
+              {c.points}
             </T>
+          </View>
+          <T variant="bodyStrong" testID="dettaglio-livello">
+            Livello {c.pointsLevel ?? "—"}
           </T>
-        </View>
-        <StampGrid n={c.stampsRequired} filled={c.stamps} icon={shop.stampIcon} />
-        {c.rewardsAvailable > 0 ? (
-          <T variant="small" tone="accentText" style={{ fontFamily: fonts.semibold }}>
-            {c.rewardsAvailable === 1 ? "1 premio da riscattare" : `${c.rewardsAvailable} premi da riscattare`}:{" "}
-            {c.rewardLabel}
+          <T variant="small" tone="ink2" testID="dettaglio-consenso">
+            {c.consentMarketing ? "Riceve le promozioni (consenso dato all'iscrizione)." : "Non riceve promozioni."}
           </T>
-        ) : null}
-        <T variant="small" tone="ink2" testID="dettaglio-consenso">
-          {c.consentMarketing ? "Riceve le promozioni (consenso dato all'iscrizione)." : "Non riceve promozioni."}
-        </T>
-      </Card>
+        </Card>
+      ) : (
+        <Card>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <T variant="label" tone="ink2">
+              SALDO
+            </T>
+            <T testID="dettaglio-saldo">
+              <T variant="number" style={{ fontSize: 36, lineHeight: 40 }}>
+                {c.stamps}
+              </T>
+              <T variant="subtitle" tone="ink2">
+                /{c.stampsRequired}
+              </T>
+            </T>
+          </View>
+          <StampGrid n={c.stampsRequired} filled={c.stamps} icon={shop.stampIcon} />
+          {c.rewardsAvailable > 0 ? (
+            <T variant="small" tone="accentText" style={{ fontFamily: fonts.semibold }}>
+              {c.rewardsAvailable === 1 ? "1 premio da riscattare" : `${c.rewardsAvailable} premi da riscattare`}:{" "}
+              {c.rewardLabel}
+            </T>
+          ) : null}
+          <T variant="small" tone="ink2" testID="dettaglio-consenso">
+            {c.consentMarketing ? "Riceve le promozioni (consenso dato all'iscrizione)." : "Non riceve promozioni."}
+          </T>
+        </Card>
+      )}
 
       {error ? <ErrorNotice error={error} /> : null}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
         <Button
-          label="Correggi saldo"
+          label={points ? "Correggi punti" : "Correggi saldo"}
           variant="secondary"
           disabled={!online}
           onPress={() =>
-            setAdjust({
-              id: c.id,
-              name: c.name,
-              stamps: c.stamps,
-              rewards: c.rewardsAvailable,
-              stampsRequired: c.stampsRequired,
-            })
+            points
+              ? setAdjustPoints({ id: c.id, name: c.name, points: c.points })
+              : setAdjust({
+                  id: c.id,
+                  name: c.name,
+                  stamps: c.stamps,
+                  rewards: c.rewardsAvailable,
+                  stampsRequired: c.stampsRequired,
+                })
           }
           style={{ flexGrow: 1 }}
           testID="correggi-saldo"
@@ -200,6 +224,15 @@ export function CustomerDetail({
         onDone={(b) => {
           void detail.reload();
           onChanged({ ...c, stamps: b.stamps, rewardsAvailable: b.rewardsAvailable });
+        }}
+      />
+      <PointsAdjustSheet
+        shopId={shop.id}
+        target={adjustPoints}
+        onClose={() => setAdjustPoints(null)}
+        onDone={(p, level) => {
+          void detail.reload();
+          onChanged({ ...c, points: p, pointsLevel: level });
         }}
       />
       <Sheet visible={confirmRevoke} onClose={() => setConfirmRevoke(false)} testID="foglio-revoca">

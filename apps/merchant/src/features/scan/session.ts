@@ -1,5 +1,5 @@
 import type { ScanMode } from "@loyalty/shared/logging/events";
-import type { PrepaidView } from "@loyalty/shared/api";
+import type { PointsView, PrepaidView } from "@loyalty/shared/api";
 import type { CardData } from "../card/state";
 
 /*
@@ -38,3 +38,20 @@ export const setScannedPrepaid = (s: ScannedPrepaid) => {
 
 export const scannedPrepaidFor = (cardId: string): ScannedPrepaid | null =>
   currentPrepaid && currentPrepaid.prepaid.id === cardId ? currentPrepaid : null;
+
+/** Carta a punti appena letta (Fase 9.6): la sua scheda parte da questi dati. */
+export interface ScannedPoints {
+  card: PointsView;
+  since: string;
+  mode: ScanMode;
+  scannedAt: number;
+}
+
+let currentPoints: ScannedPoints | null = null;
+
+export const setScannedPoints = (s: ScannedPoints) => {
+  currentPoints = s;
+};
+
+export const scannedPointsFor = (customerId: string): ScannedPoints | null =>
+  currentPoints && currentPoints.card.id === customerId ? currentPoints : null;

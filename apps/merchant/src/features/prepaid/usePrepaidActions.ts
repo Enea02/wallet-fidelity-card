@@ -4,6 +4,7 @@ import { api, ApiError } from "@/lib/api";
 import type { Shop } from "@/lib/session";
 import { feedback } from "../card/feedback";
 import { createActionKeys, type PrepaidActionKind } from "../card/keys";
+import { prepaidDate } from "@loyalty/shared/copy";
 import { prepaidAvailability } from "./state";
 
 /** Annullamento non più possibile: il pulsante sparisce (lo dice il server). */
@@ -78,7 +79,11 @@ export function usePrepaidActions(shop: Shop, initial: PrepaidView, sound: boole
     );
     if (p) {
       feedback("reward", sound);
-      setToast({ title: "Tessera attivata", body: `${p.balance} ${p.unitPlural} disponibili.` });
+      setToast(
+        p.kind === "abbonamento"
+          ? { title: "Abbonamento attivato", body: p.benefit ?? "" }
+          : { title: "Tessera attivata", body: `${p.balance} ${p.unitPlural ?? ""} disponibili.` },
+      );
     }
   }, [run, shop.id, cardId, sound]);
 
@@ -108,7 +113,11 @@ export function usePrepaidActions(shop: Shop, initial: PrepaidView, sound: boole
     if (p) {
       feedback("reward", sound);
       setLastConsumeAt(null);
-      setToast({ title: "Tessera ricaricata", body: `Ora ${p.balance} ${p.unitPlural}.` });
+      setToast(
+        p.kind === "abbonamento"
+          ? { title: "Abbonamento rinnovato", body: p.expiresAt ? `Valido fino al ${prepaidDate(p.expiresAt)}.` : "" }
+          : { title: "Tessera ricaricata", body: `Ora ${p.balance} ${p.unitPlural ?? ""}.` },
+      );
     }
   }, [run, shop.id, cardId, sound]);
 

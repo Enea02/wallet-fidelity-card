@@ -1,9 +1,10 @@
-import { taglineFor } from "@loyalty/shared/copy";
+import { pointsModule, pointsTagline, taglineFor } from "@loyalty/shared/copy";
 import { cardColors, gridLayout, type StampIcon } from "@loyalty/shared/theme";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { CardPreview } from "@/features/owner/settings/CardPreview";
+import { PointsSettings } from "@/features/owner/settings/PointsSettings";
 import { pickLogo, uploadLogo, type PreparedLogo } from "@/features/owner/settings/logo";
 import {
   COOLDOWNS,
@@ -100,6 +101,8 @@ export default function Carta() {
   const color = isHex(draft.hexColor) ? normHex(draft.hexColor) : saved.hexColor.toUpperCase();
   const checks = contrastChecks(color);
   const grid = gridLayout(draft.stampsRequired);
+  // carta a punti (Fase 9.6): niente griglia, icona, premio, unità e cooldown dei timbri
+  const stamps = saved.loyaltyMode === "timbri";
 
   async function chooseLogo() {
     setLogoError(null);
@@ -176,7 +179,9 @@ export default function Carta() {
             <T variant="bodyStrong">Carta fedeltà {saved.loyaltyEnabled ? "attiva" : "spenta"}</T>
             <T variant="small" tone="ink2">
               {saved.loyaltyEnabled
-                ? "I clienti accumulano timbri e ricevono il premio."
+                ? saved.loyaltyMode === "punti"
+                  ? "I clienti accumulano punti per ogni euro speso e salgono di livello."
+                  : "I clienti accumulano timbri e ricevono il premio."
                 : "Il negozio offre solo tessere prepagate: la pagina del QR propone le tessere."}
             </T>
           </View>
@@ -197,6 +202,17 @@ export default function Carta() {
           testID="apri-tessere"
         />
       </Card>
+
+      {saved.loyaltyEnabled ? (
+        <PointsSettings
+          shop={shop}
+          saved={saved}
+          onSaved={(s) => {
+            setSaved(s);
+            void refreshShops();
+          }}
+        />
+      ) : null}
 
       <View style={{ flexDirection: "row", gap: space.lg, alignItems: "center" }}>
         <Monogram
@@ -291,67 +307,75 @@ export default function Carta() {
         ) : null}
       </View>
 
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.xl }}>
-        <View style={{ gap: space.sm }}>
-          <T variant="bodyStrong">Timbri necessari</T>
-          <Stepper
-            value={draft.stampsRequired}
-            min={5}
-            max={20}
-            onChange={(v) => set("stampsRequired", v)}
-            label="timbri necessari"
-            testID="timbri-necessari"
-          />
-          <T variant="small" tone="ink2">
-            da 5 a 20 · griglia {grid.rows === 1 ? `1 × ${draft.stampsRequired}` : grid.perRow.join(" + ")}
-          </T>
-        </View>
-        <View style={{ gap: space.sm }}>
-          <T variant="bodyStrong">Icona del timbro</T>
-          <View style={{ flexDirection: "row", gap: space.sm }} accessibilityRole="radiogroup">
-            {ICONS.map((k) => (
-              <Pressable
-                key={k}
-                accessibilityRole="radio"
-                accessibilityLabel={`Icona ${k}`}
-                accessibilityState={{ checked: draft.stampIcon === k }}
-                testID={`icona-${k}`}
-                onPress={() => set("stampIcon", k)}
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: radius.button - 2,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: t.surface,
-                  borderWidth: draft.stampIcon === k ? 2 : 1,
-                  borderColor: draft.stampIcon === k ? t.ink : t.line,
-                }}
-              >
-                <Icon name={k as StampIcon} color={t.ink} size={22} />
-              </Pressable>
-            ))}
+      {stamps ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.xl }}>
+          <View style={{ gap: space.sm }}>
+            <T variant="bodyStrong">Timbri necessari</T>
+            <Stepper
+              value={draft.stampsRequired}
+              min={5}
+              max={20}
+              onChange={(v) => set("stampsRequired", v)}
+              label="timbri necessari"
+              testID="timbri-necessari"
+            />
+            <T variant="small" tone="ink2">
+              da 5 a 20 · griglia {grid.rows === 1 ? `1 × ${draft.stampsRequired}` : grid.perRow.join(" + ")}
+            </T>
+          </View>
+          <View style={{ gap: space.sm }}>
+            <T variant="bodyStrong">Icona del timbro</T>
+            <View style={{ flexDirection: "row", gap: space.sm }} accessibilityRole="radiogroup">
+              {ICONS.map((k) => (
+                <Pressable
+                  key={k}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`Icona ${k}`}
+                  accessibilityState={{ checked: draft.stampIcon === k }}
+                  testID={`icona-${k}`}
+                  onPress={() => set("stampIcon", k)}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: radius.button - 2,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: t.surface,
+                    borderWidth: draft.stampIcon === k ? 2 : 1,
+                    borderColor: draft.stampIcon === k ? t.ink : t.line,
+                  }}
+                >
+                  <Icon name={k as StampIcon} color={t.ink} size={22} />
+                </Pressable>
+              ))}
+            </View>
           </View>
         </View>
-      </View>
+      ) : null}
 
-      <TextField
-        label="Testo del premio"
-        value={draft.rewardLabel}
-        onChangeText={(v) => set("rewardLabel", v)}
-        maxLength={40}
-        error={errors.rewardLabel ?? null}
-        hint={`Appare sulla carta e nella notifica: “${draft.rewardLabel.trim() || "…"} disponibile!”`}
-        testID="testo-premio"
-      />
+      {stamps ? (
+        <TextField
+          label="Testo del premio"
+          value={draft.rewardLabel}
+          onChangeText={(v) => set("rewardLabel", v)}
+          maxLength={40}
+          error={errors.rewardLabel ?? null}
+          hint={`Appare sulla carta e nella notifica: “${draft.rewardLabel.trim() || "…"} disponibile!”`}
+          testID="testo-premio"
+        />
+      ) : null}
       <TextField
         label="Frase d'apertura (facoltativa)"
         value={draft.tagline}
         onChangeText={(v) => set("tagline", v)}
         maxLength={80}
-        placeholder={taglineFor({ ...draft, tagline: null })}
+        placeholder={
+          stamps
+            ? taglineFor({ ...draft, tagline: null })
+            : pointsTagline({ pointsPerEuro: saved.pointsPerEuro, levels: saved.pointsLevels })
+        }
         error={errors.tagline ?? null}
-        hint="In alto nella pagina di iscrizione e sul cartello. Vuota: la scriviamo noi dal premio."
+        hint={`In alto nella pagina di iscrizione e sul cartello. Vuota: la scriviamo noi ${stamps ? "dal premio" : "dalla regola dei punti"}.`}
         testID="frase-apertura"
       />
       <Card style={{ gap: space.md }}>
@@ -371,50 +395,56 @@ export default function Carta() {
           error={errors.programName ?? null}
           hint="Es. “Carta Amica”: è il titolo della carta nel wallet."
         />
-        <View style={{ flexDirection: "row", gap: space.md }}>
-          <View style={{ flex: 1 }}>
-            <TextField
-              label="Unità"
-              value={draft.stampUnit}
-              onChangeText={(v) => set("stampUnit", v)}
-              maxLength={20}
-              error={errors.stampUnit ?? null}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <TextField
-              label="Al plurale"
-              value={draft.stampUnitPlural}
-              onChangeText={(v) => set("stampUnitPlural", v)}
-              maxLength={20}
-              error={errors.stampUnitPlural ?? null}
-            />
-          </View>
-        </View>
-        <T variant="small" tone="ink2">
-          Sulla carta: “Ti mancano 4 {draft.stampUnitPlural.trim() || "…"}”.
-        </T>
+        {stamps ? (
+          <>
+            <View style={{ flexDirection: "row", gap: space.md }}>
+              <View style={{ flex: 1 }}>
+                <TextField
+                  label="Unità"
+                  value={draft.stampUnit}
+                  onChangeText={(v) => set("stampUnit", v)}
+                  maxLength={20}
+                  error={errors.stampUnit ?? null}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <TextField
+                  label="Al plurale"
+                  value={draft.stampUnitPlural}
+                  onChangeText={(v) => set("stampUnitPlural", v)}
+                  maxLength={20}
+                  error={errors.stampUnitPlural ?? null}
+                />
+              </View>
+            </View>
+            <T variant="small" tone="ink2">
+              Sulla carta: “Ti mancano 4 {draft.stampUnitPlural.trim() || "…"}”.
+            </T>
+          </>
+        ) : null}
       </Card>
 
-      <View style={{ gap: space.sm }}>
-        <T variant="bodyStrong">Tempo minimo tra due timbri</T>
-        <T variant="small" tone="ink2">
-          Evita due timbri alla stessa visita. Lo staff può comunque aggiungerlo (resta nel registro).
-        </T>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }} accessibilityRole="radiogroup">
-          {[...new Set([...COOLDOWNS, saved.stampCooldownMinutes])]
-            .sort((a, b) => a - b)
-            .map((m) => (
-              <Chip
-                key={m}
-                label={cooldownLabel(m)}
-                selected={draft.stampCooldownMinutes === m}
-                onPress={() => set("stampCooldownMinutes", m)}
-                testID={`cooldown-${m}`}
-              />
-            ))}
+      {stamps ? (
+        <View style={{ gap: space.sm }}>
+          <T variant="bodyStrong">Tempo minimo tra due timbri</T>
+          <T variant="small" tone="ink2">
+            Evita due timbri alla stessa visita. Lo staff può comunque aggiungerlo (resta nel registro).
+          </T>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }} accessibilityRole="radiogroup">
+            {[...new Set([...COOLDOWNS, saved.stampCooldownMinutes])]
+              .sort((a, b) => a - b)
+              .map((m) => (
+                <Chip
+                  key={m}
+                  label={cooldownLabel(m)}
+                  selected={draft.stampCooldownMinutes === m}
+                  onPress={() => set("stampCooldownMinutes", m)}
+                  testID={`cooldown-${m}`}
+                />
+              ))}
+          </View>
         </View>
-      </View>
+      ) : null}
 
       {done ? (
         <Banner tone="success" title="Salvato">
@@ -441,7 +471,23 @@ export default function Carta() {
     </View>
   );
 
-  const preview = (
+  const example = pointsModule({ points: 0, total: 0, levels: saved.pointsLevels });
+  const preview = !stamps ? (
+    <Card style={{ gap: space.sm, backgroundColor: checks.cardHex }} testID="anteprima-punti">
+      <T variant="bodyStrong" style={{ color: cardColors(color).fg }}>
+        {draft.programName} · {draft.name}
+      </T>
+      <T variant="number" style={{ color: cardColors(color).fg }}>
+        0 punti
+      </T>
+      <T variant="bodyStrong" style={{ color: cardColors(color).fg }}>
+        {example.header}
+      </T>
+      <T variant="small" style={{ color: cardColors(color).fg }}>
+        {example.body}
+      </T>
+    </Card>
+  ) : (
     <CardPreview
       name={draft.name}
       programName={draft.programName}

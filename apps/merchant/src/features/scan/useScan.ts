@@ -7,7 +7,7 @@ import { useShop } from "@/lib/session";
 import type { Notice } from "../card/state";
 import { feedback } from "../card/feedback";
 import { createDedupe, parseCode } from "./parse";
-import { scannedFor, setScanned, setScannedPrepaid } from "./session";
+import { scannedFor, setScanned, setScannedPoints, setScannedPrepaid } from "./session";
 
 let lastCode: string | null = null;
 
@@ -63,6 +63,10 @@ export function useScan(mode: ScanMode, sound: boolean) {
           // tessera prepagata (Fase 9.5): scheda con attivazione, scalo e ricarica
           setScannedPrepaid({ prepaid: r.prepaid, mode, scannedAt });
           router.push({ pathname: "/tessera/[id]", params: { id: r.prepaid.id } });
+        } else if (r.kind === "punti") {
+          // carta a punti (Fase 9.6): scheda con importo dello scontrino e livello
+          setScannedPoints({ card: r.card, since: r.since, mode, scannedAt });
+          router.push({ pathname: "/punti/[id]", params: { id: r.card.id } });
         } else {
           setScanned({ data: r, mode, scannedAt });
           router.push({ pathname: "/cliente/[id]", params: { id: r.card.id } });

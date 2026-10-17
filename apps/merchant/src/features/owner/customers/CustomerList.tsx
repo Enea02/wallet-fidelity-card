@@ -12,6 +12,7 @@ import type { Customer } from "./useCustomers";
 export function CustomerList({
   items,
   stampsRequired,
+  pointsMode = false,
   selectedId,
   table,
   loadingMore,
@@ -21,6 +22,8 @@ export function CustomerList({
 }: {
   items: Customer[];
   stampsRequired: number;
+  /** Carta a punti (Fase 9.6): saldo in punti invece dei timbri. */
+  pointsMode?: boolean;
   selectedId: string | null;
   table: boolean;
   loadingMore: boolean;
@@ -50,7 +53,7 @@ export function CustomerList({
             borderBottomColor: t.line,
           }}
         >
-          {(["Cliente", "Telefono", "Timbri", "Ultima visita"] as const).map((h, i) => (
+          {(["Cliente", "Telefono", pointsMode ? "Punti" : "Timbri", "Ultima visita"] as const).map((h, i) => (
             <T key={h} variant="label" tone="ink2" style={cell(i === 0 ? 1.6 : i === 1 ? 1.2 : 1)}>
               {h.toUpperCase()}
             </T>
@@ -64,13 +67,18 @@ export function CustomerList({
       ) : (
         items.map((c) => {
           const on = c.id === selectedId;
+          const balance = pointsMode ? `${c.points} pt` : `${c.stamps}/${stampsRequired}`;
           const last = c.lastVisitAt ? shortDate(c.lastVisitAt) : "mai tornato";
           return (
             <Pressable
               key={c.id}
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
-              accessibilityLabel={`${c.name}, ${c.stamps} timbri su ${stampsRequired}${c.rewardsAvailable ? ", premio da riscattare" : ""}`}
+              accessibilityLabel={
+                pointsMode
+                  ? `${c.name}, ${c.points} punti${c.pointsLevel ? `, livello ${c.pointsLevel}` : ""}`
+                  : `${c.name}, ${c.stamps} timbri su ${stampsRequired}${c.rewardsAvailable ? ", premio da riscattare" : ""}`
+              }
               testID={`cliente-${c.shortCode}`}
               onPress={() => onSelect(c)}
               style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
@@ -101,7 +109,7 @@ export function CustomerList({
                     {c.phoneMasked ?? "—"}
                   </T>
                   <T variant="small" style={[cell(1), { fontVariant: ["tabular-nums"] }]}>
-                    {c.stamps}/{stampsRequired}
+                    {balance}
                   </T>
                   <T variant="small" tone="ink2" style={cell(1)}>
                     {last}
@@ -120,9 +128,7 @@ export function CustomerList({
                       {[c.phoneMasked, `ultima visita ${last}`].filter(Boolean).join(" · ")}
                     </T>
                   </View>
-                  <T style={{ fontFamily: fonts.semibold, fontVariant: ["tabular-nums"] }}>
-                    {c.stamps}/{stampsRequired}
-                  </T>
+                  <T style={{ fontFamily: fonts.semibold, fontVariant: ["tabular-nums"] }}>{balance}</T>
                   <Icon name="chevron" color={t.ink3} size={18} />
                 </>
               )}
