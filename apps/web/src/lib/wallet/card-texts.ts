@@ -1,4 +1,4 @@
-import { cardModule, cardStage as sharedStage, type CardStage } from "@loyalty/shared/copy";
+import { cardModule, levelFor, pointsModule, cardStage as sharedStage, type CardStage } from "@loyalty/shared/copy";
 import type { Customer, Shop } from "../types";
 
 /*
@@ -72,8 +72,44 @@ export function cardTexts(shop: Shop, customer: Pick<Customer, "stamps" | "rewar
   };
 }
 
+/** Testi della carta a punti (Fase 9.6): stessi dell'anteprima nell'app (packages/shared/copy.ts). */
+export function pointsTexts(shop: Shop, customer: Pick<Customer, "points" | "points_total">) {
+  const { current } = levelFor(shop.points_levels, customer.points_total);
+  const min =
+    shop.points_min_cents > 0 ? ` (spesa minima ${(shop.points_min_cents / 100).toFixed(2).replace(".", ",")} €)` : "";
+  const levels = [...shop.points_levels]
+    .sort((a, b) => a.min - b.min)
+    .map((l) => `${l.name} da ${l.min} punti${l.perk ? `: ${l.perk}` : ""}`)
+    .join("; ");
+  const rules = [
+    `• ${shop.points_per_euro === 1 ? "1 punto" : `${shop.points_per_euro} punti`} per ogni euro speso${min}, arrotondato per difetto.`,
+    `• Livelli: ${levels}.`,
+    "• Il livello dipende dai punti accumulati in tutto, che non si perdono.",
+    "• Non cumulabile con altre promozioni, non convertibile in denaro.",
+  ].join("\n");
+  const holder = shop.legal_name ?? shop.name;
+  const privacy = shop.privacy_email
+    ? `Dati trattati da ${holder}. Per esercitare i tuoi diritti scrivi a ${shop.privacy_email}.`
+    : `Dati trattati da ${holder}. Per esercitare i tuoi diritti chiedi in negozio.`;
+  return {
+    points: String(customer.points),
+    level: current.name,
+    module: pointsModule({ points: customer.points, total: customer.points_total, levels: shop.points_levels }),
+    rules,
+    privacy,
+  };
+}
+
 /** Notifica del premio sbloccato (design, "Retro Apple e notifiche"). */
 export const rewardUnlockedMessage = (shop: Shop) => ({
   header: shop.name,
   body: `Premio sbloccato! ${shop.reward_label} al prossimo passaggio: mostra la carta alla cassa.`,
+});
+
+/** Carta a punti (Fase 9.6): notifica quando si sale di livello. */
+export const levelUpMessage = (shop: Shop, level: string, perk: string) => ({
+  header: shop.name,
+  body: perk
+    ? `Hai raggiunto il livello ${level}! Il tuo vantaggio: ${perk}.`
+    : `Hai raggiunto il livello ${level}! Grazie della fiducia.`,
 });

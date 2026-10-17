@@ -296,6 +296,35 @@ export const merchantApi = {
     body: m.PrepaidAdjustBody,
     response: m.PrepaidResponse,
   }),
+
+  /* ---------- punti con livelli (Fase 9.6) ---------- */
+  pointsAdd: def({
+    method: "POST",
+    path: "/points/add",
+    summary: "Dà i punti per l'importo di uno scontrino",
+    auth: "staff",
+    body: m.PointsAddBody,
+    response: m.PointsResponse,
+    idempotent: true,
+  }),
+  pointsUndo: def({
+    method: "POST",
+    path: "/points/undo",
+    summary: "Annulla gli ultimi punti dati (entro 5 minuti)",
+    auth: "staff",
+    body: m.CustomerIdBody,
+    response: m.PointsResponse,
+    idempotent: true,
+  }),
+  pointsAdjust: def({
+    method: "POST",
+    path: "/customers/{id}/points",
+    summary: "Correzione dei punti (titolare, con motivo)",
+    auth: "owner",
+    params: m.IdParams,
+    body: m.PointsAdjustBody,
+    response: m.PointsResponse,
+  }),
 } as const;
 
 export type MerchantEndpoint = keyof typeof merchantApi;

@@ -13,7 +13,7 @@ import type { PrepaidCard, PrepaidProduct, Shop } from "./types";
 import { notifyPrepaidChanged, notifyPrepaidProductChanged } from "./wallet/notifier";
 
 /*
- * Tessere prepagate a consumo (Fase 9.5). Il pagamento avviene fuori dall'app: "attiva" e "ricarica"
+ * Tessere prepagate a consumo (Fase 9.5) e abbonamenti/membership con vantaggio e scadenza (Fase 9.6). Il pagamento avviene fuori dall'app: "attiva" e "ricarica"
  * significano "pagamento ricevuto". Ogni modifica passa dalle funzioni Postgres (prepaid_*), che
  * scrivono audit_log; qui si risolvono le tessere, si scrivono gli eventi di log e si avvisa il wallet.
  */
@@ -29,9 +29,16 @@ const cardFields = (c: PrepaidCard, p: PrepaidProduct, shop: Shop) => ({
   customer_ref: c.short_code,
   shop_name: shop.name,
   product_name: p.name,
-  unit_singular: p.unit_singular,
-  unit_plural: p.unit_plural,
+  unit_singular: p.unit_singular ?? "",
+  unit_plural: p.unit_plural ?? "",
 });
+
+const MEMBERSHIP_STATE = {
+  da_attivare: "da attivare",
+  attiva: "valida",
+  esaurita: "valida",
+  scaduta: "scaduta",
+} as const;
 
 /* ------------------------------------------------------------------ */
 /* Lettura                                                             */
@@ -157,6 +164,18 @@ export async function lookupPrepaid(
   const [product, name] = await Promise.all([getProduct(shop.id, data.product_id), personName(data.customer_id)]);
   setContext({ customer_ref: data.short_code });
   const view = prepaidView(data, product, name);
+  if (product.kind === "abbonamento") {
+    log.event("membership.lookup.ok", {
+      ...actor,
+      shop_name: shop.name,
+      method: isQr ? "QR" : "codice breve",
+      customer_ref: data.short_code,
+      product_name: product.name,
+      membership_state: MEMBERSHIP_STATE[view.state],
+      expires_at: iso(data.expires_at),
+    });
+    return { view, elsewhere: false };
+  }
   log.event("prepaid.lookup.ok", {
     ...actor,
     method: isQr ? "QR" : "codice breve",
@@ -179,6 +198,8 @@ interface PrepaidResult {
   charged_units: number;
   activated_at: string | null;
   expires_at: string | null;
+  /** solo per attivazione e rinnovo */
+  expires_before?: string | null;
   balance_before: number;
   quantity: number;
   staff_name: string;
@@ -233,7 +254,19 @@ async function charge(
 ) {
   const { card, product, name } = await getPrepaid(shop.id, cardId);
   const r = await prepaidAction(kind, card.id, staffUserId, null, opts);
-  if (!r.duplicate) {
+  if (!r.duplicate && product.kind === "abbonamento") {
+    const fields = {
+      ...actorFields(r),
+      customer_ref: card.short_code,
+      shop_name: shop.name,
+      product_name: product.name,
+      benefit: product.benefit ?? "",
+      expires_at: iso(r.expires_at),
+    };
+    if (kind === "activate") log.event("membership.activate.ok", fields);
+    else log.event("membership.renew.ok", { ...fields, expires_before: iso(r.expires_before ?? null) });
+    await notifyPrepaidChanged(card.id);
+  } else if (!r.duplicate) {
     log.event(kind === "activate" ? "prepaid.activate.ok" : "prepaid.recharge.ok", {
       ...actorFields(r),
       ...cardFields(card, product, shop),
@@ -334,6 +367,7 @@ export async function adjustPrepaid(shop: Shop, cardId: string, balance: number,
 
 export interface ProductInput {
   name?: string | undefined;
+  benefit?: string | undefined;
   units?: number | undefined;
   unitSingular?: string | undefined;
   unitPlural?: string | undefined;
@@ -375,6 +409,8 @@ async function productRows(shopId: string) {
       id: p.id,
       code: p.code,
       name: p.name,
+      kind: p.kind,
+      benefit: p.benefit,
       units: p.units,
       unitSingular: p.unit_singular,
       unitPlural: p.unit_plural,
@@ -390,13 +426,16 @@ async function productRows(shopId: string) {
 
 export const listProducts = (shop: Shop) => productRows(shop.id);
 
-export interface NewProductInput {
-  name: string;
-  units: number;
-  unitSingular: string;
-  unitPlural: string;
-  validityMonths: number | null;
-}
+export type NewProductInput =
+  | {
+      kind: "consumo";
+      name: string;
+      units: number;
+      unitSingular: string;
+      unitPlural: string;
+      validityMonths: number | null;
+    }
+  | { kind: "abbonamento"; name: string; benefit: string; validityMonths: number | null };
 
 export async function createProduct(shop: Shop, input: NewProductInput, staffUserId: string) {
   const existing = new Set((await productRows(shop.id)).map((p) => p.code));
@@ -409,9 +448,10 @@ export async function createProduct(shop: Shop, input: NewProductInput, staffUse
     p_fields: {
       code,
       name: input.name,
-      units: input.units,
-      unit_singular: input.unitSingular,
-      unit_plural: input.unitPlural,
+      kind: input.kind,
+      ...(input.kind === "abbonamento"
+        ? { benefit: input.benefit }
+        : { units: input.units, unit_singular: input.unitSingular, unit_plural: input.unitPlural }),
       validity_months: input.validityMonths,
       active: true,
     },
@@ -423,6 +463,7 @@ export async function createProduct(shop: Shop, input: NewProductInput, staffUse
     product_name: r.name,
     units: r.units,
     unit_plural: r.unit_plural,
+    ...(r.kind === "abbonamento" && { benefit: r.benefit }),
     validity_months: r.validity_months,
   });
   await notifyPrepaidProductChanged(r.id);
@@ -431,6 +472,7 @@ export async function createProduct(shop: Shop, input: NewProductInput, staffUse
 
 const LABELS: Array<[keyof PrepaidProduct, string, (v: unknown) => string]> = [
   ["name", "nome", (v) => String(v)],
+  ["benefit", "vantaggio", (v) => (v === null ? "nessuno" : `«${String(v)}»`)],
   ["units", "unità", (v) => String(v)],
   ["unit_singular", "unità al singolare", (v) => String(v)],
   ["unit_plural", "unità al plurale", (v) => String(v)],
@@ -442,6 +484,7 @@ export async function updateProduct(shop: Shop, productId: string, input: Produc
   await getProduct(shop.id, productId);
   const fields: Record<string, unknown> = {};
   if (input.name !== undefined) fields.name = input.name;
+  if (input.benefit !== undefined) fields.benefit = input.benefit;
   if (input.units !== undefined) fields.units = input.units;
   if (input.unitSingular !== undefined) fields.unit_singular = input.unitSingular;
   if (input.unitPlural !== undefined) fields.unit_plural = input.unitPlural;

@@ -1,6 +1,6 @@
 import "server-only";
 import type { Shop } from "../types";
-import { rewardUnlockedMessage } from "./card-texts";
+import { levelUpMessage, rewardUnlockedMessage } from "./card-texts";
 import { deferWalletWork } from "./defer";
 import { syncPrepaidCard, syncPrepaidClass, syncShopPrepaidClasses } from "./prepaid-sync";
 import { sendCardMessage, syncCard, syncClass } from "./sync";
@@ -12,9 +12,11 @@ import { sendCardMessage, syncCard, syncClass } from "./sync";
  */
 
 export interface CardChange {
-  kind: "enroll" | "stamp" | "redeem" | "undo" | "adjust" | "delete";
+  kind: "enroll" | "stamp" | "redeem" | "undo" | "adjust" | "delete" | "points";
   /** Per il timbro che completa la carta: id dello stamp_event, usato come id della notifica. */
   rewardUnlockedBy?: number | undefined;
+  /** Carta a punti salita di livello (Fase 9.6): id del points_event, usato come id della notifica. */
+  levelUp?: { eventId: number; level: string; perk: string } | undefined;
 }
 
 export function notifyCardChanged(shop: Shop, customerId: string, change: CardChange): Promise<void> {
@@ -25,6 +27,14 @@ export function notifyCardChanged(shop: Shop, customerId: string, change: CardCh
       await sendCardMessage(
         customerId,
         { id: `reward-${change.rewardUnlockedBy}`, header: msg.header, body: msg.body, kind: "premio sbloccato" },
+        { track: true },
+      );
+    }
+    if (synced && change.levelUp) {
+      const msg = levelUpMessage(shop, change.levelUp.level, change.levelUp.perk);
+      await sendCardMessage(
+        customerId,
+        { id: `level-${change.levelUp.eventId}`, header: msg.header, body: msg.body, kind: "nuovo livello" },
         { track: true },
       );
     }

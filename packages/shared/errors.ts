@@ -542,6 +542,13 @@ export const errors = {
     probableCause: "Il titolare ha cambiato modalità mentre l'app era aperta, oppure app non aggiornata.",
     action: "Controllare in Carta → modalità timbri/punti; ricaricare l'app sul dispositivo dello staff.",
   },
+  E_STAMPS_MODE_REQUIRED: {
+    status: 409,
+    userMessage: "Questo negozio usa la carta a punti: inserisci l'importo dello scontrino.",
+    description: "Timbro o premio a timbri chiesto in un negozio la cui carta fedeltà è a punti.",
+    probableCause: "Il titolare è passato ai punti mentre l'app era aperta, oppure app non aggiornata.",
+    action: "Ricaricare l'app sul dispositivo dello staff; controllare in Carta → modalità timbri/punti.",
+  },
   E_MEMBERSHIP_NOT_RENEWABLE: {
     status: 409,
     userMessage: "Questa membership non ha scadenza: non serve rinnovarla.",

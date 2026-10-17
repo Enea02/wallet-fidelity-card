@@ -44,10 +44,15 @@ export const PublicCard = z.object({
   stampsRequired: z.number().int(),
   rewardsAvailable: z.number().int(),
   rewardLabel: z.string(),
+  /** Fase 9.6: carta a punti (null per le carte a timbri); stesso testo della carta nel wallet. */
+  points: z.object({ points: z.number().int(), module: z.object({ header: z.string(), body: z.string() }) }).nullable(),
 });
 /** Tessera prepagata appena creata o ritrovata (Fase 9.5): resta da attivare finché non si paga in negozio. */
 export const PublicPrepaid = z.object({
   productName: z.string(),
+  /** Fase 9.6: "abbonamento" ha un vantaggio e una scadenza, niente unità (units 0, nomi vuoti). */
+  kind: z.enum(["consumo", "abbonamento"]),
+  benefit: z.string().nullable(),
   state: z.enum(["da_attivare", "attiva", "esaurita", "scaduta"]),
   balance: z.number().int(),
   units: z.number().int(),

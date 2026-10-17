@@ -6,7 +6,7 @@ import QRCode from "qrcode";
 import { fetchExternal } from "../observability/fetch-external";
 import { log } from "../observability/logger";
 import { cardColors } from "@loyalty/shared/theme";
-import { taglineFor } from "../public/shop-view";
+import { productHeadline, taglineFor } from "../public/shop-view";
 import type { PrepaidProduct, Shop } from "../types";
 
 /*
@@ -107,10 +107,12 @@ function Sign({ shop, product, url, qrDataUrl, logo }: SignProps) {
           </View>
           <Text style={s.headline}>
             {product
-              ? `${product.units} ${product.units === 1 ? product.unit_singular : product.unit_plural} sul telefono. Paghi in negozio, la attiviamo subito.`
+              ? product.kind === "abbonamento"
+                ? `${productHeadline(product)} Paghi in negozio, lo attiviamo subito.`
+                : `${product.units ?? 0} ${product.units === 1 ? product.unit_singular : product.unit_plural} sul telefono. Paghi in negozio, la attiviamo subito.`
               : taglineFor(shop)}
           </Text>
-          {!product && (
+          {!product && shop.loyalty_mode === "timbri" && (
             <View style={s.stamps}>
               {Array.from({ length: shop.stamps_required }, (_, i) => (
                 <View

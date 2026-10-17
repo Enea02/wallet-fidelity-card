@@ -11,7 +11,8 @@ import { log } from "../observability/logger";
 import { supabaseAdmin } from "../supabase";
 import type { Shop } from "../types";
 
-const COLS = "id, short_code, name, phone, stamps, rewards_available, consent_marketing, created_at";
+const COLS =
+  "id, short_code, name, phone, stamps, rewards_available, consent_marketing, created_at, points, points_level";
 
 interface Row {
   id: string;
@@ -22,6 +23,8 @@ interface Row {
   rewards_available: number;
   consent_marketing: boolean;
   created_at: string;
+  points: number;
+  points_level: string | null;
   /** Dalla vista customer_overview (assente nella lettura diretta di customers). */
   last_visit_at?: string | null;
 }
@@ -38,6 +41,8 @@ const toItem = (r: Row): z.infer<typeof CustomerItem> => ({
   consentMarketing: r.consent_marketing,
   createdAt: new Date(r.created_at).toISOString(),
   lastVisitAt: r.last_visit_at ? new Date(r.last_visit_at).toISOString() : null,
+  points: r.points,
+  pointsLevel: r.points_level,
 });
 
 type QueryKind = "tutti" | "telefono" | "codice breve" | "nome";

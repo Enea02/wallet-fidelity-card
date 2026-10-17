@@ -32,6 +32,9 @@ import * as prepaidUndo from "@/app/api/v1/merchant/prepaid/undo/route";
 import * as prepaidAdjust from "@/app/api/v1/merchant/prepaid-cards/[id]/adjust/route";
 import * as prepaidProduct from "@/app/api/v1/merchant/prepaid-products/[id]/route";
 import * as prepaidProducts from "@/app/api/v1/merchant/prepaid-products/route";
+import * as pointsAdd from "@/app/api/v1/merchant/points/add/route";
+import * as pointsUndo from "@/app/api/v1/merchant/points/undo/route";
+import * as pointsAdjust from "@/app/api/v1/merchant/customers/[id]/points/route";
 
 type Handler = (req: Request, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
 
@@ -69,6 +72,9 @@ export const ROUTES: Record<MerchantEndpoint, Handler> = {
   prepaidRecharge: prepaidRecharge.POST,
   prepaidUndo: prepaidUndo.POST,
   prepaidAdjust: prepaidAdjust.POST,
+  pointsAdd: pointsAdd.POST,
+  pointsUndo: pointsUndo.POST,
+  pointsAdjust: pointsAdjust.POST,
 };
 
 export const SALONE = "11111111-1111-4111-8111-111111111111";

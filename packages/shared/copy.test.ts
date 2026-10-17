@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { prepaidBalance, prepaidModule, taglineFor } from "./copy";
+import { levelFor, pointsModule, pointsTagline, prepaidBalance, prepaidModule, taglineFor } from "./copy";
 
 describe("frase d'apertura", () => {
   it("quella del titolare, altrimenti automatica", () => {
@@ -36,5 +36,47 @@ describe("testi della tessera prepagata", () => {
     );
     expect(prepaidBalance({ ...base, state: "attiva" })).toBe("138 / 150");
     expect(prepaidBalance({ ...base, state: "da_attivare" })).toBe("—");
+  });
+});
+
+describe("punti con livelli e abbonamenti", () => {
+  const levels = [
+    { name: "Silver", min: 0, perk: "" },
+    { name: "Gold", min: 500, perk: "-5% sui trattamenti" },
+    { name: "Platinum", min: 1500, perk: "" },
+  ];
+  it("livello sui punti totali, prossimo livello e punti mancanti", () => {
+    expect(levelFor(levels, 0)).toMatchObject({ current: { name: "Silver" }, next: { name: "Gold" }, toNext: 500 });
+    expect(levelFor(levels, 512)).toMatchObject({ current: { name: "Gold" }, toNext: 988 });
+    expect(levelFor(levels, 2000)).toMatchObject({ current: { name: "Platinum" }, next: null, toNext: 0 });
+  });
+  it("testi della carta a punti", () => {
+    expect(pointsModule({ points: 512, total: 512, levels })).toEqual({
+      header: "Sei Gold · 512 punti",
+      body: "Ancora 988 punti per diventare Platinum. Vantaggio Gold: -5% sui trattamenti.",
+    });
+    expect(pointsModule({ points: 1, total: 1600, levels }).body).toBe("Hai raggiunto il livello più alto.");
+    expect(pointsTagline({ pointsPerEuro: 1, levels })).toBe("1 punto per ogni euro: da 500 punti sei Gold.");
+  });
+  it("abbonamento: da attivare, valido, senza scadenza, scaduto", () => {
+    const base = {
+      kind: "abbonamento" as const,
+      benefit: "-10% su tutto",
+      balance: 0,
+      chargedUnits: 0,
+      units: 0,
+      unitSingular: "",
+      unitPlural: "",
+    };
+    expect(prepaidModule({ ...base, state: "da_attivare", expiresAt: null }).body).toContain(
+      "Vantaggio: -10% su tutto.",
+    );
+    expect(prepaidModule({ ...base, state: "attiva", expiresAt: "2027-10-17T10:00:00Z" }).header).toBe(
+      "Valido fino al 17/10/2027",
+    );
+    expect(prepaidModule({ ...base, state: "attiva", expiresAt: null }).header).toBe("Socio attivo");
+    expect(prepaidModule({ ...base, state: "scaduta", expiresAt: "2026-10-01T10:00:00Z" }).header).toBe(
+      "Abbonamento scaduto",
+    );
   });
 });

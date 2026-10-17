@@ -1,10 +1,11 @@
 import "server-only";
-import type { CardView, PrepaidView } from "@loyalty/shared/api";
+import type { CardView, PointsView, PrepaidView } from "@loyalty/shared/api";
 import { AppError, type ErrorCode } from "@loyalty/shared/errors";
 import type { ActorFields, ActorRole, CardFields } from "@loyalty/shared/logging/events";
 import { getContext, setContext } from "./observability/context";
 import { log } from "./observability/logger";
 import { callDomain, domainMeta, type DomainActor } from "./merchant/domain-call";
+import { lookupPoints } from "./points";
 import { lookupPrepaid } from "./prepaid";
 import { supabaseAdmin } from "./supabase";
 import { CUSTOMER_COLS, SHOP_COLS } from "./db-columns";
@@ -190,7 +191,9 @@ export async function lookupCard(
   code: string,
   actor: ActorFields,
 ): Promise<
-  { kind: "fedelta"; card: CardView; since: string; visits: number } | { kind: "tessera"; prepaid: PrepaidView }
+  | { kind: "fedelta"; card: CardView; since: string; visits: number }
+  | { kind: "punti"; card: PointsView; since: string }
+  | { kind: "tessera"; prepaid: PrepaidView }
 > {
   const isQr = /^[0-9a-f]{32}$/.test(code);
   const method = isQr ? "QR" : "codice breve";
@@ -230,6 +233,7 @@ export async function lookupCard(
   }
 
   const customer = ensureUsable(data as Customer);
+  if (shop.loyalty_mode === "punti") return lookupPoints(customer, shop, actor, method);
   log.event("customer.lookup.ok", {
     ...actor,
     shop_name: shop.name,

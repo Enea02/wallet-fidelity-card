@@ -649,3 +649,96 @@ revoke all on function _prepaid_charge(uuid, jsonb, text) from public, anon, aut
 revoke all on function _prepaid_require_units(uuid) from public, anon, authenticated;
 revoke all on function prepaid_action(text, uuid, int, jsonb) from public, anon, authenticated;
 revoke all on function prepaid_product_save(uuid, uuid, jsonb, jsonb) from public, anon, authenticated;
+
+-- ---------- clienti con ultima visita: anche punti e livello ----------
+
+-- Le colonne nuove vanno in fondo (create or replace view non cambia l'ordine di quelle esistenti).
+create or replace view customer_overview
+with (security_invoker = true) as
+select
+  c.id, c.shop_id, c.short_code, c.name, c.phone, c.stamps, c.rewards_available,
+  c.consent_marketing, c.created_at,
+  v.last_visit_at,
+  coalesce(v.last_visit_at, c.created_at) as last_activity_at,
+  c.points, c.points_total, c.points_level
+from customers c
+left join lateral (
+  select max(e.created_at) as last_visit_at
+  from (
+    select s.created_at from stamp_events s
+    where s.customer_id = c.id and s.undone_at is null and s.kind in ('stamp', 'redeem')
+    union all
+    select p.created_at from points_events p
+    where p.customer_id = c.id and p.undone_at is null and p.kind = 'add'
+  ) e
+) v on true
+where c.deleted_at is null;
+
+
+-- ---------- timbri solo per i negozi a timbri ----------
+
+create or replace function card_action(p_action text, p_customer_id uuid, p_meta jsonb, p_force boolean default false)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_key uuid;
+  v_user uuid;
+  v_shop uuid;
+  v_row action_keys;
+  v_res jsonb;
+begin
+  if p_action not in ('stamp', 'undo', 'redeem') then
+    perform _raise('E_VALIDATION', jsonb_build_object('problem', format('azione %s sconosciuta', p_action)));
+  end if;
+  -- Fase 9.6: un negozio a punti non dà timbri né premi a timbri (l'annullamento resta possibile)
+  if p_action in ('stamp', 'redeem') then
+    select s.id into v_shop from customers c join shops s on s.id = c.shop_id
+     where c.id = p_customer_id and s.loyalty_mode = 'punti';
+    if found then
+      perform _raise('E_STAMPS_MODE_REQUIRED', jsonb_build_object('shop_id', v_shop));
+    end if;
+  end if;
+  begin
+    v_key := nullif(p_meta->>'idempotency_key', '')::uuid;
+  exception when invalid_text_representation then
+    perform _raise('E_VALIDATION', jsonb_build_object('problem', 'chiave di idempotenza non valida'));
+  end;
+
+  if v_key is not null then
+    select shop_id into v_shop from customers where id = p_customer_id;
+    if not found then
+      perform _raise('E_CARD_NOT_FOUND', jsonb_build_object('customer_id', p_customer_id));
+    end if;
+    v_user := (p_meta->>'actor_id')::uuid;
+
+    -- con una richiesta gemella in corso, l'inserimento attende che finisca
+    insert into action_keys (shop_id, key, user_id, action, customer_id)
+    values (v_shop, v_key, v_user, p_action, p_customer_id)
+    on conflict (shop_id, key) do nothing;
+
+    if not found then
+      select * into v_row from action_keys where shop_id = v_shop and key = v_key;
+      if v_row.action <> p_action or v_row.customer_id <> p_customer_id or v_row.user_id <> v_user then
+        perform _raise('E_VALIDATION', jsonb_build_object(
+          'problem', 'chiave di idempotenza già usata per un''altra operazione'));
+      end if;
+      return v_row.response
+          || jsonb_build_object('duplicate', true, 'original_at', v_row.created_at);
+    end if;
+  end if;
+
+  v_res := case p_action
+    when 'stamp' then add_stamp(p_customer_id, p_meta, p_force)
+    when 'undo' then undo_last_stamp(p_customer_id, p_meta)
+    else redeem_reward(p_customer_id, p_meta)
+  end;
+
+  if v_key is not null then
+    update action_keys set response = v_res where shop_id = v_shop and key = v_key;
+  end if;
+  return v_res || jsonb_build_object('duplicate', false);
+end;
+$$;

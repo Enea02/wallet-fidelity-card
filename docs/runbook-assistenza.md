@@ -746,7 +746,7 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
-| `prepaid.product.created` | info | Il titolare ha creato un tipo di tessera prepagata (es. 150 pagine) che i clienti possono richiedere. | Mario (titolare, web) ha creato la tessera «Tessera fotocopie» del negozio Cartoleria Rossi: 150 pagine, valida 12 mesi dall'attivazione. |
+| `prepaid.product.created` | info | Il titolare ha creato un tipo di tessera prepagata (es. 150 pagine) che i clienti possono richiedere. | Mario (titolare, web) ha creato l'abbonamento «Socio 12 mesi» del negozio Palestra Rossi: «accesso illimitato», valida 12 mesi dall'attivazione. |
 | `prepaid.product.updated` | info | Il titolare ha modificato un tipo di tessera (le tessere già attive non cambiano saldo). | Mario (titolare, web) ha modificato la tessera «Tessera fotocopie» del negozio Cartoleria Rossi: unità 150 → 200, scadenza nessuna → 12 mesi. |
 | `prepaid.enroll.created` | info | Un cliente si è creato una tessera prepagata dal web: resta da attivare finché non paga in negozio. | Nuova tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi) creata dal web: da attivare in negozio dopo il pagamento. |
 | `prepaid.lookup.ok` | info | Lo staff ha letto una tessera prepagata allo scanner (QR o codice breve). | Giulia (operatore, iOS 1.4.0) ha aperto la tessera K7M2Q9XA (Tessera fotocopie, Cartoleria Rossi) con QR: attiva, 138 pagine. |
@@ -1251,6 +1251,13 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **Cosa è successo**: Operazione sui punti in un negozio la cui carta fedeltà è a timbri.
 - **Causa probabile**: Il titolare ha cambiato modalità mentre l'app era aperta, oppure app non aggiornata.
 - **Cosa fare**: Controllare in Carta → modalità timbri/punti; ricaricare l'app sul dispositivo dello staff.
+
+### `E_STAMPS_MODE_REQUIRED` (HTTP 409)
+
+- **L'utente vede**: Questo negozio usa la carta a punti: inserisci l'importo dello scontrino.
+- **Cosa è successo**: Timbro o premio a timbri chiesto in un negozio la cui carta fedeltà è a punti.
+- **Causa probabile**: Il titolare è passato ai punti mentre l'app era aperta, oppure app non aggiornata.
+- **Cosa fare**: Ricaricare l'app sul dispositivo dello staff; controllare in Carta → modalità timbri/punti.
 
 ### `E_MEMBERSHIP_NOT_RENEWABLE` (HTTP 409)
 

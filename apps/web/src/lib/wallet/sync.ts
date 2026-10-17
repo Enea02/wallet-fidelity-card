@@ -1,4 +1,5 @@
 import "server-only";
+import { levelFor } from "@loyalty/shared/copy";
 import type { ErrorCode } from "@loyalty/shared/errors";
 import { CUSTOMER_COLS, SHOP_COLS } from "../db-columns";
 import { getContext } from "../observability/context";
@@ -226,14 +227,30 @@ export async function syncCard(customerId: string, opts: SyncCardOptions = {}): 
       created = true;
       res = await createObject(shop, body, attempt);
     }
+    // carta a punti (Fase 9.6): il "saldo" sincronizzato sono punti e punti totali (wallet_sync_drifted)
+    const points = shop.loyalty_mode === "punti";
     await record("object", shop.id, customer.id, {
       ok: true,
-      synced: { stamps: customer.stamps, rewards: customer.rewards_available, state, version: shop.card_version },
+      synced: points
+        ? { stamps: customer.points, rewards: customer.points_total, state, version: shop.card_version }
+        : { stamps: customer.stamps, rewards: customer.rewards_available, state, version: shop.card_version },
     });
-    log.event(created ? "wallet.google.object.upsert.ok" : "wallet.google.patch.ok", {
-      ...fields,
-      duration_ms: res.durationMs,
-    });
+    if (points) {
+      log.event("wallet.google.points.ok", {
+        customer_ref: customer.short_code,
+        shop_name: shop.name,
+        points: customer.points,
+        level: levelFor(shop.points_levels, customer.points_total).current.name,
+        card_state: state,
+        duration_ms: res.durationMs,
+        attempt,
+      });
+    } else {
+      log.event(created ? "wallet.google.object.upsert.ok" : "wallet.google.patch.ok", {
+        ...fields,
+        duration_ms: res.durationMs,
+      });
+    }
     if (state === "INACTIVE" && (opts.origin === "delete" || opts.reconcileReason === "stato")) {
       log.event("wallet.card.deactivated", {
         customer_ref: customer.short_code,

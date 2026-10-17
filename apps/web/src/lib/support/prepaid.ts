@@ -48,7 +48,7 @@ export async function prepaidSummaryForSupport(cardId: string) {
     shop,
     product: product.data!,
     person: person.data as { id: string; name: string; short_code: string },
-    state: prepaidState(card),
+    state: prepaidState(card, Date.now(), product.data!.kind),
     sync: (sync.data ?? []) as Array<{
       wallet: string;
       synced_balance: number | null;
@@ -142,7 +142,7 @@ export async function resyncPrepaid(cardId: string, reason: string, user: Suppor
 export async function prepaidOfCustomer(customerId: string) {
   const { data, error } = await supabaseAdmin()
     .from("prepaid_cards")
-    .select("id, short_code, status, balance, expires_at, deleted_at, prepaid_products(name, unit_plural)")
+    .select("id, short_code, status, balance, expires_at, deleted_at, prepaid_products(name, unit_plural, kind)")
     .eq("customer_id", customerId)
     .order("created_at");
   if (error) throw error;
@@ -150,12 +150,16 @@ export async function prepaidOfCustomer(customerId: string) {
     id: t.id as string,
     shortCode: t.short_code as string,
     product: (t.prepaid_products as unknown as { name: string; unit_plural: string } | null)?.name ?? "tessera",
-    unitPlural: (t.prepaid_products as unknown as { unit_plural: string } | null)?.unit_plural ?? "unità",
-    state: prepaidState({
-      status: t.status as "pending" | "active",
-      balance: t.balance as number,
-      expires_at: t.expires_at as string | null,
-    }),
+    unitPlural: (t.prepaid_products as unknown as { unit_plural: string | null } | null)?.unit_plural ?? "",
+    state: prepaidState(
+      {
+        status: t.status as "pending" | "active",
+        balance: t.balance as number,
+        expires_at: t.expires_at as string | null,
+      },
+      Date.now(),
+      (t.prepaid_products as unknown as { kind: "consumo" | "abbonamento" } | null)?.kind ?? "consumo",
+    ),
     balance: t.balance as number,
     deleted: t.deleted_at !== null,
   }));

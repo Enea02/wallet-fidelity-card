@@ -1,14 +1,18 @@
 import type { PrepaidState, PrepaidView } from "@loyalty/shared/api";
 import type { PrepaidCard, PrepaidProduct } from "./types";
 
-/** Stato della tessera, come _prepaid_state nel database: da attivare, attiva, esaurita, scaduta. */
+/**
+ * Stato della tessera, come _prepaid_state nel database: da attivare, attiva, esaurita, scaduta.
+ * L'abbonamento (Fase 9.6) non ha saldo: non diventa mai esaurito.
+ */
 export function prepaidState(
   c: Pick<PrepaidCard, "status" | "balance" | "expires_at">,
   now = Date.now(),
+  kind: PrepaidProduct["kind"] = "consumo",
 ): PrepaidState {
   if (c.status === "pending") return "da_attivare";
   if (c.expires_at && new Date(c.expires_at).getTime() <= now) return "scaduta";
-  if (c.balance === 0) return "esaurita";
+  if (kind === "consumo" && c.balance === 0) return "esaurita";
   return "attiva";
 }
 
@@ -20,10 +24,12 @@ export function prepaidView(c: PrepaidCard, p: PrepaidProduct, personName: strin
     name: personName,
     productId: p.id,
     productName: p.name,
+    kind: p.kind,
+    benefit: p.benefit,
     unitSingular: p.unit_singular,
     unitPlural: p.unit_plural,
     units: p.units,
-    state: prepaidState(c),
+    state: prepaidState(c, Date.now(), p.kind),
     balance: c.balance,
     chargedUnits: c.charged_units,
     activatedAt: c.activated_at ? new Date(c.activated_at).toISOString() : null,

@@ -892,8 +892,11 @@ export interface PrepaidCardFields extends CardFields {
 export interface PrepaidProductCreatedFields extends ActorFields {
   shop_name: string;
   product_name: string;
-  units: number;
-  unit_plural: string;
+  /** null per gli abbonamenti (Fase 9.6) */
+  units: number | null;
+  unit_plural: string | null;
+  /** vantaggio dell'abbonamento; assente per le tessere a consumo */
+  benefit?: string | null;
   /** null = senza scadenza */
   validity_months: number | null;
 }
@@ -2544,9 +2547,20 @@ export const events = {
     description:
       "Il titolare ha creato un tipo di tessera prepagata (es. 150 pagine) che i clienti possono richiedere.",
     msg: (f) =>
-      `${cap(actor(f))} ha creato la tessera «${f.product_name}» del negozio ${f.shop_name}: ${f.units} ${f.unit_plural}` +
+      (f.benefit
+        ? `${cap(actor(f))} ha creato l'abbonamento «${f.product_name}» del negozio ${f.shop_name}: «${f.benefit}»`
+        : `${cap(actor(f))} ha creato la tessera «${f.product_name}» del negozio ${f.shop_name}: ${f.units} ${f.unit_plural}`) +
       (f.validity_months ? `, valida ${f.validity_months} mesi dall'attivazione.` : ", senza scadenza."),
     examples: [
+      {
+        ...titolare,
+        shop_name: "Palestra Rossi",
+        product_name: "Socio 12 mesi",
+        units: null,
+        unit_plural: null,
+        benefit: "accesso illimitato",
+        validity_months: 12,
+      },
       {
         ...titolare,
         shop_name: "Cartoleria Rossi",

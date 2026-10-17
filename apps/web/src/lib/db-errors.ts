@@ -76,6 +76,7 @@ const describe: Partial<Record<ErrorCode, (d: Detail) => { message: string; user
   E_PREPAID_PRODUCT_NOT_FOUND: (d) => ({ message: `tipo di tessera ${str(d.product_id)} inesistente o disattivato` }),
   E_POINTS_AMOUNT_INVALID: (d) => ({ message: `importo di ${str(d.amount_cents)} centesimi non valido per i punti` }),
   E_POINTS_MODE_REQUIRED: (d) => ({ message: `il negozio ${str(d.shop_id)} usa la carta a timbri` }),
+  E_STAMPS_MODE_REQUIRED: (d) => ({ message: `il negozio ${str(d.shop_id)} usa la carta a punti` }),
   E_MEMBERSHIP_NOT_RENEWABLE: (d) => ({
     message: `la membership ${str(d.short_code)} (${str(d.product)}) non ha scadenza`,
   }),
