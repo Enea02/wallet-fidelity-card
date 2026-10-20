@@ -5,6 +5,8 @@ import {
   CustomerIdBody,
   HexColor,
   IdParams,
+  PointsLevel,
+  PointsView,
   PrepaidView,
   Role,
   ShortCode,
@@ -45,6 +47,8 @@ export const ShopSummary = z.object({
   status: z.enum(["active", "suspended"]),
   /** false: il negozio offre solo tessere prepagate (niente carta fedeltà). */
   loyaltyEnabled: z.boolean(),
+  /** Carta fedeltà a timbri o a punti con livelli (Fase 9.6). */
+  loyaltyMode: z.enum(["timbri", "punti"]),
 });
 export const ShopsResponse = z.object({ shops: z.array(ShopSummary) });
 
@@ -70,8 +74,10 @@ export const CardResponse = z.object({
 });
 /** Tessera prepagata letta allo scanner (Fase 9.5). */
 export const PrepaidLookupResponse = z.object({ kind: z.literal("tessera"), prepaid: PrepaidView });
-/** La scansione riconosce da sola carta fedeltà o tessera prepagata. */
-export const LookupResponse = z.discriminatedUnion("kind", [CardResponse, PrepaidLookupResponse]);
+/** Carta a punti letta allo scanner (Fase 9.6). */
+export const PointsLookupResponse = z.object({ kind: z.literal("punti"), card: PointsView, since: z.string() });
+/** La scansione riconosce da sola carta a timbri, carta a punti o tessera prepagata. */
+export const LookupResponse = z.discriminatedUnion("kind", [CardResponse, PointsLookupResponse, PrepaidLookupResponse]);
 /** Risposta delle azioni che restituiscono solo la carta aggiornata (annullamento, riscatto). */
 export const CardOnlyResponse = z.object({ card: CardView });
 /** Timbro: `force` lo dà anche durante il cooldown (resta nell'audit con chi l'ha dato). */
@@ -134,6 +140,9 @@ export const CustomerItem = z.object({
   createdAt: z.string(),
   /** Ultimo timbro o riscatto (null se non è mai tornato dopo l'iscrizione). */
   lastVisitAt: z.string().nullable(),
+  /** Carta a punti (Fase 9.6): punti attuali e livello (null nei negozi a timbri). */
+  points: z.number().int(),
+  pointsLevel: z.string().nullable(),
 });
 export const CustomersResponse = z.object({ items: z.array(CustomerItem), nextCursor: z.string().nullable() });
 
@@ -187,6 +196,11 @@ export const ShopSettings = z.object({
   tagline: z.string().nullable(),
   /** false: il negozio offre solo tessere prepagate. */
   loyaltyEnabled: z.boolean(),
+  /** Carta a punti (Fase 9.6). */
+  loyaltyMode: z.enum(["timbri", "punti"]),
+  pointsPerEuro: z.number().int(),
+  pointsMinCents: z.number().int(),
+  pointsLevels: z.array(PointsLevel),
 });
 export const SettingsResponse = z.object({ settings: ShopSettings });
 export const SettingsUpdateBody = z
@@ -213,6 +227,16 @@ export const SettingsUpdateBody = z
     tagline: z.string().trim().max(80).nullable(),
     /** false: il negozio offre solo tessere prepagate (Fase 9.5). */
     loyaltyEnabled: z.boolean(),
+    /** Carta a punti (Fase 9.6). */
+    loyaltyMode: z.enum(["timbri", "punti"]),
+    pointsPerEuro: z.number().int().min(1).max(100),
+    pointsMinCents: z.number().int().min(0).max(100000),
+    pointsLevels: z
+      .array(PointsLevel)
+      .min(1)
+      .max(5)
+      .refine((l) => l[0]?.min === 0, { message: "il primo livello parte da 0 punti" })
+      .refine((l) => l.every((x, i) => i === 0 || x.min > l[i - 1]!.min), { message: "soglie crescenti" }),
   })
   .partial()
   .refine((o) => Object.keys(o).length > 0, { message: "nessun campo da aggiornare" });
@@ -290,9 +314,11 @@ export const PrepaidProduct = z.object({
   /** Parte dell'indirizzo di iscrizione: /<negozio>/t/<code>. */
   code: z.string(),
   name: z.string(),
-  units: z.number().int(),
-  unitSingular: z.string(),
-  unitPlural: z.string(),
+  kind: z.enum(["consumo", "abbonamento"]),
+  benefit: z.string().nullable(),
+  units: z.number().int().nullable(),
+  unitSingular: z.string().nullable(),
+  unitPlural: z.string().nullable(),
   /** null = senza scadenza. */
   validityMonths: z.number().int().nullable(),
   active: z.boolean(),
@@ -301,15 +327,32 @@ export const PrepaidProduct = z.object({
 });
 export const PrepaidProductsResponse = z.object({ products: z.array(PrepaidProduct) });
 export const PrepaidProductResponse = z.object({ product: PrepaidProduct });
-export const PrepaidProductCreateBody = z.object({
-  name: z.string().trim().min(2, "nome da 2 a 40 caratteri").max(40, "nome da 2 a 40 caratteri"),
-  units: z.number().int().min(1, "almeno 1 unità").max(10000, "al massimo 10000 unità"),
-  unitSingular: UnitName,
-  unitPlural: UnitName,
-  validityMonths: z.number().int().min(1).max(60).nullable(),
-});
-export const PrepaidProductUpdateBody = PrepaidProductCreateBody.partial()
-  .extend({ active: z.boolean().optional() })
+const ProductName = z.string().trim().min(2, "nome da 2 a 40 caratteri").max(40, "nome da 2 a 40 caratteri");
+const Benefit = z.string().trim().min(2, "vantaggio da 2 a 80 caratteri").max(80, "vantaggio da 2 a 80 caratteri");
+const Validity = z.number().int().min(1).max(60).nullable();
+/** Tessera a consumo (Fase 9.5) o abbonamento/membership con vantaggio (Fase 9.6). */
+export const PrepaidProductCreateBody = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("consumo").default("consumo"),
+    name: ProductName,
+    units: z.number().int().min(1, "almeno 1 unità").max(10000, "al massimo 10000 unità"),
+    unitSingular: UnitName,
+    unitPlural: UnitName,
+    validityMonths: Validity,
+  }),
+  z.object({ kind: z.literal("abbonamento"), name: ProductName, benefit: Benefit, validityMonths: Validity }),
+]);
+export const PrepaidProductUpdateBody = z
+  .object({
+    name: ProductName,
+    benefit: Benefit,
+    units: z.number().int().min(1).max(10000),
+    unitSingular: UnitName,
+    unitPlural: UnitName,
+    validityMonths: Validity,
+    active: z.boolean(),
+  })
+  .partial()
   .refine((b) => Object.keys(b).length > 0, { message: "nessuna modifica" });
 
 export { CardIdBody, PrepaidView };
@@ -322,3 +365,21 @@ export const PrepaidAdjustBody = z.object({
   reason: z.string().trim().min(5, "il motivo è obbligatorio (almeno 5 caratteri)").max(200),
 });
 export const ProductQuery = z.object({ product: z.uuid().optional() });
+
+/* ---------- punti con livelli (Fase 9.6) ---------- */
+
+export { PointsLevel, PointsView };
+export const PointsAddBody = CustomerIdBody.extend({
+  /** Importo dello scontrino in centesimi (23,50 € = 2350). */
+  amountCents: z.number().int().min(1, "importo mancante").max(1_000_000, "al massimo 10.000 €"),
+});
+export const PointsResponse = z.object({
+  card: PointsView,
+  pointsAdded: z.number().int(),
+  levelChanged: z.boolean(),
+  duplicate: z.boolean(),
+});
+export const PointsAdjustBody = z.object({
+  points: z.number().int().min(0).max(10_000_000),
+  reason: z.string().trim().min(5, "il motivo è obbligatorio (almeno 5 caratteri)").max(200),
+});

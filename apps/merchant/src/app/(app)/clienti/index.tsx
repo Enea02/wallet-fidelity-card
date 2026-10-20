@@ -74,6 +74,7 @@ export default function Clienti() {
             <CustomerList
               items={list.items}
               stampsRequired={shop.stampsRequired}
+              pointsMode={shop.loyaltyMode === "punti"}
               selectedId={selected}
               table={split}
               hasMore={list.hasMore}

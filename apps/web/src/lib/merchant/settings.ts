@@ -13,7 +13,7 @@ import { callDomain, staffMeta } from "./domain-call";
 
 const BUCKET = "logos";
 const COLS =
-  "name, slug, hex_color, stamps_required, reward_label, stamp_cooldown_minutes, logo_url, legal_name, vat_number, privacy_email, status, program_name, stamp_unit, stamp_unit_plural, stamp_icon, tagline, loyalty_enabled";
+  "name, slug, hex_color, stamps_required, reward_label, stamp_cooldown_minutes, logo_url, legal_name, vat_number, privacy_email, status, program_name, stamp_unit, stamp_unit_plural, stamp_icon, tagline, loyalty_enabled, loyalty_mode, points_per_euro, points_min_cents, points_levels";
 
 interface Row {
   name: string;
@@ -33,6 +33,10 @@ interface Row {
   stamp_icon: StampIcon;
   tagline: string | null;
   loyalty_enabled: boolean;
+  loyalty_mode: Shop["loyalty_mode"];
+  points_per_euro: number;
+  points_min_cents: number;
+  points_levels: Shop["points_levels"];
 }
 
 const toSettings = (r: Row): z.input<typeof ShopSettings> => ({
@@ -53,6 +57,10 @@ const toSettings = (r: Row): z.input<typeof ShopSettings> => ({
   stampIcon: r.stamp_icon,
   tagline: r.tagline,
   loyaltyEnabled: r.loyalty_enabled,
+  loyaltyMode: r.loyalty_mode,
+  pointsPerEuro: r.points_per_euro,
+  pointsMinCents: r.points_min_cents,
+  pointsLevels: r.points_levels,
 });
 
 export async function getSettings(shop: Shop) {
@@ -78,6 +86,33 @@ const LABELS: Record<string, string> = {
   stamp_icon: "icona del timbro",
   tagline: "frase d'apertura",
 };
+
+interface PointsSettings {
+  mode: Shop["loyalty_mode"];
+  points_per_euro: number;
+  min_cents: number;
+  levels: Shop["points_levels"];
+}
+
+const euro = (cents: number) => `${(cents / 100).toFixed(2).replace(".", ",")} €`;
+const levelsText = (l: Shop["points_levels"]) => l.map((x) => `${x.name} ${x.min}`).join(" · ");
+
+/** "modalità timbri → punti, punti per euro 1 → 2, livelli Silver 0 · Gold 500 → …" */
+function pointsChanges(b: PointsSettings, a: PointsSettings): string {
+  const parts: string[] = [];
+  if (b.mode !== a.mode) parts.push(`modalità ${b.mode} → ${a.mode}`);
+  if (b.points_per_euro !== a.points_per_euro) parts.push(`punti per euro ${b.points_per_euro} → ${a.points_per_euro}`);
+  if (b.min_cents !== a.min_cents) parts.push(`spesa minima ${euro(b.min_cents)} → ${euro(a.min_cents)}`);
+  if (JSON.stringify(b.levels) !== JSON.stringify(a.levels)) {
+    const perks = (l: Shop["points_levels"]) => l.map((x) => x.perk).join("|");
+    parts.push(
+      levelsText(b.levels) === levelsText(a.levels) && perks(b.levels) !== perks(a.levels)
+        ? "vantaggi dei livelli modificati"
+        : `livelli ${levelsText(b.levels)} → ${levelsText(a.levels)}`,
+    );
+  }
+  return parts.join(", ");
+}
 
 const show = (v: unknown) => (v === null || v === undefined || v === "" ? "vuoto" : String(v));
 
@@ -169,6 +204,29 @@ export async function updateSettings(
     if (l.changed) loyalty = `carta fedeltà ${input.loyaltyEnabled ? "spenta → attiva" : "attiva → spenta"}`;
   }
 
+  // carta a timbri o a punti, regola e livelli (Fase 9.6): funzione a parte, con il suo audit
+  const pointsFields: Record<string, unknown> = {};
+  if (input.loyaltyMode !== undefined) pointsFields.mode = input.loyaltyMode;
+  if (input.pointsPerEuro !== undefined) pointsFields.points_per_euro = input.pointsPerEuro;
+  if (input.pointsMinCents !== undefined) pointsFields.min_cents = input.pointsMinCents;
+  if (input.pointsLevels !== undefined) pointsFields.levels = input.pointsLevels;
+  let pointsCardChanged = false;
+  if (Object.keys(pointsFields).length > 0) {
+    const p = await callDomain<{ changed: false } | { changed: true; before: PointsSettings; after: PointsSettings }>(
+      "update_points_settings",
+      { p_shop_id: shop.id, p_fields: pointsFields, p_meta: staffMeta(userId) },
+    );
+    if (p.changed) {
+      log.event("points.settings.updated", {
+        ...actor,
+        shop_name: shop.name,
+        changes: pointsChanges(p.before, p.after),
+      });
+      pointsCardChanged =
+        p.before.mode !== p.after.mode || JSON.stringify(p.before.levels) !== JSON.stringify(p.after.levels);
+    }
+  }
+
   const r =
     Object.keys(changes).length > 0
       ? await callDomain<{
@@ -190,7 +248,7 @@ export async function updateSettings(
     changes: parts.length === 0 ? "nessuna modifica (valori uguali a quelli già salvati)" : parts.join(", "),
   });
   // template Google subito; le carte con la versione vecchia le riallinea la riconciliazione del cron
-  if (r.card_changed || loyalty) {
+  if (r.card_changed || loyalty || pointsCardChanged) {
     await notifyShopChanged(loyalty ? { ...shop, loyalty_enabled: input.loyaltyEnabled === true } : shop);
   }
   return getSettings(shop);

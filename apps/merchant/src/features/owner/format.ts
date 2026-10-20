@@ -110,6 +110,29 @@ export function historyLine(h: HistoryInput, rewardLabel: string, now = new Date
       };
     case "customer_delete":
       return { what: "Carta cancellata", meta: meta(), delta: "" };
+    // carta a punti (Fase 9.6)
+    case "points_add": {
+      const d = num(h.after?.points) - num(h.before?.points);
+      const cents = num(h.after?.amount_cents);
+      const level = h.after?.level !== h.before?.level && h.after?.level ? ` · ora ${String(h.after.level)}` : "";
+      return {
+        what: `Punti · scontrino ${(cents / 100).toFixed(2).replace(".", ",")} €${level}`,
+        meta: meta(),
+        delta: `${signed(d)} pt`,
+      };
+    }
+    case "points_undo":
+      return {
+        what: "Punti annullati",
+        meta: meta(),
+        delta: `${signed(num(h.after?.points) - num(h.before?.points))} pt`,
+      };
+    case "points_adjust":
+      return {
+        what: `Correzione punti${h.reason ? ` · ${h.reason}` : ""}`,
+        meta: meta(),
+        delta: `${signed(num(h.after?.points) - num(h.before?.points))} pt`,
+      };
     default:
       return { what: h.action, meta: meta(), delta: "" };
   }

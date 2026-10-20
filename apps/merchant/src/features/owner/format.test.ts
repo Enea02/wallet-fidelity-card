@@ -58,6 +58,20 @@ describe("testi dell'area titolare", () => {
       ),
     ).toMatchObject({ what: "Correzione · Timbro dimenticato", delta: "+1 timbro" });
     expect(historyLine(h({ action: "redeem" }), "Taglio gratis", now).what).toBe("Premio riscattato · Taglio gratis");
+    expect(
+      historyLine(
+        h({
+          action: "points_add",
+          before: { points: 480, level: "Silver" },
+          after: { points: 503, level: "Gold", amount_cents: 2350 },
+        }),
+        "",
+        now,
+      ),
+    ).toMatchObject({ what: "Punti · scontrino 23,50 € · ora Gold", delta: "+23 pt" });
+    expect(
+      historyLine(h({ action: "points_undo", before: { points: 503 }, after: { points: 480 } }), "", now).delta,
+    ).toBe("−23 pt");
     expect(historyLine(h({ action: "enroll", actorName: "cliente" }), "x", now)).toMatchObject({
       what: "Iscrizione",
       meta: "10 ott · 10:12 · dalla pagina del negozio",

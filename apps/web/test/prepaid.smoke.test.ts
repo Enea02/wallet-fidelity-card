@@ -64,12 +64,17 @@ afterAll(async () => {
 
 const ev = (name: string) => lines.filter((l) => l.event === name);
 let ipSeq = 0;
+const IP_BASE = Math.floor(Math.random() * 62_500);
+const ip = () => {
+  const n = (IP_BASE + ipSeq++) % 62_500;
+  return `198.19.${Math.floor(n / 250)}.${n % 250}`;
+};
 const req = (body: unknown) =>
   new Request("http://localhost:3000/api/public", {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-forwarded-for": `198.19.${Math.floor(Math.random() * 250)}.${ipSeq++ % 250}`,
+      "x-forwarded-for": ip(),
       "x-platform": "public-web",
     },
     body: JSON.stringify(body),
@@ -257,9 +262,11 @@ describe("Google Wallet", () => {
         textModulesData: Array<{ header: string }>;
       };
     expect(obj().textModulesData[0]?.header).toBe("Da attivare in negozio");
-    await act("prepaidActivate", M, t.cardId);
+    expect((await act("prepaidActivate", M, t.cardId)).status).toBe(200);
     expect(obj().loyaltyPoints.balance.string).toBe("150 / 150");
-    await consume(M, t.cardId, 150);
+    const used = await consume(M, t.cardId, 150);
+    expect(used.status, JSON.stringify(used.json)).toBe(200);
+    expect(ev("wallet.google.prepaid.upsert.failed"), "nessun errore verso Google").toEqual([]);
     expect(obj().textModulesData[0]?.header).toBe("Tessera esaurita");
     expect(ev("wallet.google.prepaid.upsert.ok").length).toBeGreaterThan(0);
   });

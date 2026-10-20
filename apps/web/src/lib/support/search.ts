@@ -130,7 +130,7 @@ async function appRequests(supportCode: string): Promise<SearchHit[]> {
 async function cardsBy(column: "short_code" | "phone_hash", value: string): Promise<SearchHit[]> {
   const { data, error } = await supabaseAdmin()
     .from("customers")
-    .select("id, short_code, stamps, rewards_available, deleted_at, shops(name)")
+    .select("id, short_code, stamps, rewards_available, points, points_level, deleted_at, shops(name, loyalty_mode)")
     .eq(column, value)
     .limit(20);
   if (error) throw error;
@@ -139,7 +139,9 @@ async function cardsBy(column: "short_code" | "phone_hash", value: string): Prom
     title: `Carta ${c.short_code as string} · ${(c.shops as unknown as { name: string } | null)?.name ?? "negozio"}`,
     detail: c.deleted_at
       ? "cliente cancellato"
-      : `${c.stamps as number} timbri, ${c.rewards_available as number} premi`,
+      : (c.shops as unknown as { loyalty_mode?: string } | null)?.loyalty_mode === "punti"
+        ? `${c.points as number} punti, livello ${(c.points_level as string | null) ?? "—"}`
+        : `${c.stamps as number} timbri, ${c.rewards_available as number} premi`,
   }));
 }
 

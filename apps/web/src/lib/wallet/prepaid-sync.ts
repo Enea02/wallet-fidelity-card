@@ -96,13 +96,13 @@ export async function syncPrepaidCard(cardId: string, opts: SyncCardOptions = {}
   const attempt = opts.attempt ?? 1;
   const { card, product, shop, personName } = await loadPrepaid(cardId);
   const body = prepaidObjectBody(shop, product, card, personName);
-  const state = prepaidState(card);
+  const state = prepaidState(card, Date.now(), product.kind);
   const fields = {
     customer_ref: card.short_code,
     shop_name: shop.name,
     product_name: product.name,
-    unit_singular: product.unit_singular,
-    unit_plural: product.unit_plural,
+    unit_singular: product.unit_singular ?? "",
+    unit_plural: product.unit_plural ?? "",
     balance: card.balance,
     prepaid_state: card.deleted_at || shop.status !== "active" ? ("disattivata" as const) : STATE_LABEL[state],
     attempt,
@@ -110,7 +110,7 @@ export async function syncPrepaidCard(cardId: string, opts: SyncCardOptions = {}
   const ids = { cardId: card.id };
   const synced = {
     balance: card.balance,
-    state: prepaidSyncedState(shop, card),
+    state: prepaidSyncedState(shop, card, product.kind),
     version: product.card_version + shop.card_version,
   };
 

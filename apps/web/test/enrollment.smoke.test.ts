@@ -20,7 +20,13 @@ let mocks: PublicMocks;
 let lines: LogLine[] = [];
 const created: string[] = [];
 let ipSeq = 0;
-const newIp = () => `198.18.${Math.floor(Math.random() * 250)}.${ipSeq++ % 250}`;
+// base casuale per esecuzione + contatore: IP diversi nella stessa esecuzione e (quasi sempre) tra esecuzioni
+// ravvicinate, che altrimenti si sommerebbero nel limite orario per IP
+const IP_BASE = Math.floor(Math.random() * 62_500);
+const newIp = () => {
+  const n = (IP_BASE + ipSeq++) % 62_500;
+  return `198.18.${Math.floor(n / 250)}.${n % 250}`;
+};
 
 beforeAll(async () => {
   mocks = await startPublicMocks();

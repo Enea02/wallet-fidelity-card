@@ -23,6 +23,11 @@ export interface Shop {
   stamp_icon: string;
   /** false: il negozio offre solo tessere prepagate (Fase 9.5). */
   loyalty_enabled: boolean;
+  /** Carta fedeltà a timbri o a punti con livelli (Fase 9.6). */
+  loyalty_mode: "timbri" | "punti";
+  points_per_euro: number;
+  points_min_cents: number;
+  points_levels: Array<{ name: string; min: number; perk: string }>;
 }
 
 export interface Customer {
@@ -37,6 +42,9 @@ export interface Customer {
   short_code: string;
   stamps: number;
   rewards_available: number;
+  /** Carta a punti (Fase 9.6): punti attuali e totali (il livello si calcola sui totali). */
+  points: number;
+  points_total: number;
   deleted_at: string | null;
 }
 
@@ -54,9 +62,12 @@ export interface PrepaidProduct {
   shop_id: string;
   code: string;
   name: string;
-  units: number;
-  unit_singular: string;
-  unit_plural: string;
+  /** "abbonamento": vantaggio e scadenza, senza unità (Fase 9.6). */
+  kind: "consumo" | "abbonamento";
+  benefit: string | null;
+  units: number | null;
+  unit_singular: string | null;
+  unit_plural: string | null;
   validity_months: number | null;
   active: boolean;
   card_version: number;

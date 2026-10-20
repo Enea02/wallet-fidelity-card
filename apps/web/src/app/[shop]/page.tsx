@@ -99,15 +99,17 @@ export default async function EnrollPage({ params }: Props) {
         </div>
       </div>
       <h1 className="lw-tagline">{view.tagline}</h1>
-      {/* eslint-disable-next-line @next/next/no-img-element -- SVG generato */}
-      <img
-        className="lw-strip"
-        src={stripUrl(view, 0)}
-        alt={`Carta da ${view.stampsRequired} timbri`}
-        width={1032}
-        height={336}
-        fetchPriority="high"
-      />
+      {view.mode === "timbri" && (
+        // eslint-disable-next-line @next/next/no-img-element -- SVG generato
+        <img
+          className="lw-strip"
+          src={stripUrl(view, 0)}
+          alt={`Carta da ${view.stampsRequired} timbri`}
+          width={1032}
+          height={336}
+          fetchPriority="high"
+        />
+      )}
       {productLinks}
     </header>
   );

@@ -23,8 +23,8 @@ export const prepaidCardStateFor = (shop: Shop, card: PrepaidCard): GoogleCardSt
   card.deleted_at === null && shop.status === "active" ? "ACTIVE" : "INACTIVE";
 
 /** Stato sincronizzato ("ACTIVE:attiva"): cambia quando cambia lo stato su Google o quello della tessera. */
-export const prepaidSyncedState = (shop: Shop, card: PrepaidCard) =>
-  `${prepaidCardStateFor(shop, card)}:${prepaidState(card)}`;
+export const prepaidSyncedState = (shop: Shop, card: PrepaidCard, kind: PrepaidProduct["kind"]) =>
+  `${prepaidCardStateFor(shop, card)}:${prepaidState(card, Date.now(), kind)}`;
 
 const privacyUrl = (shop: Shop) => `${requireEnv("APP_BASE_URL").replace(/\/$/, "")}/${shop.slug}/privacy`;
 
@@ -44,31 +44,45 @@ export function prepaidClassBody(shop: Shop, product: PrepaidProduct) {
 }
 
 export function prepaidTexts(shop: Shop, product: PrepaidProduct, card: PrepaidCard) {
-  const state = prepaidState(card);
+  const state = prepaidState(card, Date.now(), product.kind);
   const input = {
+    kind: product.kind,
+    benefit: product.benefit,
     state,
     balance: card.balance,
     chargedUnits: card.charged_units,
-    units: product.units,
-    unitSingular: product.unit_singular,
-    unitPlural: product.unit_plural,
+    units: product.units ?? 0,
+    unitSingular: product.unit_singular ?? "",
+    unitPlural: product.unit_plural ?? "",
     expiresAt: card.expires_at,
   };
+  const membership = product.kind === "abbonamento";
   const validity = product.validity_months
-    ? `• Valida ${product.validity_months} mesi dall'attivazione o dall'ultima ricarica.`
+    ? membership
+      ? `• Valido ${product.validity_months} mesi dall'attivazione; il rinnovo in negozio allunga dalla scadenza.`
+      : `• Valida ${product.validity_months} mesi dall'attivazione o dall'ultima ricarica.`
     : "• Senza scadenza.";
-  const rules = [
-    `• ${prepaidUnits(input, product.units)} per ogni tessera o ricarica, pagata in negozio.`,
-    "• A ogni utilizzo il negozio scala le unità usate mostrando il QR in cassa.",
-    validity,
-    "• Non rimborsabile, non convertibile in denaro.",
-  ].join("\n");
+  const rules = (
+    membership
+      ? [
+          `• Vantaggio: ${product.benefit ?? ""}.`,
+          "• Si attiva e si rinnova in negozio dopo il pagamento; mostra il QR in cassa.",
+          validity,
+          "• Personale, non cedibile.",
+        ]
+      : [
+          `• ${prepaidUnits(input, product.units ?? 0)} per ogni tessera o ricarica, pagata in negozio.`,
+          "• A ogni utilizzo il negozio scala le unità usate mostrando il QR in cassa.",
+          validity,
+          "• Non rimborsabile, non convertibile in denaro.",
+        ]
+  ).join("\n");
   const holder = shop.legal_name ?? shop.name;
   const privacy = shop.privacy_email
     ? `Dati trattati da ${holder}. Per esercitare i tuoi diritti scrivi a ${shop.privacy_email}.`
     : `Dati trattati da ${holder}. Per esercitare i tuoi diritti chiedi in negozio.`;
   return {
-    balance: prepaidBalance(input),
+    balance: membership ? (product.benefit ?? "—") : prepaidBalance(input),
     expires: card.expires_at ? prepaidDate(card.expires_at) : "nessuna",
     module: prepaidModule(input),
     rules,
@@ -78,15 +92,19 @@ export function prepaidTexts(shop: Shop, product: PrepaidProduct, card: PrepaidC
 
 export function prepaidObjectBody(shop: Shop, product: PrepaidProduct, card: PrepaidCard, personName: string) {
   const t = prepaidTexts(shop, product, card);
-  const unitsLabel = product.unit_plural.charAt(0).toUpperCase() + product.unit_plural.slice(1);
+  const plural = product.unit_plural ?? "";
+  const label = product.kind === "abbonamento" ? "Vantaggio" : plural.charAt(0).toUpperCase() + plural.slice(1);
   return {
     id: prepaidObjectIdFor(card.id),
     classId: prepaidClassIdFor(shop, product),
     state: prepaidCardStateFor(shop, card),
     accountId: card.short_code,
     accountName: personName,
-    loyaltyPoints: { label: unitsLabel, balance: { string: t.balance } },
-    secondaryLoyaltyPoints: { label: "Scadenza", balance: { string: t.expires } },
+    loyaltyPoints: { label, balance: { string: t.balance } },
+    secondaryLoyaltyPoints: {
+      label: product.kind === "abbonamento" ? "Valido fino al" : "Scadenza",
+      balance: { string: t.expires },
+    },
     barcode: { type: "QR_CODE", value: card.qr_token, alternateText: card.short_code },
     // con la scadenza Google mostra la tessera come scaduta da solo
     ...(card.expires_at && { validTimeInterval: { end: { date: new Date(card.expires_at).toISOString() } } }),

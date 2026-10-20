@@ -473,12 +473,31 @@ function Done({ shop, verified, enrollmentId }: { shop: PublicShop; verified: Ve
             <span className="count" data-testid="tessera-saldo">
               {verified.prepaid.state === "da_attivare"
                 ? "—"
-                : `${verified.prepaid.balance} ${verified.prepaid.unitPlural}`}
+                : verified.prepaid.kind === "abbonamento"
+                  ? verified.prepaid.state === "scaduta"
+                    ? "scaduto"
+                    : "attivo"
+                  : `${verified.prepaid.balance} ${verified.prepaid.unitPlural}`}
             </span>
           </div>
           <div style={{ padding: "4px 18px 18px", display: "grid", gap: 4 }}>
             <strong data-testid="tessera-stato">{verified.prepaid.module.header}</strong>
             <span style={{ opacity: 0.85 }}>{verified.prepaid.module.body}</span>
+          </div>
+        </div>
+      ) : card.points ? (
+        <div className="lw-card" aria-label={`Carta ${shop.name}: ${card.points.module.header}`}>
+          <div className="top">
+            {/* eslint-disable-next-line @next/next/no-img-element -- logo o monogramma generato */}
+            <img src={shop.logo} alt="" />
+            <strong>{shop.name}</strong>
+            <span className="count" data-testid="punti-saldo">
+              {card.points.points === 1 ? "1 punto" : `${card.points.points} punti`}
+            </span>
+          </div>
+          <div style={{ padding: "4px 18px 18px", display: "grid", gap: 4 }}>
+            <strong data-testid="punti-livello">{card.points.module.header}</strong>
+            <span style={{ opacity: 0.85 }}>{card.points.module.body}</span>
           </div>
         </div>
       ) : (
@@ -504,16 +523,24 @@ function Done({ shop, verified, enrollmentId }: { shop: PublicShop; verified: Ve
       <p className="lw-lead">
         {verified.prepaid
           ? verified.prepaid.state === "da_attivare"
-            ? "Paga la tessera in cassa: la attiviamo subito. "
+            ? verified.prepaid.kind === "abbonamento"
+              ? "Paga l'abbonamento in cassa: lo attiviamo subito. "
+              : "Paga la tessera in cassa: la attiviamo subito. "
             : ""
           : verified.status === "returning"
-            ? "I tuoi timbri sono conservati. "
+            ? card.points
+              ? "I tuoi punti sono conservati. "
+              : "I tuoi timbri sono conservati. "
             : ""}
         {wallet === "apple-in-arrivo"
           ? "Mostra questo QR alla cassa a ogni visita: ti conviene fare uno screenshot."
           : verified.prepaid
-            ? "Salvala nel wallet: si aggiorna da sola quando la attiviamo e a ogni utilizzo."
-            : "Salvala nel wallet: la trovi sempre sul telefono e si aggiorna da sola a ogni timbro."}
+            ? verified.prepaid.kind === "abbonamento"
+              ? "Salvala nel wallet: si aggiorna da sola quando la attiviamo e a ogni rinnovo."
+              : "Salvala nel wallet: si aggiorna da sola quando la attiviamo e a ogni utilizzo."
+            : card.points
+              ? "Salvala nel wallet: la trovi sempre sul telefono e si aggiorna da sola a ogni acquisto."
+              : "Salvala nel wallet: la trovi sempre sul telefono e si aggiorna da sola a ogni timbro."}
       </p>
 
       <div className="lw-bottom" style={{ gap: 14 }}>

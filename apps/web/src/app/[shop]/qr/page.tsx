@@ -62,8 +62,10 @@ export default async function CounterQr({ params }: { params: Promise<{ shop: st
             </div>
           </div>
           <h1>{view.tagline}</h1>
-          {/* eslint-disable-next-line @next/next/no-img-element -- SVG generato */}
-          <img className="strip" src={stripUrl(view, Math.round(shop.stamps_required * 0.6))} alt="" />
+          {view.mode === "timbri" && (
+            // eslint-disable-next-line @next/next/no-img-element -- SVG generato
+            <img className="strip" src={stripUrl(view, Math.round(shop.stamps_required * 0.6))} alt="" />
+          )}
         </div>
         <div className="panel">
           <div>

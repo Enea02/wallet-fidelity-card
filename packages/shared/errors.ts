@@ -527,6 +527,36 @@ export const errors = {
     action:
       "Controllare nell'app (sezione Tessere) che il tipo di tessera esista e sia attivo; se va riattivato lo fa il titolare.",
   },
+  E_POINTS_AMOUNT_INVALID: {
+    status: 400,
+    userMessage: "Importo non valido: scrivi l'importo dello scontrino (da 0,01 a 10.000 €).",
+    description: "Punti richiesti con un importo assente, nullo o oltre 10.000 €.",
+    probableCause: "Importo digitato male (virgola, zeri in più) o campo vuoto.",
+    action:
+      "Far riscrivere l'importo dello scontrino. Se i punti dati sono sbagliati, il titolare corregge il saldo con un motivo.",
+  },
+  E_POINTS_MODE_REQUIRED: {
+    status: 409,
+    userMessage: "Questo negozio usa la carta a timbri, non a punti.",
+    description: "Operazione sui punti in un negozio la cui carta fedeltà è a timbri.",
+    probableCause: "Il titolare ha cambiato modalità mentre l'app era aperta, oppure app non aggiornata.",
+    action: "Controllare in Carta → modalità timbri/punti; ricaricare l'app sul dispositivo dello staff.",
+  },
+  E_STAMPS_MODE_REQUIRED: {
+    status: 409,
+    userMessage: "Questo negozio usa la carta a punti: inserisci l'importo dello scontrino.",
+    description: "Timbro o premio a timbri chiesto in un negozio la cui carta fedeltà è a punti.",
+    probableCause: "Il titolare è passato ai punti mentre l'app era aperta, oppure app non aggiornata.",
+    action: "Ricaricare l'app sul dispositivo dello staff; controllare in Carta → modalità timbri/punti.",
+  },
+  E_MEMBERSHIP_NOT_RENEWABLE: {
+    status: 409,
+    userMessage: "Questa membership non ha scadenza: non serve rinnovarla.",
+    description: "Rinnovo richiesto per una membership senza durata.",
+    probableCause: "Tipo di tessera creato senza scadenza; il rinnovo non cambia nulla.",
+    action:
+      "Nessuna: la membership resta valida. Se il negozio vuole una durata, il titolare la imposta nella sezione Tessere.",
+  },
 } as const satisfies Record<string, ErrorDef>;
 
 export type ErrorCode = keyof typeof errors;

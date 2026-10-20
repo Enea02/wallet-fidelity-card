@@ -15,6 +15,10 @@ export interface CustomerSummary {
   shortCode: string;
   stamps: number;
   rewards: number;
+  /** Carta a punti (Fase 9.6). */
+  points: number;
+  pointsTotal: number;
+  pointsLevel: string | null;
   consentMarketing: boolean;
   createdAt: string;
   deletedAt: string | null;
@@ -37,7 +41,7 @@ export async function customerSummary(customerId: string): Promise<CustomerSumma
   const { data: c, error } = await db
     .from("customers")
     .select(
-      "id, shop_id, name, phone, short_code, stamps, rewards_available, consent_marketing, created_at, deleted_at",
+      "id, shop_id, name, phone, short_code, stamps, rewards_available, points, points_total, points_level, consent_marketing, created_at, deleted_at",
     )
     .eq("id", customerId)
     .maybeSingle();
@@ -60,6 +64,9 @@ export async function customerSummary(customerId: string): Promise<CustomerSumma
     shortCode: c.short_code as string,
     stamps: c.stamps as number,
     rewards: c.rewards_available as number,
+    points: c.points as number,
+    pointsTotal: c.points_total as number,
+    pointsLevel: c.points_level as string | null,
     consentMarketing: c.consent_marketing as boolean,
     createdAt: c.created_at as string,
     deletedAt: c.deleted_at as string | null,

@@ -892,8 +892,11 @@ export interface PrepaidCardFields extends CardFields {
 export interface PrepaidProductCreatedFields extends ActorFields {
   shop_name: string;
   product_name: string;
-  units: number;
-  unit_plural: string;
+  /** null per gli abbonamenti (Fase 9.6) */
+  units: number | null;
+  unit_plural: string | null;
+  /** vantaggio dell'abbonamento; assente per le tessere a consumo */
+  benefit?: string | null;
   /** null = senza scadenza */
   validity_months: number | null;
 }
@@ -965,6 +968,79 @@ export interface GooglePrepaidClassFields {
   attempt: number;
 }
 
+/* ---------- punti con livelli e membership (Fase 9.6) ---------- */
+
+export interface PointsFields extends ActorFields, CardFields {
+  points_before: number;
+  points_after: number;
+  level: string;
+}
+
+export interface PointsAddFields extends PointsFields {
+  amount_cents: number;
+  points_added: number;
+}
+
+export interface PointsUndoFields extends ActorFields, CardFields {
+  points_removed: number;
+  points_after: number;
+  level: string;
+}
+
+export interface PointsAdjustFields extends PointsFields {
+  reason: string;
+}
+
+export interface PointsLevelChangedFields extends CardFields {
+  level_before: string;
+  level_after: string;
+  /** Vantaggio del nuovo livello (vuoto se non indicato). */
+  perk: string;
+  points_total: number;
+}
+
+export interface PointsLookupFields extends CustomerLookupFields {
+  customer_ref: string;
+  points: number;
+  level: string;
+}
+
+export interface PointsSettingsFields extends ActorFields {
+  shop_name: string;
+  changes: string;
+}
+
+export interface PointsDuplicateFields extends ActorFields, CardFields {
+  original_at: string;
+  seconds_since: number;
+}
+
+export interface MembershipFields extends ActorFields, CardFields {
+  product_name: string;
+  benefit: string;
+  /** ISO; null = senza scadenza */
+  expires_at: string | null;
+}
+
+export interface MembershipRenewFields extends MembershipFields {
+  expires_before: string | null;
+}
+
+export interface MembershipLookupFields extends CustomerLookupFields {
+  customer_ref: string;
+  product_name: string;
+  membership_state: "da attivare" | "valida" | "scaduta";
+  expires_at: string | null;
+}
+
+export interface GooglePointsFields extends CardFields {
+  points: number;
+  level: string;
+  card_state: WalletCardState;
+  duration_ms: number;
+  attempt: number;
+}
+
 const diagnostic: DiagnosticModeFields = {
   diagnostic_id: "5f1c2a9e-0d1b-4f43-9a51-7d1e2b3c4d5e",
   scope_type: "shop",
@@ -992,6 +1068,11 @@ const units = (n: number, f: Pick<PrepaidCardFields, "unit_singular" | "unit_plu
   `${n} ${n === 1 ? f.unit_singular : f.unit_plural}`;
 const prepaidCard = (f: PrepaidCardFields) => `tessera ${f.customer_ref} (${f.product_name}, ${f.shop_name})`;
 const expiry = (iso: string | null) => (iso ? `, valida fino al ${when(iso)}` : "");
+
+const cardP: CardFields = { customer_ref: "A3F2C91B", shop_name: "Salone Mario" };
+const euro = (cents: number) => `${(cents / 100).toFixed(2).replace(".", ",")} €`;
+const pts = (n: number) => (n === 1 ? "1 punto" : `${n} punti`);
+const until = (iso: string | null) => (iso ? `fino al ${when(iso)}` : "senza scadenza");
 
 const giulia: ActorFields = { actor_name: "Giulia", actor_role: "operator", platform: "ios", app_version: "1.4.0" };
 const titolare: ActorFields = { actor_name: "Mario", actor_role: "owner", platform: "web", app_version: "n/d" };
@@ -2466,9 +2547,20 @@ export const events = {
     description:
       "Il titolare ha creato un tipo di tessera prepagata (es. 150 pagine) che i clienti possono richiedere.",
     msg: (f) =>
-      `${cap(actor(f))} ha creato la tessera «${f.product_name}» del negozio ${f.shop_name}: ${f.units} ${f.unit_plural}` +
+      (f.benefit
+        ? `${cap(actor(f))} ha creato l'abbonamento «${f.product_name}» del negozio ${f.shop_name}: «${f.benefit}»`
+        : `${cap(actor(f))} ha creato la tessera «${f.product_name}» del negozio ${f.shop_name}: ${f.units} ${f.unit_plural}`) +
       (f.validity_months ? `, valida ${f.validity_months} mesi dall'attivazione.` : ", senza scadenza."),
     examples: [
+      {
+        ...titolare,
+        shop_name: "Palestra Rossi",
+        product_name: "Socio 12 mesi",
+        units: null,
+        unit_plural: null,
+        benefit: "accesso illimitato",
+        validity_months: 12,
+      },
       {
         ...titolare,
         shop_name: "Cartoleria Rossi",
@@ -2677,6 +2769,183 @@ export const events = {
         ...google401,
       },
     ],
+  }),
+
+  "points.lookup.ok": defineEvent<PointsLookupFields>({
+    level: "info",
+    description: "Lo staff ha aperto una carta a punti allo scanner.",
+    msg: (f) =>
+      `${cap(actor(f))} ha aperto la carta a punti ${f.customer_ref} del negozio ${f.shop_name} con ${f.method}: ${pts(f.points)}, livello ${f.level}.`,
+    examples: [
+      { ...giulia, shop_name: "Salone Mario", method: "QR", customer_ref: "A3F2C91B", points: 230, level: "Silver" },
+    ],
+  }),
+
+  "points.add.ok": defineEvent<PointsAddFields>({
+    level: "info",
+    description:
+      "Punti dati in cassa da un importo di scontrino (punti per euro del negozio, arrotondati per difetto).",
+    msg: (f) =>
+      `${cap(actor(f))} ha dato ${pts(f.points_added)} alla carta ${f.customer_ref} del negozio ${f.shop_name} per uno scontrino di ${euro(f.amount_cents)}: ${f.points_before} → ${f.points_after}, livello ${f.level}.`,
+    examples: [
+      {
+        ...giulia,
+        ...cardP,
+        amount_cents: 2350,
+        points_added: 23,
+        points_before: 207,
+        points_after: 230,
+        level: "Silver",
+      },
+      {
+        ...giulia,
+        ...cardP,
+        amount_cents: 80,
+        points_added: 0,
+        points_before: 230,
+        points_after: 230,
+        level: "Silver",
+      },
+    ],
+  }),
+
+  "points.add.duplicate_ignored": defineEvent<PointsDuplicateFields>({
+    level: "info",
+    description: "Stesso tocco ripetuto (stessa chiave): i punti non sono stati dati due volte.",
+    msg: (f) =>
+      `Punti alla carta ${f.customer_ref} del negozio ${f.shop_name} richiesti di nuovo da ${actor(f)} con lo stesso tocco di ${f.seconds_since} secondi fa: già dati, nessun doppione.`,
+    examples: [{ ...giulia, ...cardP, original_at: "2026-11-03T09:32:14.000Z", seconds_since: 3 }],
+  }),
+
+  "points.undo.ok": defineEvent<PointsUndoFields>({
+    level: "info",
+    description: "Annullati gli ultimi punti dati (entro 5 minuti, dalla stessa persona).",
+    msg: (f) =>
+      `${cap(actor(f))} ha annullato gli ultimi ${pts(f.points_removed)} della carta ${f.customer_ref} del negozio ${f.shop_name}: ora ${pts(f.points_after)}, livello ${f.level}.`,
+    examples: [{ ...giulia, ...cardP, points_removed: 23, points_after: 207, level: "Silver" }],
+  }),
+
+  "points.adjust.ok": defineEvent<PointsAdjustFields>({
+    level: "info",
+    description: "Il titolare ha corretto a mano i punti di una carta, con il motivo.",
+    msg: (f) =>
+      `${cap(actor(f))} ha corretto i punti della carta ${f.customer_ref} del negozio ${f.shop_name}: ${f.points_before} → ${f.points_after}, livello ${f.level}. Motivo: ${f.reason}.`,
+    examples: [
+      {
+        ...titolare,
+        ...cardP,
+        points_before: 230,
+        points_after: 600,
+        level: "Gold",
+        reason: "punti della vecchia tessera di carta",
+      },
+    ],
+  }),
+
+  "points.level.changed": defineEvent<PointsLevelChangedFields>({
+    level: "info",
+    description: "Il cliente ha cambiato livello (di solito è salito): notifica sulla carta, una volta sola.",
+    msg: (f) =>
+      `La carta ${f.customer_ref} del negozio ${f.shop_name} passa da ${f.level_before} a ${f.level_after} con ${pts(f.points_total)} totali` +
+      (f.perk ? `: nuovo vantaggio «${f.perk}».` : "."),
+    examples: [
+      { ...cardP, level_before: "Silver", level_after: "Gold", perk: "-5% sui trattamenti", points_total: 512 },
+      { ...cardP, level_before: "Gold", level_after: "Platinum", perk: "", points_total: 1530 },
+    ],
+  }),
+
+  "points.settings.updated": defineEvent<PointsSettingsFields>({
+    level: "info",
+    description: "Il titolare ha cambiato modalità (timbri/punti), regola dei punti o livelli.",
+    msg: (f) => `${cap(actor(f))} ha aggiornato la carta a punti del negozio ${f.shop_name}: ${f.changes}.`,
+    examples: [
+      {
+        ...titolare,
+        shop_name: "Salone Mario",
+        changes: "modalità timbri → punti, livelli Silver 0 · Gold 500 · Platinum 1500",
+      },
+    ],
+  }),
+
+  "membership.lookup.ok": defineEvent<MembershipLookupFields>({
+    level: "info",
+    description: "Lo staff ha letto una membership o un abbonamento allo scanner: valida, scaduta o da attivare.",
+    msg: (f) =>
+      `${cap(actor(f))} ha aperto l'abbonamento ${f.customer_ref} (${f.product_name}, ${f.shop_name}) con ${f.method}: ${f.membership_state}` +
+      (f.membership_state === "da attivare" ? "." : `, ${until(f.expires_at)}.`),
+    examples: [
+      {
+        ...giulia,
+        shop_name: "Palestra Rossi",
+        method: "QR",
+        customer_ref: "K7M2Q9XA",
+        product_name: "Socio 12 mesi",
+        membership_state: "valida",
+        expires_at: "2027-10-17T10:00:00.000Z",
+      },
+      {
+        ...giulia,
+        shop_name: "Palestra Rossi",
+        method: "QR",
+        customer_ref: "K7M2Q9XA",
+        product_name: "Socio 12 mesi",
+        membership_state: "da attivare",
+        expires_at: null,
+      },
+    ],
+  }),
+
+  "membership.activate.ok": defineEvent<MembershipFields>({
+    level: "info",
+    description: "Abbonamento o membership attivato in cassa dopo il pagamento (fuori dall'app).",
+    msg: (f) =>
+      `${cap(actor(f))} ha attivato l'abbonamento ${f.customer_ref} (${f.product_name}, ${f.shop_name}) dopo il pagamento: «${f.benefit}», ${until(f.expires_at)}.`,
+    examples: [
+      {
+        ...giulia,
+        customer_ref: "K7M2Q9XA",
+        shop_name: "Palestra Rossi",
+        product_name: "Socio 12 mesi",
+        benefit: "accesso illimitato",
+        expires_at: "2027-10-17T10:00:00.000Z",
+      },
+      {
+        ...giulia,
+        customer_ref: "K7M2Q9XA",
+        shop_name: "Bar Centrale",
+        product_name: "Socio",
+        benefit: "-10% su tutto",
+        expires_at: null,
+      },
+    ],
+  }),
+
+  "membership.renew.ok": defineEvent<MembershipRenewFields>({
+    level: "info",
+    description:
+      "Abbonamento rinnovato in cassa dopo il pagamento: allunga dalla scadenza se ancora valido, altrimenti da oggi.",
+    msg: (f) =>
+      `${cap(actor(f))} ha rinnovato l'abbonamento ${f.customer_ref} (${f.product_name}, ${f.shop_name}) dopo il pagamento: scadenza ` +
+      `${f.expires_before ? when(f.expires_before) : "nessuna"} → ${f.expires_at ? when(f.expires_at) : "nessuna"}.`,
+    examples: [
+      {
+        ...giulia,
+        customer_ref: "K7M2Q9XA",
+        shop_name: "Palestra Rossi",
+        product_name: "Socio 12 mesi",
+        benefit: "accesso illimitato",
+        expires_before: "2027-10-17T10:00:00.000Z",
+        expires_at: "2028-10-17T10:00:00.000Z",
+      },
+    ],
+  }),
+
+  "wallet.google.points.ok": defineEvent<GooglePointsFields>({
+    level: "info",
+    description: "Carta a punti creata o aggiornata su Google Wallet (punti, livello, vantaggio).",
+    msg: (f) =>
+      `Carta a punti ${f.customer_ref} aggiornata su Google Wallet (${pts(f.points)}, livello ${f.level}) in ${f.duration_ms} ms.`,
+    examples: [{ ...cardP, points: 230, level: "Silver", card_state: "ACTIVE", duration_ms: 310, attempt: 1 }],
   }),
 
   "app.invite.accepted": defineEvent<AppEmailFields>({

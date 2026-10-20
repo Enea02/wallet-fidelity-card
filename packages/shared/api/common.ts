@@ -59,10 +59,13 @@ export const PrepaidView = z.object({
   name: z.string(),
   productId: z.uuid(),
   productName: z.string(),
-  unitSingular: z.string(),
-  unitPlural: z.string(),
-  /** Unità aggiunte da un'attivazione o una ricarica. */
-  units: z.number().int().min(1),
+  /** "abbonamento": membership con vantaggio e scadenza, senza unità (Fase 9.6). */
+  kind: z.enum(["consumo", "abbonamento"]),
+  benefit: z.string().nullable(),
+  unitSingular: z.string().nullable(),
+  unitPlural: z.string().nullable(),
+  /** Unità aggiunte da un'attivazione o una ricarica (null per l'abbonamento). */
+  units: z.number().int().min(1).nullable(),
   state: PrepaidState,
   balance: z.number().int().min(0),
   /** Saldo dopo l'ultima attivazione o ricarica ("138 di 150"). */
@@ -72,3 +75,26 @@ export const PrepaidView = z.object({
 });
 export type PrepaidView = z.infer<typeof PrepaidView>;
 export const CardIdBody = z.object({ cardId: z.uuid() });
+
+/** Livello della carta a punti (Fase 9.6). */
+export const PointsLevel = z.object({
+  name: z.string().trim().min(2).max(20),
+  min: z.number().int().min(0).max(10_000_000),
+  perk: z.string().trim().max(80),
+});
+
+/** Carta a punti come la vede lo staff (Fase 9.6). */
+export const PointsView = z.object({
+  id: z.uuid(),
+  shortCode: ShortCode,
+  name: z.string(),
+  points: z.number().int().min(0),
+  pointsTotal: z.number().int().min(0),
+  level: z.string(),
+  perk: z.string(),
+  nextLevel: z.string().nullable(),
+  toNext: z.number().int().min(0),
+  pointsPerEuro: z.number().int(),
+  minCents: z.number().int(),
+});
+export type PointsView = z.infer<typeof PointsView>;

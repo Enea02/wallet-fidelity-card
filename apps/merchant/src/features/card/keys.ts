@@ -3,6 +3,8 @@ import { uuid } from "@/lib/uuid";
 export type CardActionKind = "stamp" | "undo" | "redeem";
 /** Azioni sulla tessera prepagata (Fase 9.5): stessa regola delle chiavi. */
 export type PrepaidActionKind = "activate" | "consume" | "recharge" | "prepaid_undo";
+/** Azioni sulla carta a punti (Fase 9.6): stessa regola delle chiavi. */
+export type PointsActionKind = "points_add" | "points_undo";
 
 /**
  * Chiavi di idempotenza delle azioni sul saldo, una per tocco.

@@ -9,7 +9,7 @@ import { getContext, setContext } from "../observability/context";
 import { log } from "../observability/logger";
 import { supabaseAdmin } from "../supabase";
 import type { Shop } from "../types";
-import { prepaidModule } from "@loyalty/shared/copy";
+import { pointsModule, prepaidModule } from "@loyalty/shared/copy";
 import { domainMeta } from "../merchant/domain-call";
 import { getProductByCode } from "../prepaid";
 import { prepaidState } from "../prepaid-state";
@@ -267,6 +267,17 @@ export async function verifyEnrollment(
       stampsRequired: shop.stamps_required,
       rewardsAvailable: result.customer.rewards_available,
       rewardLabel: shop.reward_label,
+      points:
+        shop.loyalty_mode === "punti"
+          ? {
+              points: result.customer.points,
+              module: pointsModule({
+                points: result.customer.points,
+                total: result.customer.points_total,
+                levels: shop.points_levels,
+              }),
+            }
+          : null,
     },
     googleSaveUrl: result.googleSaveUrl,
     phoneLink: phoneLink(shop.slug, result.customer.id),
@@ -312,20 +323,22 @@ async function verifyPrepaid(
     customer_ref: card.short_code,
     shop_name: shop.name,
     product_name: product.name,
-    unit_singular: product.unit_singular,
-    unit_plural: product.unit_plural,
+    unit_singular: product.unit_singular ?? "",
+    unit_plural: product.unit_plural ?? "",
     returning: r.returning,
   });
   // la tessera nasce su Google subito (da attivare): il link "Salva" la porta comunque completa
   if (!r.returning) await notifyPrepaidChanged(card.id);
-  const state = prepaidState(card);
+  const state = prepaidState(card, Date.now(), product.kind);
   const input = {
+    kind: product.kind,
+    benefit: product.benefit,
     state,
     balance: card.balance,
     chargedUnits: card.charged_units,
-    units: product.units,
-    unitSingular: product.unit_singular,
-    unitPlural: product.unit_plural,
+    units: product.units ?? 0,
+    unitSingular: product.unit_singular ?? "",
+    unitPlural: product.unit_plural ?? "",
     expiresAt: card.expires_at ? new Date(card.expires_at).toISOString() : null,
   };
   const name = person.name as string;
@@ -339,11 +352,14 @@ async function verifyPrepaid(
       stampsRequired: shop.stamps_required,
       rewardsAvailable: 0,
       rewardLabel: shop.reward_label,
+      points: null,
     },
     googleSaveUrl: googleEnabled() ? prepaidSaveUrl(shop, product, card, name) : null,
     phoneLink: prepaidPhoneLink(shop.slug, card.id),
     prepaid: {
       productName: product.name,
+      kind: product.kind,
+      benefit: product.benefit,
       state,
       balance: card.balance,
       units: input.units,

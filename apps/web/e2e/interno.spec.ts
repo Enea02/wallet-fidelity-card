@@ -232,6 +232,19 @@ test.describe("pannello con un accesso solo (un codice TOTP vale una volta)", ()
     }
   });
 
+  test("alla cieca: punti chiesti in un negozio a timbri (Fase 9.6)", async ({ request }) => {
+    const card = await newCard(SALONE);
+    const r = await merchant(request, "/points/add", { customerId: card.id, amountCents: 2350 }, { key: true });
+    expect((r.json.error as { code: string }).code).toBe("E_POINTS_MODE_REQUIRED");
+    await waitForLog(r.requestId, "http.request.end");
+    await diagnose(
+      page,
+      (r.json.error as { support_code: string }).support_code,
+      "E_POINTS_MODE_REQUIRED",
+      /modalità timbri\/punti/,
+    );
+  });
+
   test("alla cieca: rete assente nell'app, il codice è solo nel pacchetto di diagnostica", async ({ request }) => {
     const requestId = newRequestId();
     const code = supportCodeFromRequestId(requestId);

@@ -63,6 +63,9 @@ export function cardModule(o: CardModuleInput): { header: string; body: string }
 export type PrepaidCopyState = "da_attivare" | "attiva" | "esaurita" | "scaduta";
 
 export interface PrepaidModuleInput {
+  /** "abbonamento": membership con vantaggio e scadenza, senza unità (Fase 9.6). */
+  kind?: "consumo" | "abbonamento";
+  benefit?: string | null;
   state: PrepaidCopyState;
   balance: number;
   /** Saldo dopo l'ultima attivazione o ricarica ("138 di 150"). */
@@ -97,6 +100,7 @@ export const prepaidBalance = (o: Pick<PrepaidModuleInput, "balance" | "chargedU
  * ("Ti restano 138 pagine"), esaurita, scaduta. Il pagamento è sempre in negozio.
  */
 export function prepaidModule(o: PrepaidModuleInput): { header: string; body: string } {
+  if (o.kind === "abbonamento") return membershipModule(o);
   const until = o.expiresAt ? `, valida fino al ${prepaidDate(o.expiresAt)}` : "";
   switch (o.state) {
     case "da_attivare":
@@ -122,4 +126,68 @@ export function prepaidModule(o: PrepaidModuleInput): { header: string; body: st
         body: `Su ${Math.max(o.chargedUnits, o.balance)} caricate${until}. Mostra il QR in cassa a ogni utilizzo.`,
       };
   }
+}
+
+/** Abbonamento o membership (Fase 9.6): vantaggio e validità, niente unità. */
+function membershipModule(o: PrepaidModuleInput): { header: string; body: string } {
+  const benefit = o.benefit ? `Vantaggio: ${o.benefit}.` : "";
+  switch (o.state) {
+    case "da_attivare":
+      return {
+        header: "Da attivare in negozio",
+        body: `Paga l'abbonamento in cassa: lo attiviamo subito. ${benefit}`.trim(),
+      };
+    case "scaduta":
+      return {
+        header: "Abbonamento scaduto",
+        body: `Scaduto${o.expiresAt ? ` il ${prepaidDate(o.expiresAt)}` : ""}: rinnovalo in negozio. ${benefit}`.trim(),
+      };
+    default:
+      return {
+        header: o.expiresAt ? `Valido fino al ${prepaidDate(o.expiresAt)}` : "Socio attivo",
+        body: `${benefit} Mostra il QR in cassa.`.trim(),
+      };
+  }
+}
+
+/* ---------- punti con livelli (Fase 9.6) ---------- */
+
+export interface PointsLevel {
+  name: string;
+  /** Punti totali da cui si entra nel livello (il primo è 0). */
+  min: number;
+  /** Vantaggio del livello ("-5% sui trattamenti"), vuoto se non c'è. */
+  perk: string;
+}
+
+/** Livello attuale, prossimo livello e punti che mancano (sui punti totali, che non si perdono). */
+export function levelFor(levels: readonly PointsLevel[], total: number) {
+  const sorted = [...levels].sort((a, b) => a.min - b.min);
+  const current = [...sorted].reverse().find((l) => l.min <= total) ?? sorted[0]!;
+  const next = sorted.find((l) => l.min > total) ?? null;
+  return { current, next, toNext: next ? next.min - total : 0 };
+}
+
+const pts = (n: number) => (n === 1 ? "1 punto" : `${n} punti`);
+
+/** "1 punto per ogni euro: da 500 punti sei Gold." (pagina di iscrizione e cartello) */
+export function pointsTagline(o: { pointsPerEuro: number; levels: readonly PointsLevel[] }): string {
+  const second = [...o.levels].sort((a, b) => a.min - b.min)[1];
+  const rule = o.pointsPerEuro === 1 ? "1 punto per ogni euro" : `${o.pointsPerEuro} punti per ogni euro`;
+  return second ? `${rule}: da ${second.min} punti sei ${second.name}.` : `${rule} speso.`;
+}
+
+/** Modulo di testo della carta a punti nel wallet e nelle anteprime: livello, punti, prossimo livello, vantaggio. */
+export function pointsModule(o: { points: number; total: number; levels: readonly PointsLevel[] }): {
+  header: string;
+  body: string;
+} {
+  const { current, next, toNext } = levelFor(o.levels, o.total);
+  const perk = current.perk ? ` Vantaggio ${current.name}: ${current.perk}.` : "";
+  return {
+    header: `Sei ${current.name} · ${pts(o.points)}`,
+    body: next
+      ? `Ancora ${pts(toNext)} per diventare ${next.name}.${perk}`
+      : `Hai raggiunto il livello più alto.${perk}`,
+  };
 }

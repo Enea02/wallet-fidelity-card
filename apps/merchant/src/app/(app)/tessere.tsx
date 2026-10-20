@@ -3,7 +3,7 @@ import type { z } from "zod";
 import { useState } from "react";
 import { View } from "react-native";
 import { pdfActions } from "@/features/owner/counter-qr/pdf";
-import { draftProblems, EMPTY_DRAFT, type Draft } from "@/features/prepaid/product-form";
+import { draftBody, draftProblems, EMPTY_DRAFT, type Draft } from "@/features/prepaid/product-form";
 import { LoadState } from "@/features/owner/Loading";
 import { useApi } from "@/features/owner/useApi";
 import { api, ApiError } from "@/lib/api";
@@ -56,10 +56,12 @@ export default function Tessere() {
       p === "new"
         ? EMPTY_DRAFT
         : {
+            kind: p.kind,
             name: p.name,
-            units: String(p.units),
-            unitSingular: p.unitSingular,
-            unitPlural: p.unitPlural,
+            benefit: p.benefit ?? "",
+            units: p.units === null ? "" : String(p.units),
+            unitSingular: p.unitSingular ?? "",
+            unitPlural: p.unitPlural ?? "",
             validityMonths: p.validityMonths,
           },
     );
@@ -83,23 +85,23 @@ export default function Tessere() {
   function save() {
     setTried(true);
     if (Object.keys(draftProblems(draft)).length > 0 || editing === null) return;
-    const body = {
-      name: draft.name.trim(),
-      units: Number(draft.units),
-      unitSingular: draft.unitSingular.trim(),
-      unitPlural: draft.unitPlural.trim(),
-      validityMonths: draft.validityMonths,
-    };
+    const body = draftBody(draft);
+    const what = draft.kind === "abbonamento" ? "Abbonamento" : "Tessera";
     const target = editing;
     void act("save", async () => {
       if (target === "new") {
         const r = await api.call("createPrepaidProduct", { shopId: shop.id, body });
         setEditing(null);
-        return `Tessera «${r.product.name}» creata: stampa il suo cartello per farla conoscere ai clienti.`;
+        return `${what} «${r.product.name}» ${draft.kind === "abbonamento" ? "creato" : "creata"}: stampa il suo cartello per farlo conoscere ai clienti.`;
       }
-      const r = await api.call("updatePrepaidProduct", { shopId: shop.id, params: { id: target.id }, body });
+      const { kind: _kind, ...changes } = body;
+      const r = await api.call("updatePrepaidProduct", {
+        shopId: shop.id,
+        params: { id: target.id },
+        body: changes,
+      });
       setEditing(null);
-      return `Tessera «${r.product.name}» aggiornata.`;
+      return `${what} «${r.product.name}» ${draft.kind === "abbonamento" ? "aggiornato" : "aggiornata"}.`;
     });
   }
 
@@ -122,8 +124,9 @@ export default function Tessere() {
         <Button label="Nuova tessera" onPress={() => open("new")} disabled={!online} testID="nuova-tessera" />
       </View>
       <T tone="ink2">
-        Il cliente si crea la tessera dal QR, la paga in cassa e voi la attivate dallo scanner. A ogni utilizzo scalate
-        le unità usate; a fine tessera la ricaricate sulla stessa carta.
+        Il cliente si crea la tessera dal QR, la paga in cassa e voi la attivate dallo scanner. A consumo: a ogni
+        utilizzo scalate le unità usate e a fine tessera la ricaricate. Abbonamento: mostra il vantaggio e la scadenza,
+        e si rinnova in cassa.
       </T>
 
       {done ? <Banner tone="success">{done}</Banner> : null}
@@ -154,9 +157,10 @@ export default function Tessere() {
               </View>
             </View>
             <T tone="ink2">
-              {p.units} {p.units === 1 ? p.unitSingular : p.unitPlural} ·{" "}
-              {p.validityMonths ? `valida ${p.validityMonths} mesi` : "senza scadenza"} · {p.cards.pending} da attivare
-              · {p.cards.active} attive
+              {p.kind === "abbonamento"
+                ? `Abbonamento · ${p.benefit ?? ""} · ${p.validityMonths ? `${p.validityMonths} mesi` : "senza scadenza"}`
+                : `${p.units ?? 0} ${p.units === 1 ? p.unitSingular : p.unitPlural} · ${p.validityMonths ? `valida ${p.validityMonths} mesi` : "senza scadenza"}`}{" "}
+              · {p.cards.pending} da attivare · {p.cards.active} attive
             </T>
             <T variant="small" tone="ink3">
               {`${config.apiUrl.replace(/^https?:\/\//, "")}/${shop.slug}/t/${p.code}`}
@@ -195,51 +199,84 @@ export default function Tessere() {
 
       <Sheet visible={editing !== null} onClose={() => setEditing(null)} testID="foglio-tessera">
         <T variant="subtitle">{editing === "new" ? "Nuova tessera" : "Modifica tessera"}</T>
+        {editing === "new" ? (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }} accessibilityRole="radiogroup">
+            <Chip
+              label="A consumo"
+              selected={draft.kind === "consumo"}
+              onPress={() => setDraft({ ...draft, kind: "consumo" })}
+              testID="tipo-consumo"
+            />
+            <Chip
+              label="Abbonamento"
+              selected={draft.kind === "abbonamento"}
+              onPress={() => setDraft({ ...draft, kind: "abbonamento" })}
+              testID="tipo-abbonamento"
+            />
+          </View>
+        ) : null}
         <TextField
           label="Nome"
           value={draft.name}
           onChangeText={(v) => setDraft({ ...draft, name: v })}
-          placeholder="Tessera fotocopie"
+          placeholder={draft.kind === "abbonamento" ? "Socio 12 mesi" : "Tessera fotocopie"}
           maxLength={40}
           error={problems.name ?? null}
           testID="tessera-nome-campo"
         />
-        <TextField
-          label="Unità per tessera e per ricarica"
-          value={draft.units}
-          onChangeText={(v) => setDraft({ ...draft, units: v.replace(/[^0-9]/g, "") })}
-          keyboardType="number-pad"
-          placeholder="150"
-          maxLength={5}
-          error={problems.units ?? null}
-          testID="tessera-unita"
-        />
-        <View style={{ flexDirection: "row", gap: space.md }}>
-          <View style={{ flex: 1 }}>
+        {draft.kind === "abbonamento" ? (
+          <TextField
+            label="Vantaggio per chi ha l'abbonamento"
+            value={draft.benefit}
+            onChangeText={(v) => setDraft({ ...draft, benefit: v })}
+            placeholder="accesso illimitato"
+            maxLength={80}
+            error={problems.benefit ?? null}
+            testID="tessera-vantaggio"
+          />
+        ) : null}
+        {draft.kind === "consumo" ? (
+          <>
             <TextField
-              label="Unità (una)"
-              value={draft.unitSingular}
-              onChangeText={(v) => setDraft({ ...draft, unitSingular: v })}
-              placeholder="pagina"
-              maxLength={20}
-              error={problems.unitSingular ?? null}
-              testID="tessera-singolare"
+              label="Unità per tessera e per ricarica"
+              value={draft.units}
+              onChangeText={(v) => setDraft({ ...draft, units: v.replace(/[^0-9]/g, "") })}
+              keyboardType="number-pad"
+              placeholder="150"
+              maxLength={5}
+              error={problems.units ?? null}
+              testID="tessera-unita"
             />
-          </View>
-          <View style={{ flex: 1 }}>
-            <TextField
-              label="Unità (tante)"
-              value={draft.unitPlural}
-              onChangeText={(v) => setDraft({ ...draft, unitPlural: v })}
-              placeholder="pagine"
-              maxLength={20}
-              error={problems.unitPlural ?? null}
-              testID="tessera-plurale"
-            />
-          </View>
-        </View>
+            <View style={{ flexDirection: "row", gap: space.md }}>
+              <View style={{ flex: 1 }}>
+                <TextField
+                  label="Unità (una)"
+                  value={draft.unitSingular}
+                  onChangeText={(v) => setDraft({ ...draft, unitSingular: v })}
+                  placeholder="pagina"
+                  maxLength={20}
+                  error={problems.unitSingular ?? null}
+                  testID="tessera-singolare"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <TextField
+                  label="Unità (tante)"
+                  value={draft.unitPlural}
+                  onChangeText={(v) => setDraft({ ...draft, unitPlural: v })}
+                  placeholder="pagine"
+                  maxLength={20}
+                  error={problems.unitPlural ?? null}
+                  testID="tessera-plurale"
+                />
+              </View>
+            </View>
+          </>
+        ) : null}
         <T variant="small" tone="ink2">
-          Scadenza dall&apos;attivazione o dall&apos;ultima ricarica
+          {draft.kind === "abbonamento"
+            ? "Durata dall'attivazione; il rinnovo allunga dalla scadenza (senza durata non si rinnova)"
+            : "Scadenza dall'attivazione o dall'ultima ricarica"}
         </T>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }} accessibilityRole="radiogroup">
           {VALIDITY.map((v) => (
@@ -254,7 +291,9 @@ export default function Tessere() {
         </View>
         {editing !== "new" && editing !== null ? (
           <T variant="small" tone="ink2">
-            Le modifiche valgono per le prossime attivazioni e ricariche: il saldo delle tessere già attive non cambia.
+            {draft.kind === "abbonamento"
+              ? "Nome e vantaggio cambiano subito su tutte le tessere; la durata vale per le prossime attivazioni e i rinnovi."
+              : "Le modifiche valgono per le prossime attivazioni e ricariche: il saldo delle tessere già attive non cambia."}
           </T>
         ) : null}
         {error && editing !== null ? <ErrorNotice error={error} /> : null}

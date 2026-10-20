@@ -22,6 +22,13 @@ const shop: Shop = {
   tagline: null,
   stamp_icon: "scissors",
   loyalty_enabled: true,
+  loyalty_mode: "timbri",
+  points_per_euro: 1,
+  points_min_cents: 0,
+  points_levels: [
+    { name: "Silver", min: 0, perk: "" },
+    { name: "Gold", min: 500, perk: "" },
+  ],
 };
 
 describe("testi della carta (design: Testi della carta)", () => {

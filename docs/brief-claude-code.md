@@ -15,7 +15,7 @@ Il sistema ha tre parti:
 - Il **cliente finale non ha account, login né area personale**. Interagisce solo con:
   1. la pagina web di iscrizione (raggiunta dal QR al bancone);
   2. la carta nel suo Google Wallet / Apple Wallet.
-- Due tipi di carta, anche insieme nello stesso negozio: la **carta fedeltà a timbri** (ogni N timbri un premio) e la **tessera prepagata a consumo** (es. 150 pagine pagate in negozio e scalate a ogni utilizzo; Fase 9.5). Il pagamento delle tessere avviene sempre **fuori dall'app**: l'esercente attiva o ricarica la tessera dopo aver incassato.
+- Più tipi di carta, anche insieme nello stesso negozio (pagina "Wallet Cards" del sito): la **carta fedeltà** a **timbri** (ogni N timbri un premio) oppure a **punti con livelli** (Fase 9.6); la **tessera prepagata a consumo** (es. 150 pagine pagate in negozio e scalate a ogni utilizzo; Fase 9.5); **membership e abbonamenti** con vantaggio e scadenza (Fase 9.6); **coupon e buoni regalo** (Fase 9.7); **biglietti per eventi** (Fase 9.8). Il pagamento delle tessere avviene sempre **fuori dall'app**: l'esercente attiva o ricarica la tessera dopo aver incassato.
 - **Tutte** le funzioni operative e gestionali (timbri, riscatti, attivazione e consumo delle tessere, dashboard, clienti, impostazioni carta, staff) stanno nell'**app esercente**, disponibile come app iOS, app Android e **web app** (da browser, es. PC o tablet in cassa). Stesse funzioni e stesso account su tutte e tre.
 - Oltre a iscrizione e app esercente esiste solo un **pannello interno minimo** per noi (creazione negozi e abbonamenti), non esposto agli esercenti.
 
@@ -164,7 +164,10 @@ Vista **Assistenza** nel pannello interno:
 | 8 | App esercente: area titolare | 7 | interno |
 | 9 | Pannello interno e vista Assistenza | 2, 3 | interno |
 | 9.5 | Tessere prepagate a consumo | 4, 5, 8, 9 | interno |
-| 10 | Pilota: deploy, monitoraggio, distribuzione di test | 5, 8, 9, 9.5 | **MVP** con il primo negozio |
+| 9.6 | Punti con livelli, membership e abbonamenti | 9.5 | interno |
+| 9.7 | Coupon e buoni regalo | 9.6 | interno |
+| 9.8 | Biglietti per eventi | 9.7 | interno |
+| 10 | Pilota: deploy, monitoraggio, distribuzione di test | 5, 8, 9, 9.5–9.8 | **MVP** con il primo negozio |
 | 11 | Immagini dinamiche della carta | 10 | aggiornamento |
 | 12 | Apple Wallet | 10 | aggiornamento |
 | 13 | Billing e onboarding nuovi negozi | 10 | aggiornamento |
@@ -480,6 +483,35 @@ Vista **Assistenza** nel pannello interno:
 - Attivazione, scalo e ricarica si vedono sulla carta nel wallet senza reinstallarla.
 - Non si scala mai sotto zero né dopo la scadenza.
 - Ogni operazione è nello storico e nei log; l'assistenza la ritrova dal codice della tessera.
+
+---
+
+### Fase 9.6 — Punti con livelli, membership e abbonamenti
+**Obiettivo**: due formati del sito "Wallet Cards": "Punti con livelli" (Silver, Gold, Platinum: più il cliente torna, più vantaggi sblocca) e "Sconto e membership / Abbonamenti e tessere associative" (vantaggio fisso, scadenza visibile, rinnovo facile).
+
+**Regole**
+- **Punti**: la carta fedeltà del negozio è a timbri **oppure** a punti (non entrambi). Il titolare imposta i punti per euro, la spesa minima per un punto e i livelli (nome, soglia, vantaggio). In cassa lo staff scrive l'importo dello scontrino (max 10.000 €): punti arrotondati per difetto, idempotente come il timbro, annullabile entro 5 minuti; correzione solo del titolare con motivo.
+- Il livello si calcola sui **punti totali accumulati** (non si perdono). In questa fase i punti non si spendono (lo faranno i buoni della 9.7). Al cambio di livello: notifica sulla carta, una volta sola.
+- **Membership e abbonamenti**: secondo tipo di tessera (Fase 9.5) con nome, vantaggio e durata in mesi (facoltativa per le membership). Si attiva e si rinnova in cassa dopo il pagamento (fuori app); il rinnovo allunga dalla scadenza se ancora valida, altrimenti riparte da oggi. In cassa la scansione dice subito "valida fino al …" o "scaduta".
+
+**Log**: `points.add.ok`, `points.add.duplicate_ignored`, `points.undo.ok`, `points.adjust.ok`, `points.level.changed`, `points.settings.updated`, `membership.activate.ok`, `membership.renew.ok`, `membership.lookup.ok`. Errori `E_POINTS_AMOUNT_INVALID`, `E_POINTS_MODE_REQUIRED`, `E_MEMBERSHIP_NOT_RENEWABLE`.
+
+**Test**: unitari (punti, livelli, testi); smoke su funzioni Postgres e API (doppio tocco, annullamento, cambio di livello, cambio di modalità, scadenza e rinnovo, permessi); e2e (punti in cassa con cambio di livello; abbonamento attivo, scaduto, rinnovato; prova "alla cieca" nel pannello).
+
+**Definition of Done**
+- Lo staff dà punti da un importo e il cliente vede punti e livello aggiornati nel wallet senza reinstallare la carta; la notifica di cambio livello arriva una volta sola.
+- Un abbonamento scaduto risulta scaduto in cassa e nel wallet; il rinnovo lo riattiva.
+- Ogni operazione è nello storico e nei log; l'assistenza la ritrova dal codice della carta.
+
+---
+
+### Fase 9.7 — Coupon e buoni regalo
+**Obiettivo**: "Coupon e buoni regalo" del sito. Buono regalo venduto in negozio (pagamento fuori app) con saldo in euro scalato a ogni acquisto; coupon a tempo creati dal titolare e ricevuti nel wallet dai clienti (tutti o con consenso), usabili una o più volte; conversione punti → buono. Piano dettagliato a inizio fase.
+
+---
+
+### Fase 9.8 — Biglietti per eventi
+**Obiettivo**: "Biglietti per eventi" del sito. Il titolare crea l'evento (data, posti, prezzo facoltativo); il biglietto si ottiene prenotando dal web (posti limitati) o emesso dall'esercente in cassa; arriva nel wallet con il QR d'ingresso, che vale una volta sola. Piano dettagliato a inizio fase.
 
 ---
 
