@@ -35,3 +35,7 @@ service-account*.json
 apps/web/test-results/
 apps/web/playwright-report/
 apps/web/e2e-logs/
+
+# video di presentazione: schermate copiate da docs/tutorial/img e video renderizzati
+apps/video/public/screens/
+apps/video/out/

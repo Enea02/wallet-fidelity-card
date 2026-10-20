@@ -1,0 +1,291 @@
+<title>Tutorial Loyalty Wallet</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: indice fisso a sinistra su schermi larghi, colonna di lettura a destra; gli screenshot del telefono
+   affiancati come schede, quelli da computer a tutta colonna. Palette dell'app: carta, inchiostro, vino. */
+:root {
+  --bg: #f6f2ec;
+  --surface: #fffdfa;
+  --ink: #2a211c;
+  --ink-2: #6b5e55;
+  --line: #ddd4cb;
+  --accent: #5b1f2e;
+  --accent-soft: #f1e3e5;
+  --note: #fbf1dc;
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #16110e; --surface: #211a16; --ink: #f2ebe3; --ink-2: #b3a69b; --line: #3a302a;
+    --accent: #e09aac; --accent-soft: #3a2228; --note: #2e2617; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #16110e; --surface: #211a16; --ink: #f2ebe3; --ink-2: #b3a69b; --line: #3a302a;
+  --accent: #e09aac; --accent-soft: #3a2228; --note: #2e2617; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 400 17px/1.6 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+code { font: 500 0.86em var(--font-mono); background: var(--accent-soft); padding: 0.1em 0.35em; border-radius: 5px; }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 56px; padding-block: 48px 96px; }
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 32px); align-self: start; }
+nav.toc .label { font: 600 12px/1 var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 14px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.toc a { display: block; padding: 7px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; font-size: 15px; line-height: 1.3; }
+nav.toc a:hover { background: var(--accent-soft); }
+nav.toc a.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+main { min-width: 0; }
+header.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: end; padding-bottom: 32px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.eyebrow { font: 600 12px/1 var(--font-body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+h1 { font: 800 clamp(2.3rem, 5vw, 3.6rem)/1.02 var(--font-display); letter-spacing: -0.03em; margin: 0 0 16px; text-wrap: balance; }
+.lead { font-size: 1.15rem; color: var(--ink-2); max-width: 60ch; margin: 0; }
+.stampcard { background: var(--accent); color: var(--bg); border-radius: 18px; padding: 16px 18px; width: 210px; transform: rotate(-3deg); box-shadow: 0 18px 30px -18px rgba(60, 20, 30, 0.6); }
+.stampcard .t { font: 700 13px/1.2 var(--font-display); display: flex; justify-content: space-between; margin-bottom: 12px; }
+.stamps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.stamps i { aspect-ratio: 1; border-radius: 50%; border: 1.5px dashed currentColor; opacity: 0.55; }
+.stamps i.f { background: var(--bg); border-style: solid; opacity: 1; }
+.intro { padding-block: 24px; }
+.intro p, .chapter p, .chapter ul { max-width: 68ch; }
+.table { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--ink-2); font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
+tr:last-child td { border-bottom: 0; }
+.note { background: var(--note); border-radius: 12px; padding: 14px 18px; margin: 20px 0; max-width: 68ch; font-size: 15.5px; }
+.chapter { padding-top: 56px; scroll-margin-top: 16px; }
+.chapter h2 { font: 800 clamp(1.7rem, 3.4vw, 2.3rem)/1.1 var(--font-display); letter-spacing: -0.02em; margin: 0 0 12px; text-wrap: balance; padding-top: 24px; border-top: 3px solid var(--ink); }
+.chapter h3 { font: 700 1.25rem/1.25 var(--font-display); margin: 40px 0 8px; scroll-margin-top: 16px; text-wrap: balance; }
+ul { padding-left: 1.2em; }
+li { margin: 4px 0; }
+.shots { display: flex; flex-wrap: wrap; gap: 20px; margin: 22px 0 28px; }
+.shot { margin: 0; display: grid; gap: 8px; min-width: 0; }
+.shot.phone { width: min(250px, calc(50% - 10px)); }
+.shot.desk { width: 100%; }
+.shots.wide .shot.phone { width: min(250px, 100%); }
+.zoom { all: unset; cursor: zoom-in; display: block; border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 10px 24px -18px rgba(40, 25, 15, 0.5); transition: transform 0.15s ease; }
+.shot.desk .zoom { border-radius: 12px; }
+.zoom:hover { transform: translateY(-2px); }
+.zoom:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.zoom img { display: block; width: 100%; height: auto; }
+figcaption { font-size: 13.5px; color: var(--ink-2); line-height: 1.35; }
+pre { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; max-width: 100%; }
+pre code { background: none; padding: 0; font-size: 14px; }
+dialog { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 94vh; }
+dialog::backdrop { background: rgba(15, 10, 8, 0.82); }
+dialog img { display: block; max-width: 96vw; max-height: 88vh; width: auto; height: auto; border-radius: 12px; }
+dialog p { color: #f2ebe3; text-align: center; font-size: 14px; margin: 10px 0 0; }
+dialog button { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 14px); right: max(14px, env(safe-area-inset-right, 0px)); font: 600 14px var(--font-body); background: #f2ebe3; color: #2a211c; border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer; }
+@media (max-width: 900px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; padding-block: 28px 64px; }
+  nav.toc { position: static; margin-bottom: 28px; }
+  nav.toc ol { display: flex; flex-wrap: wrap; gap: 6px; }
+  nav.toc a { border: 1px solid var(--line); background: var(--surface); font-size: 14px; }
+  header.hero { grid-template-columns: minmax(0, 1fr); }
+  .stampcard { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .zoom { transition: none; } html { scroll-behavior: auto; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+  <nav class="toc" aria-label="Capitoli">
+    <div class="label">Capitoli</div>
+    <ol><li><a href="#1-il-cliente-si-iscrive">1. Il cliente si iscrive</a></li><li><a href="#2-accesso-allapp-esercente">2. Accesso all'app esercente</a></li><li><a href="#3-in-cassa-timbri-e-premi">3. In cassa: timbri e premi</a></li><li><a href="#4-area-titolare">4. Area titolare</a></li><li><a href="#5-tessere-prepagate-e-abbonamenti">5. Tessere prepagate e abbonamenti</a></li><li><a href="#6-carta-a-punti">6. Carta a punti</a></li><li><a href="#7-pannello-interno-assistenza">7. Pannello interno (assistenza)</a></li><li><a href="#come-rigenerare-gli-screenshot">Come rigenerare gli screenshot</a></li></ol>
+  </nav>
+  <main>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Guida passo passo · 75 schermate reali</p>
+        <h1>Loyalty Wallet, dal bancone all'assistenza</h1>
+        <p class="lead">Come si usa tutta l'applicazione: il cliente che si iscrive, l'operatore in cassa, il titolare che gestisce il negozio e il team che risponde all'assistenza.</p>
+      </div>
+      <div class="stampcard" aria-hidden="true">
+        <div class="t"><span>Salone Demo</span><span>7 / 10</span></div>
+        <div class="stamps"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i></div>
+      </div>
+    </header>
+    <div class="intro">
+      <p>Guida all'uso di tutta l'applicazione, dal cliente che si iscrive al bancone fino all'assistenza interna. Ogni immagine è uno <strong>screenshot reale</strong> dell'app in esecuzione in locale, scattato da uno script che la usa come farebbe una persona (<code>apps/merchant/scripts/tutorial-screenshots.mjs</code>, vedi <a href="#come-rigenerare-gli-screenshot">in fondo</a>).</p>
+<div class="table"><table><thead><tr><th>Chi</th><th>Cosa usa</th><th>Capitolo</th></tr></thead><tbody><tr><td>Cliente del negozio</td><td>pagina web di iscrizione + carta nel Wallet, niente app</td><td><a href="#1-il-cliente-si-iscrive">1. Il cliente si iscrive</a></td></tr><tr><td>Operatore (in cassa)</td><td>app esercente: Scanner e Profilo</td><td><a href="#2-accesso-allapp-esercente">2. Accesso</a>, <a href="#3-in-cassa-timbri-e-premi">3. In cassa</a></td></tr><tr><td>Titolare</td><td>app esercente: tutte le sezioni</td><td><a href="#4-area-titolare">4. Area titolare</a> e seguenti</td></tr><tr><td>Team Loyalty Wallet</td><td>pannello interno <code>/interno</code></td><td><a href="#7-pannello-interno-assistenza">7. Pannello interno</a></td></tr></tbody></table></div>
+<p>I dati sono quelli di prova del negozio <strong>Salone Demo</strong> (carta a timbri, 10 tagli = 1 gratis, almeno 60 minuti tra due timbri) e del <strong>Bar Punti Demo</strong> (carta a punti con livelli). I clienti dei capitoli 3–6 sono inventati e vengono creati dallo script.</p>
+<aside class="note"><strong>Cosa non si vede qui.</strong> La carta dentro l'app Google Wallet del telefono (lo script non può fotografarla: il pulsante "Aggiungi a Google Wallet" porta all'app di Google) e Apple Wallet, che arriva con la Fase 12. Le email reali eventualmente presenti nel database locale sono sfocate.</aside>
+    </div>
+    <section class="chapter" id="1-il-cliente-si-iscrive"><h2>1. Il cliente si iscrive</h2>
+<p>Il cliente non scarica nessuna app e non ha un account: inquadra un QR, scrive nome e telefono, conferma con un codice SMS e salva la carta nel Wallet.</p>
+<h3 id="11-il-cartello-al-bancone">1.1 Il cartello al bancone</h3>
+<p>Il titolare stampa il cartello A5 (dall'app, sezione <strong>Cartello</strong>, o da <code>/&lt;negozio&gt;/qr</code>). Il QR porta alla pagina di iscrizione del negozio; la griglia ripete la regola della carta.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/cliente-01-cartello.png" aria-label="Ingrandisci: Cartello A5 da bancone"><img src="img/cliente-01-cartello.png" alt="Cartello A5 da bancone" loading="lazy"></button><figcaption>Cartello A5 da bancone</figcaption></figure></div>
+<h3 id="12-la-pagina-di-iscrizione">1.2 La pagina di iscrizione</h3>
+<p>Inquadrato il QR si apre la pagina con i colori del negozio: la regola ("Ogni 10 tagli, uno è gratis."), la carta vuota e il modulo. Se il negozio vende tessere prepagate o abbonamenti, sotto la griglia ci sono anche i loro link.</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-02-iscrizione.png" aria-label="Ingrandisci: Pagina di iscrizione"><img src="img/cliente-02-iscrizione.png" alt="Pagina di iscrizione" loading="lazy"></button><figcaption>Pagina di iscrizione</figcaption></figure></div>
+<p>Il consenso all'informativa è obbligatorio, quello alle offerte facoltativo. Premendo <strong>Crea la mia carta</strong> senza compilare, un riepilogo in alto dice quanti campi sistemare e ogni campo spiega cosa manca:</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-03-errori-form.png" aria-label="Ingrandisci: Errori del modulo"><img src="img/cliente-03-errori-form.png" alt="Errori del modulo" loading="lazy"></button><figcaption>Errori del modulo</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-04-form-compilato.png" aria-label="Ingrandisci: Modulo compilato"><img src="img/cliente-04-form-compilato.png" alt="Modulo compilato" loading="lazy"></button><figcaption>Modulo compilato</figcaption></figure></div>
+<h3 id="13-il-codice-sms">1.3 Il codice SMS</h3>
+<p>Arriva un SMS con 6 cifre; il codice si verifica da solo alla sesta cifra (si può anche incollare). Dopo un minuto si può chiedere un nuovo codice; <strong>Cambia numero</strong> torna al modulo. Con un codice sbagliato la pagina dice quanti tentativi restano: dopo 5 errori il numero si blocca per 15 minuti.</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-05-codice-sms.png" aria-label="Ingrandisci: Schermata del codice SMS"><img src="img/cliente-05-codice-sms.png" alt="Schermata del codice SMS" loading="lazy"></button><figcaption>Schermata del codice SMS</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-10-codice-errato.png" aria-label="Ingrandisci: Codice errato"><img src="img/cliente-10-codice-errato.png" alt="Codice errato" loading="lazy"></button><figcaption>Codice errato</figcaption></figure></div>
+<h3 id="14-la-carta-è-pronta">1.4 La carta è pronta</h3>
+<p>Cosa succede dopo dipende dal dispositivo:</p>
+<ul><li><strong>Android</strong>: pulsante <strong>Aggiungi a Google Wallet</strong>. La carta si aggiorna da sola a ogni timbro.</li><li><strong>iPhone</strong>: finché non arriva Apple Wallet, la pagina mostra il QR e il codice breve di 8 caratteri da far vedere in cassa (conviene uno screenshot).</li><li><strong>Computer</strong>: un QR da inquadrare col telefono per salvare la carta lì; c'è comunque anche il pulsante di Google.</li></ul>
+<div class="shots wide"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-06-carta-pronta-android.png" aria-label="Ingrandisci: Carta pronta su Android"><img src="img/cliente-06-carta-pronta-android.png" alt="Carta pronta su Android" loading="lazy"></button><figcaption>Carta pronta su Android</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-07-carta-pronta-iphone.png" aria-label="Ingrandisci: Carta pronta su iPhone"><img src="img/cliente-07-carta-pronta-iphone.png" alt="Carta pronta su iPhone" loading="lazy"></button><figcaption>Carta pronta su iPhone</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/cliente-08-da-computer.png" aria-label="Ingrandisci: Carta pronta da computer"><img src="img/cliente-08-da-computer.png" alt="Carta pronta da computer" loading="lazy"></button><figcaption>Carta pronta da computer</figcaption></figure></div>
+<h3 id="15-cliente-che-si-iscrive-di-nuovo">1.5 Cliente che si iscrive di nuovo</h3>
+<p>Chi si iscrive di nuovo con lo stesso numero (telefono nuovo, carta cancellata dal Wallet…) ritrova la <strong>stessa carta</strong> con i timbri che aveva:</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-09-cliente-di-ritorno.png" aria-label="Ingrandisci: Cliente di ritorno con 6 timbri"><img src="img/cliente-09-cliente-di-ritorno.png" alt="Cliente di ritorno con 6 timbri" loading="lazy"></button><figcaption>Cliente di ritorno con 6 timbri</figcaption></figure></div>
+<h3 id="16-negozio-a-punti">1.6 Negozio a punti</h3>
+<p>In un negozio a punti la frase spiega la regola ("1 punto per ogni euro: da 100 punti sei Gold.") e la carta mostra saldo e livello invece della griglia.</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-11-iscrizione-punti.png" aria-label="Ingrandisci: Iscrizione a un negozio a punti"><img src="img/cliente-11-iscrizione-punti.png" alt="Iscrizione a un negozio a punti" loading="lazy"></button><figcaption>Iscrizione a un negozio a punti</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-12-carta-punti-pronta.png" aria-label="Ingrandisci: Carta a punti pronta"><img src="img/cliente-12-carta-punti-pronta.png" alt="Carta a punti pronta" loading="lazy"></button><figcaption>Carta a punti pronta</figcaption></figure></div>
+<h3 id="17-tessere-prepagate-e-abbonamenti">1.7 Tessere prepagate e abbonamenti</h3>
+<p>Ogni tessera ha la sua pagina (<code>/&lt;negozio&gt;/t/&lt;codice&gt;</code>, con il suo cartello). Il cliente la crea qui, poi la paga in cassa, dove viene attivata (<a href="#5-tessere-prepagate-e-abbonamenti">capitolo 5</a>).</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-14-pagina-carnet.png" aria-label="Ingrandisci: Pagina di un carnet"><img src="img/cliente-14-pagina-carnet.png" alt="Pagina di un carnet" loading="lazy"></button><figcaption>Pagina di un carnet</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-13-pagina-abbonamento.png" aria-label="Ingrandisci: Pagina di un abbonamento"><img src="img/cliente-13-pagina-abbonamento.png" alt="Pagina di un abbonamento" loading="lazy"></button><figcaption>Pagina di un abbonamento</figcaption></figure></div>
+<h3 id="18-privacy-e-promozioni">1.8 Privacy e promozioni</h3>
+<p>L'informativa è raggiungibile dal modulo (le parti segnate "[… da completare]" sono i dati del fornitore ancora da inserire). Ogni promozione ricevuta ha un link per non riceverne più: un tocco e la carta resta attiva con tutti i timbri.</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-15-informativa.png" aria-label="Ingrandisci: Informativa privacy"><img src="img/cliente-15-informativa.png" alt="Informativa privacy" loading="lazy"></button><figcaption>Informativa privacy</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-16-disiscrizione.png" aria-label="Ingrandisci: Disiscrizione dalle promozioni"><img src="img/cliente-16-disiscrizione.png" alt="Disiscrizione dalle promozioni" loading="lazy"></button><figcaption>Disiscrizione dalle promozioni</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-17-disiscrizione-fatta.png" aria-label="Ingrandisci: Disiscrizione confermata"><img src="img/cliente-17-disiscrizione-fatta.png" alt="Disiscrizione confermata" loading="lazy"></button><figcaption>Disiscrizione confermata</figcaption></figure></div>
+<p>Se l'abbonamento del negozio è sospeso, le iscrizioni si fermano con un messaggio chiaro (chi ha già la carta la ritrova appena il servizio riprende):</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cliente-18-negozio-sospeso.png" aria-label="Ingrandisci: Negozio sospeso"><img src="img/cliente-18-negozio-sospeso.png" alt="Negozio sospeso" loading="lazy"></button><figcaption>Negozio sospeso</figcaption></figure></div>
+</section>
+<section class="chapter" id="2-accesso-allapp-esercente"><h2>2. Accesso all'app esercente</h2>
+<p>L'app esercente è una sola per iPhone, Android e browser. Si entra con l'email con cui il titolare ha invitato la persona; l'accesso resta attivo sul dispositivo finché non si esce. <strong>Password dimenticata?</strong> manda un link per sceglierne una nuova.</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/app-01-accesso.png" aria-label="Ingrandisci: Accesso staff"><img src="img/app-01-accesso.png" alt="Accesso staff" loading="lazy"></button><figcaption>Accesso staff</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/app-02-credenziali-errate.png" aria-label="Ingrandisci: Credenziali errate"><img src="img/app-02-credenziali-errate.png" alt="Credenziali errate" loading="lazy"></button><figcaption>Credenziali errate</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/app-03-password-dimenticata.png" aria-label="Ingrandisci: Password dimenticata"><img src="img/app-03-password-dimenticata.png" alt="Password dimenticata" loading="lazy"></button><figcaption>Password dimenticata</figcaption></figure></div>
+<p>Chi lavora in più negozi sceglie dove si trova oggi; la scelta viene ricordata e si cambia dal Profilo.</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/app-04-scelta-negozio.png" aria-label="Ingrandisci: Scelta del negozio"><img src="img/app-04-scelta-negozio.png" alt="Scelta del negozio" loading="lazy"></button><figcaption>Scelta del negozio</figcaption></figure></div>
+</section>
+<section class="chapter" id="3-in-cassa-timbri-e-premi"><h2>3. In cassa: timbri e premi</h2>
+<p>L'operatore vede solo <strong>Scanner</strong> e <strong>Profilo</strong>. Il titolare ha le stesse schermate (voce <strong>Scanner</strong> del menu).</p>
+<h3 id="31-leggere-la-carta">3.1 Leggere la carta</h3>
+<p>Tre modi, ricordati sul dispositivo:</p>
+<ul><li><strong>Fotocamera</strong>: si inquadra il QR della carta (nel Wallet o lo screenshot dell'iPhone).</li><li><strong>Lettore</strong>: un lettore QR USB o Bluetooth "scrive" il codice; il campo resta sempre pronto, anche per il cliente successivo, senza toccare nulla.</li><li><strong>Codice</strong>: si scrive a mano il codice breve di 8 caratteri sotto il QR.</li></ul>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-00-scanner-fotocamera.png" aria-label="Ingrandisci: Scanner con fotocamera"><img src="img/cassa-00-scanner-fotocamera.png" alt="Scanner con fotocamera" loading="lazy"></button><figcaption>Scanner con fotocamera</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-01-scanner-lettore.png" aria-label="Ingrandisci: Scanner con lettore esterno"><img src="img/cassa-01-scanner-lettore.png" alt="Scanner con lettore esterno" loading="lazy"></button><figcaption>Scanner con lettore esterno</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-02-scanner-codice.png" aria-label="Ingrandisci: Scanner con codice a mano"><img src="img/cassa-02-scanner-codice.png" alt="Scanner con codice a mano" loading="lazy"></button><figcaption>Scanner con codice a mano</figcaption></figure></div>
+<p>Con la fotocamera la scheda si apre da sola appena il QR è leggibile:</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-00b-fotocamera-letta.png" aria-label="Ingrandisci: Carta letta dalla fotocamera"><img src="img/cassa-00b-fotocamera-letta.png" alt="Carta letta dalla fotocamera" loading="lazy"></button><figcaption>Carta letta dalla fotocamera</figcaption></figure></div>
+<h3 id="32-la-scheda-del-cliente-e-il-timbro">3.2 La scheda del cliente e il timbro</h3>
+<p>Letta la carta si apre la scheda: nome, da quando è cliente, visite e timbri. <strong>+1 timbro</strong> aggiunge il timbro (la carta nel Wallet si aggiorna da sola); per 5 minuti resta il pulsante <strong>Annulla ultimo timbro</strong> per gli errori.</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-03-scheda-cliente.png" aria-label="Ingrandisci: Scheda del cliente"><img src="img/cassa-03-scheda-cliente.png" alt="Scheda del cliente" loading="lazy"></button><figcaption>Scheda del cliente</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-04-timbro-dato.png" aria-label="Ingrandisci: Timbro aggiunto"><img src="img/cassa-04-timbro-dato.png" alt="Timbro aggiunto" loading="lazy"></button><figcaption>Timbro aggiunto</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-06-timbro-annullato.png" aria-label="Ingrandisci: Timbro annullato"><img src="img/cassa-06-timbro-annullato.png" alt="Timbro annullato" loading="lazy"></button><figcaption>Timbro annullato</figcaption></figure></div>
+<p>Se il cliente ha già avuto un timbro da poco (qui il negozio chiede 60 minuti), l'app lo dice e propone <strong>Ok, niente timbro</strong>. <strong>Aggiungi comunque</strong> lo dà lo stesso, ma resta nel registro.</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-05-cooldown.png" aria-label="Ingrandisci: Timbro già dato da poco"><img src="img/cassa-05-cooldown.png" alt="Timbro già dato da poco" loading="lazy"></button><figcaption>Timbro già dato da poco</figcaption></figure></div>
+<h3 id="33-premio-sbloccato-e-riscatto">3.3 Premio sbloccato e riscatto</h3>
+<p>Al decimo timbro la carta si completa: <strong>Riscatta ora</strong> oppure <strong>Alla prossima visita</strong> (il premio resta sulla carta). Il riscatto chiede una conferma.</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-07-carta-quasi-completa.png" aria-label="Ingrandisci: Carta a 9 timbri su 10"><img src="img/cassa-07-carta-quasi-completa.png" alt="Carta a 9 timbri su 10" loading="lazy"></button><figcaption>Carta a 9 timbri su 10</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-08-premio-sbloccato.png" aria-label="Ingrandisci: Premio sbloccato"><img src="img/cassa-08-premio-sbloccato.png" alt="Premio sbloccato" loading="lazy"></button><figcaption>Premio sbloccato</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-09-conferma-riscatto.png" aria-label="Ingrandisci: Conferma del riscatto"><img src="img/cassa-09-conferma-riscatto.png" alt="Conferma del riscatto" loading="lazy"></button><figcaption>Conferma del riscatto</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-10-premio-riscattato.png" aria-label="Ingrandisci: Premio riscattato"><img src="img/cassa-10-premio-riscattato.png" alt="Premio riscattato" loading="lazy"></button><figcaption>Premio riscattato</figcaption></figure></div>
+<h3 id="34-quando-qualcosa-non-va">3.4 Quando qualcosa non va</h3>
+<ul><li>La carta è di un altro negozio (o il QR non è una carta): avviso chiaro, nessuna scheda aperta.</li><li>Senza rete: banner in alto e pulsanti disattivati, così nessun timbro va perso o dato due volte.</li></ul>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-11-carta-altro-negozio.png" aria-label="Ingrandisci: Carta di un altro negozio"><img src="img/cassa-11-carta-altro-negozio.png" alt="Carta di un altro negozio" loading="lazy"></button><figcaption>Carta di un altro negozio</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-12-senza-rete.png" aria-label="Ingrandisci: Senza rete"><img src="img/cassa-12-senza-rete.png" alt="Senza rete" loading="lazy"></button><figcaption>Senza rete</figcaption></figure></div>
+<h3 id="35-profilo-e-invia-diagnostica">3.5 Profilo e "Invia diagnostica"</h3>
+<p>Il Profilo mostra chi è collegato, il negozio, il ruolo e la versione dell'app. Se qualcosa non funziona, <strong>Invia diagnostica all'assistenza</strong> manda gli ultimi eventi dell'app (nessun dato dei clienti) e restituisce un codice ticket <code>DIAG-…</code> da comunicare all'assistenza.</p>
+<div class="shots phones"><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-13-profilo-operatore.png" aria-label="Ingrandisci: Profilo dell&#x27;operatore"><img src="img/cassa-13-profilo-operatore.png" alt="Profilo dell&#x27;operatore" loading="lazy"></button><figcaption>Profilo dell&#x27;operatore</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/cassa-14-diagnostica-inviata.png" aria-label="Ingrandisci: Diagnostica inviata con codice ticket"><img src="img/cassa-14-diagnostica-inviata.png" alt="Diagnostica inviata con codice ticket" loading="lazy"></button><figcaption>Diagnostica inviata con codice ticket</figcaption></figure></div>
+</section>
+<section class="chapter" id="4-area-titolare"><h2>4. Area titolare</h2>
+<p>Su computer le sezioni sono nella barra laterale; sul telefono in basso, con <strong>Scansiona</strong> sempre in alto.</p>
+<h3 id="41-panoramica">4.1 Panoramica</h3>
+<p>I numeri della settimana (clienti iscritti, timbri, premi sbloccati, clienti inattivi), il grafico delle ultime 8 settimane e chi non torna da più di 60 giorni. Da qui si scarica anche il cartello.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-01-panoramica.png" aria-label="Ingrandisci: Panoramica"><img src="img/titolare-01-panoramica.png" alt="Panoramica" loading="lazy"></button><figcaption>Panoramica</figcaption></figure><figure class="shot phone"><button type="button" class="zoom" data-src="img/titolare-14-panoramica-telefono.png" aria-label="Ingrandisci: Panoramica sul telefono"><img src="img/titolare-14-panoramica-telefono.png" alt="Panoramica sul telefono" loading="lazy"></button><figcaption>Panoramica sul telefono</figcaption></figure></div>
+<h3 id="42-clienti">4.2 Clienti</h3>
+<p>Ricerca per nome, telefono o codice della carta, con i filtri <strong>Tutti</strong>, <strong>Con premio</strong> e <strong>Inattivi</strong>. Il telefono è sempre mascherato. Scelto un cliente si vedono saldo, consenso alle promozioni e storico.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-02-clienti.png" aria-label="Ingrandisci: Elenco clienti"><img src="img/titolare-02-clienti.png" alt="Elenco clienti" loading="lazy"></button><figcaption>Elenco clienti</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-03-dettaglio-cliente.png" aria-label="Ingrandisci: Dettaglio di un cliente"><img src="img/titolare-03-dettaglio-cliente.png" alt="Dettaglio di un cliente" loading="lazy"></button><figcaption>Dettaglio di un cliente</figcaption></figure></div>
+<p><strong>Correggi saldo</strong> cambia timbri e premi con un motivo obbligatorio (timbro dimenticato, errore dello staff, carta di carta vecchia, altro), che resta nello storico:</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-04-correzione-saldo.png" aria-label="Ingrandisci: Correzione del saldo"><img src="img/titolare-04-correzione-saldo.png" alt="Correzione del saldo" loading="lazy"></button><figcaption>Correzione del saldo</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-05-correzione-salvata.png" aria-label="Ingrandisci: Correzione salvata nello storico"><img src="img/titolare-05-correzione-salvata.png" alt="Correzione salvata nello storico" loading="lazy"></button><figcaption>Correzione salvata nello storico</figcaption></figure></div>
+<p><strong>Revoca consenso</strong> toglie il cliente dalle promozioni (dall'app si può solo revocare: lo riattiva il cliente iscrivendosi di nuovo). <strong>Cancella cliente</strong> elimina i dati dopo una doppia conferma con il codice della carta.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-06-revoca-consenso.png" aria-label="Ingrandisci: Revoca del consenso"><img src="img/titolare-06-revoca-consenso.png" alt="Revoca del consenso" loading="lazy"></button><figcaption>Revoca del consenso</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-07-cancellazione.png" aria-label="Ingrandisci: Cancellazione del cliente"><img src="img/titolare-07-cancellazione.png" alt="Cancellazione del cliente" loading="lazy"></button><figcaption>Cancellazione del cliente</figcaption></figure></div>
+<h3 id="43-carta">4.3 Carta</h3>
+<p>Carta attiva o spenta, timbri <strong>oppure</strong> punti, logo, colore, numero di timbri e premio, con l'anteprima di Google Wallet e Apple Wallet (carta nuova, a metà, con premio). Al salvataggio le carte nei wallet si aggiornano entro qualche minuto.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-08-carta.png" aria-label="Ingrandisci: Impostazioni della carta"><img src="img/titolare-08-carta.png" alt="Impostazioni della carta" loading="lazy"></button><figcaption>Impostazioni della carta</figcaption></figure></div>
+<h3 id="44-staff">4.4 Staff</h3>
+<p>Invito con email, nome e ruolo: l'<strong>operatore</strong> dà timbri e riscatta premi, il <strong>titolare</strong> vede anche clienti, statistiche e impostazioni. Per ogni persona: reinvio dell'invito, cambio di ruolo, rimozione.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-09-staff.png" aria-label="Ingrandisci: Staff"><img src="img/titolare-09-staff.png" alt="Staff" loading="lazy"></button><figcaption>Staff</figcaption></figure></div>
+<h3 id="45-messaggi">4.5 Messaggi</h3>
+<p>Un messaggio promozionale a settimana, che arriva come notifica sulla carta nel wallet dei soli clienti con consenso. L'anteprima mostra come apparirà su iPhone e Android; prima dell'invio c'è una conferma.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-10-messaggi.png" aria-label="Ingrandisci: Messaggio promozionale"><img src="img/titolare-10-messaggi.png" alt="Messaggio promozionale" loading="lazy"></button><figcaption>Messaggio promozionale</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-11-conferma-messaggio.png" aria-label="Ingrandisci: Conferma dell&#x27;invio"><img src="img/titolare-11-conferma-messaggio.png" alt="Conferma dell&#x27;invio" loading="lazy"></button><figcaption>Conferma dell&#x27;invio</figcaption></figure></div>
+<h3 id="46-cartello-e-profilo">4.6 Cartello e Profilo</h3>
+<p>Il cartello da bancone in PDF (A5) o da stampare, sempre con colore, logo e premio attuali. Nel Profilo, come per l'operatore, c'è <strong>Invia diagnostica</strong>.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-12-cartello.png" aria-label="Ingrandisci: Cartello da bancone"><img src="img/titolare-12-cartello.png" alt="Cartello da bancone" loading="lazy"></button><figcaption>Cartello da bancone</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/titolare-13-profilo.png" aria-label="Ingrandisci: Profilo del titolare"><img src="img/titolare-13-profilo.png" alt="Profilo del titolare" loading="lazy"></button><figcaption>Profilo del titolare</figcaption></figure></div>
+</section>
+<section class="chapter" id="5-tessere-prepagate-e-abbonamenti"><h2>5. Tessere prepagate e abbonamenti</h2>
+<p>Sezione <strong>Tessere</strong> del titolare. Due tipi:</p>
+<ul><li><strong>A consumo</strong> (es. "Carnet 10 pieghe"): un numero di unità che si scalano a ogni uso e si ricaricano.</li><li><strong>Abbonamento</strong> (es. "-20% su tutti i trattamenti"): un vantaggio valido fino a una scadenza; il rinnovo allunga dalla scadenza.</li></ul>
+<p>Ogni tessera ha il suo link pubblico e il suo cartello; si può rendere non disponibile.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/tessere-01-elenco.png" aria-label="Ingrandisci: Elenco delle tessere"><img src="img/tessere-01-elenco.png" alt="Elenco delle tessere" loading="lazy"></button><figcaption>Elenco delle tessere</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/tessere-02-nuova-tessera.png" aria-label="Ingrandisci: Nuova tessera a consumo"><img src="img/tessere-02-nuova-tessera.png" alt="Nuova tessera a consumo" loading="lazy"></button><figcaption>Nuova tessera a consumo</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/tessere-03-nuovo-abbonamento.png" aria-label="Ingrandisci: Nuovo abbonamento"><img src="img/tessere-03-nuovo-abbonamento.png" alt="Nuovo abbonamento" loading="lazy"></button><figcaption>Nuovo abbonamento</figcaption></figure></div>
+<h3 id="in-cassa">In cassa</h3>
+<p>Il cliente crea la tessera dal web (<a href="#17-tessere-prepagate-e-abbonamenti">1.7</a>); in cassa la si legge con lo Scanner come una carta. Una tessera nuova è <strong>Da attivare</strong>: si attiva solo dopo aver ricevuto il pagamento, con una conferma che resta nel registro.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/tessere-04-carnet-da-attivare.png" aria-label="Ingrandisci: Tessera da attivare"><img src="img/tessere-04-carnet-da-attivare.png" alt="Tessera da attivare" loading="lazy"></button><figcaption>Tessera da attivare</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/tessere-05-conferma-pagamento.png" aria-label="Ingrandisci: Conferma del pagamento"><img src="img/tessere-05-conferma-pagamento.png" alt="Conferma del pagamento" loading="lazy"></button><figcaption>Conferma del pagamento</figcaption></figure></div>
+<p>Poi a ogni uso si scalano le unità (per 5 minuti si può annullare l'ultimo scalo) e a fine tessera si ricarica. L'abbonamento mostra il vantaggio e la scadenza, con <strong>Rinnova</strong>.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/tessere-06-carnet-scalato.png" aria-label="Ingrandisci: Carnet scalato"><img src="img/tessere-06-carnet-scalato.png" alt="Carnet scalato" loading="lazy"></button><figcaption>Carnet scalato</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/tessere-07-abbonamento-valido.png" aria-label="Ingrandisci: Abbonamento valido"><img src="img/tessere-07-abbonamento-valido.png" alt="Abbonamento valido" loading="lazy"></button><figcaption>Abbonamento valido</figcaption></figure></div>
+</section>
+<section class="chapter" id="6-carta-a-punti"><h2>6. Carta a punti</h2>
+<p>Un negozio usa timbri <strong>oppure</strong> punti. A punti, in cassa si scrive l'importo dello scontrino: l'app mostra subito quanti punti darà, poi <strong>Dai N punti</strong>. Superata la soglia il cliente sale di livello (Silver, Gold, Platinum, con i loro vantaggi). Anche qui, 5 minuti per annullare.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/punti-01-scheda.png" aria-label="Ingrandisci: Scheda a punti"><img src="img/punti-01-scheda.png" alt="Scheda a punti" loading="lazy"></button><figcaption>Scheda a punti</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/punti-02-importo.png" aria-label="Ingrandisci: Importo dello scontrino"><img src="img/punti-02-importo.png" alt="Importo dello scontrino" loading="lazy"></button><figcaption>Importo dello scontrino</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/punti-03-nuovo-livello.png" aria-label="Ingrandisci: Nuovo livello"><img src="img/punti-03-nuovo-livello.png" alt="Nuovo livello" loading="lazy"></button><figcaption>Nuovo livello</figcaption></figure></div>
+<p>Nella sezione <strong>Carta</strong> si scelgono punti per euro, spesa minima e livelli; il cliente ha lo storico degli scontrini.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/punti-04-impostazioni.png" aria-label="Ingrandisci: Impostazioni dei punti"><img src="img/punti-04-impostazioni.png" alt="Impostazioni dei punti" loading="lazy"></button><figcaption>Impostazioni dei punti</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/punti-05-dettaglio-cliente.png" aria-label="Ingrandisci: Cliente a punti"><img src="img/punti-05-dettaglio-cliente.png" alt="Cliente a punti" loading="lazy"></button><figcaption>Cliente a punti</figcaption></figure></div>
+</section>
+<section class="chapter" id="7-pannello-interno-assistenza"><h2>7. Pannello interno (assistenza)</h2>
+<p>Solo per il team Loyalty Wallet, su <code>/interno</code>: email e password, poi il codice dell'app di autenticazione (2FA).</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-01-accesso.png" aria-label="Ingrandisci: Accesso al pannello interno"><img src="img/interno-01-accesso.png" alt="Accesso al pannello interno" loading="lazy"></button><figcaption>Accesso al pannello interno</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-02-codice.png" aria-label="Ingrandisci: Codice di verifica"><img src="img/interno-02-codice.png" alt="Codice di verifica" loading="lazy"></button><figcaption>Codice di verifica</figcaption></figure></div>
+<h3 id="71-assistenza-una-ricerca-sola">7.1 Assistenza: una ricerca sola</h3>
+<p>Si incolla quello che dice l'esercente: codice assistenza <code>ERR-…</code>, ticket <code>DIAG-…</code>, codice errore, codice della carta, telefono, email dello staff o nome del negozio.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-03-assistenza.png" aria-label="Ingrandisci: Ricerca dell&#x27;assistenza"><img src="img/interno-03-assistenza.png" alt="Ricerca dell&#x27;assistenza" loading="lazy"></button><figcaption>Ricerca dell&#x27;assistenza</figcaption></figure></div>
+<p>Un codice errore porta la spiegazione dal catalogo (causa probabile e cosa fare) e le richieste recenti con quel codice:</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-05-codice-errore.png" aria-label="Ingrandisci: Spiegazione di un codice errore"><img src="img/interno-05-codice-errore.png" alt="Spiegazione di un codice errore" loading="lazy"></button><figcaption>Spiegazione di un codice errore</figcaption></figure></div>
+<p>Il codice di una carta apre la scheda del cliente: saldo nel database confrontato con la carta su Google (<strong>Risincronizza</strong> se non coincidono), richieste GDPR (esportazione, cancellazione), modalità diagnostica e la timeline di tutto quello che è successo alla carta.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-06-cliente.png" aria-label="Ingrandisci: Scheda cliente nel pannello"><img src="img/interno-06-cliente.png" alt="Scheda cliente nel pannello" loading="lazy"></button><figcaption>Scheda cliente nel pannello</figcaption></figure></div>
+<p>Più in basso la timeline: richieste dell'app, timbri, correzioni e iscrizione, ognuna con il suo codice assistenza.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-06b-cliente-intera.png" aria-label="Ingrandisci: Timeline della carta"><img src="img/interno-06b-cliente-intera.png" alt="Timeline della carta" loading="lazy"></button><figcaption>Timeline della carta</figcaption></figure></div>
+<h3 id="72-negozi">7.2 Negozi</h3>
+<p>Elenco con stato, clienti e staff; scheda del negozio; creazione di un nuovo negozio con l'invito al titolare.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-07-negozi.png" aria-label="Ingrandisci: Elenco dei negozi"><img src="img/interno-07-negozi.png" alt="Elenco dei negozi" loading="lazy"></button><figcaption>Elenco dei negozi</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-08-negozio.png" aria-label="Ingrandisci: Scheda di un negozio"><img src="img/interno-08-negozio.png" alt="Scheda di un negozio" loading="lazy"></button><figcaption>Scheda di un negozio</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-09-nuovo-negozio.png" aria-label="Ingrandisci: Nuovo negozio"><img src="img/interno-09-nuovo-negozio.png" alt="Nuovo negozio" loading="lazy"></button><figcaption>Nuovo negozio</figcaption></figure></div>
+<h3 id="73-diagnostica">7.3 Diagnostica</h3>
+<p>Le modalità diagnostiche attive e i pacchetti "Invia diagnostica" ricevuti dalle app; ogni pacchetto mostra il dispositivo e gli eventi dell'app, con la spiegazione degli errori.</p>
+<div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-10-diagnostica.png" aria-label="Ingrandisci: Diagnostica"><img src="img/interno-10-diagnostica.png" alt="Diagnostica" loading="lazy"></button><figcaption>Diagnostica</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-11-pacchetto-diagnostica.png" aria-label="Ingrandisci: Pacchetto di diagnostica"><img src="img/interno-11-pacchetto-diagnostica.png" alt="Pacchetto di diagnostica" loading="lazy"></button><figcaption>Pacchetto di diagnostica</figcaption></figure></div>
+</section>
+<section class="chapter" id="come-rigenerare-gli-screenshot"><h2>Come rigenerare gli screenshot</h2>
+<p>Servono Supabase locale, il web su <code>:3000</code> e l'app esercente su <code>:8081</code>. Il web va avviato con il <strong>codice SMS di prova</strong>, altrimenti lo script si ferma (con Twilio vero partirebbero SMS a numeri inventati):</p>
+<pre><code>OTP_PROVIDER=test OTP_LIMIT_PER_IP_HOUR=100000 APP_BASE_URL=http://localhost:3000 pnpm --filter @loyalty/web dev</code></pre>
+<pre><code>pnpm --filter @loyalty/merchant dev</code></pre>
+<pre><code>TUTORIAL_OTP_TEST=1 node apps/merchant/scripts/tutorial-screenshots.mjs</code></pre>
+<p>Un argomento facoltativo esegue solo una sezione (<code>cliente</code>, <code>accesso</code>, <code>cassa</code>, <code>fotocamera</code>, <code>titolare</code>, <code>tessere</code>, <code>punti</code>, <code>interno</code>). Lo script crea i propri clienti e tessere di esempio con le funzioni Postgres e li cancella al giro successivo; per il pannello interno crea un membro del team con 2FA e lo elimina alla fine. Le immagini finiscono in <code>docs/tutorial/img/</code>; gli errori della console delle pagine in <code>apps/merchant/e2e-logs/tutorial-console.log</code>.</p>
+</section>
+  </main>
+</div>
+
+<dialog id="lightbox" aria-label="Schermata ingrandita">
+  <button type="button" id="chiudi">Chiudi</button>
+  <img id="lightbox-img" alt="">
+  <p id="lightbox-cap"></p>
+</dialog>
+
+<script>
+  const box = document.getElementById("lightbox");
+  const img = document.getElementById("lightbox-img");
+  const cap = document.getElementById("lightbox-cap");
+  document.querySelectorAll(".zoom").forEach((b) => {
+    b.addEventListener("click", () => {
+      const i = b.querySelector("img");
+      img.src = b.dataset.src;
+      img.alt = i.alt;
+      cap.textContent = i.alt;
+      box.showModal();
+    });
+  });
+  document.getElementById("chiudi").addEventListener("click", () => box.close());
+  box.addEventListener("click", (e) => { if (e.target === box) box.close(); });
+
+  // capitolo in vista evidenziato nell'indice
+  const links = [...document.querySelectorAll("nav.toc a")];
+  const byId = new Map(links.map((a) => [a.getAttribute("href").slice(1), a]));
+  const obs = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      links.forEach((a) => a.classList.remove("on"));
+      byId.get(e.target.id)?.classList.add("on");
+    }
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("section.chapter").forEach((s) => obs.observe(s));
+</script>

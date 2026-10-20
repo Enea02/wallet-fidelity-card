@@ -59,6 +59,16 @@ export default tseslint.config(
     },
   },
   {
+    // video di presentazione (Remotion): React nel browser di Remotion
+    files: ["apps/video/**/*.{ts,tsx}"],
+    languageOptions: { globals: { ...globals.browser } },
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  {
     // configurazione Metro (CommonJS) e service worker della PWA
     files: ["apps/merchant/metro.config.js", "apps/merchant/jest.config.js", "apps/merchant/plugins/*.js"],
     languageOptions: { sourceType: "commonjs", globals: { ...globals.node } },

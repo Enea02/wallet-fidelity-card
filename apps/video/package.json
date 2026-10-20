@@ -1,0 +1,26 @@
+{
+  "name": "@loyalty/video",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Video di presentazione per gli esercenti (Remotion), con le schermate reali del tutorial.",
+  "type": "module",
+  "scripts": {
+    "studio": "node scripts/copy-screens.mjs && remotion studio src/index.ts",
+    "render": "node scripts/copy-screens.mjs && remotion render src/index.ts Presentazione out/presentazione-loyalty-wallet.mp4",
+    "still": "node scripts/copy-screens.mjs && remotion still src/index.ts Presentazione out/copertina.png --frame=120",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.533",
+    "@remotion/google-fonts": "4.0.533",
+    "@remotion/transitions": "4.0.533",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.533"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~5.9.3"
+  }
+}
