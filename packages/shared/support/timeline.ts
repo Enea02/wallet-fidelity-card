@@ -95,6 +95,9 @@ const AUDIT_LABEL: Record<string, string> = {
   points_settings_update: "carta a punti: modalità, regola o livelli",
 };
 
+/** Frase breve di un'azione dell'audit ("creazione del negozio"), anche per la Panoramica del pannello. */
+export const auditLabel = (action: string) => AUDIT_LABEL[action] ?? action.replace(/_/g, " ");
+
 const ACTOR_LABEL: Record<string, string> = {
   staff: "staff",
   customer: "il cliente",
@@ -134,7 +137,7 @@ export interface AuditRow {
 }
 
 export function auditItem(row: AuditRow, actorName?: string): TimelineItem {
-  const what = AUDIT_LABEL[row.action] ?? row.action.replace(/_/g, " ");
+  const what = auditLabel(row.action);
   const who =
     actorName ??
     (row.actor_type === "support"
