@@ -409,8 +409,10 @@ export const errors = {
   E_LOGIN_FAILED: {
     status: 401,
     userMessage: "Email o password non corrette.",
-    description: "Il login dello staff è stato rifiutato da Supabase Auth.",
-    probableCause: "Password sbagliata, email diversa da quella dell'invito, oppure invito mai accettato.",
+    description:
+      "Login rifiutato da Supabase Auth: sul web dal login unico (/accesso, evento auth.login.failed), nelle app iOS/Android dalla schermata di accesso.",
+    probableCause:
+      "Password sbagliata, email diversa da quella dell'invito, invito mai accettato; dopo molti tentativi Supabase blocca per qualche minuto.",
     action:
       'Far usare "Password dimenticata?". Se l\'invito non è mai stato accettato, il titolare può reinviarlo dalla sezione Staff.',
   },
@@ -452,8 +454,16 @@ export const errors = {
     userMessage: "Accedi al pannello interno per continuare.",
     description: "Richiesta al pannello interno senza una sessione valida (mai entrati, sessione scaduta o uscita).",
     probableCause: "Sessione di 12 ore scaduta, cookie cancellati o link del pannello aperto da un altro browser.",
+    action: "Rientrare da /accesso. Se succede subito dopo l'accesso, controllare che il browser accetti i cookie.",
+  },
+  E_LOGIN_NO_ACCESS: {
+    status: 403,
+    userMessage: "Questo account non è collegato a nessun negozio. Chiedi al titolare di invitarti con questa email.",
+    description:
+      "Password corretta su /accesso, ma l'account non è nello staff di nessun negozio né nel team interno: nessuna sessione aperta.",
+    probableCause: "Staff rimosso dal titolare, invito fatto a un'altra email, oppure account di prova.",
     action:
-      "Rientrare da /interno/accesso. Se succede subito dopo l'accesso, controllare che il browser accetti i cookie.",
+      "Controllare nella vista Assistenza (ricerca per email staff) se è nello staff di un negozio; altrimenti va invitato dal titolare.",
   },
   E_SUPPORT_FORBIDDEN: {
     status: 403,

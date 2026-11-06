@@ -7,9 +7,9 @@ import { log } from "../observability/logger";
 import { memberOf, supportAuthClient } from "./session";
 
 /*
- * Accesso al pannello interno: 1) email e password; 2) al primo accesso si collega l'app di
- * autenticazione (QR TOTP), poi si chiede sempre il codice a 6 cifre. Solo dopo il codice la
- * sessione è aal2 e il pannello si apre.
+ * Secondo fattore del team interno nel login unico (/accesso; la password è in lib/access.ts): al
+ * primo accesso si collega l'app di autenticazione (QR TOTP), poi si chiede sempre il codice a 6
+ * cifre. Solo dopo il codice la sessione è aal2 e il pannello si apre.
  */
 
 const ISSUER = "Loyalty Wallet · pannello interno";
@@ -21,27 +21,6 @@ function failed(email: string, stage: SupportLoginStage, reason: string): never 
   });
   err.logged = true;
   throw err;
-}
-
-export type NextStep = "codice" | "collega";
-
-/** Passo 1: password. Chi non è nel team non entra (e la sessione appena aperta si chiude). */
-export async function passwordStep(emailIn: string, password: string): Promise<NextStep> {
-  const email = emailIn.trim().toLowerCase();
-  const sb = await supportAuthClient();
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error || !data.user) failed(email, "password", "email o password non corrette");
-  setContext({ user_id: data.user.id });
-
-  if (!(await memberOf(data.user.id))) {
-    await sb.auth.signOut();
-    log.event("support.access.denied", { route: "/interno/accesso", reason: "non nel team", email: maskEmail(email) });
-    const err = new AppError("E_SUPPORT_FORBIDDEN", `${data.user.id} non è nel team interno`);
-    err.logged = true;
-    throw err;
-  }
-  const { data: factors } = await sb.auth.mfa.listFactors();
-  return factors?.totp.some((f) => f.status === "verified") ? "codice" : "collega";
 }
 
 async function sessionUser(stage: SupportLoginStage) {
@@ -97,10 +76,4 @@ export async function codeStep(code: string, enrollingFactorId?: string): Promis
   const { error } = await sb.auth.mfa.challengeAndVerify({ factorId, code: clean });
   if (error) failed(email, stage, "codice dell'app di autenticazione non valido o scaduto");
   log.event("support.login", { support_name: member.name, factor_enrolled: stage === "collegamento" });
-}
-
-export async function logout(name: string): Promise<void> {
-  const sb = await supportAuthClient();
-  await sb.auth.signOut();
-  log.event("support.logout", { support_name: name });
 }

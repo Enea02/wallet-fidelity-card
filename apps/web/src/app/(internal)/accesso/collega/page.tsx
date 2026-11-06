@@ -1,18 +1,23 @@
 import { AppError } from "@loyalty/shared/errors";
 import { redirect } from "next/navigation";
 import { startEnrollment } from "@/lib/support/login";
-import { ActionForm } from "../../_ui/ActionForm";
+import { loginPage } from "@/lib/support/run";
+import { ActionForm } from "../../interno/_ui/ActionForm";
 import { codeAction } from "../actions";
+import { carryOf, carryQuery, CarryFields, type AccessParams } from "../params";
 
-/** Primo accesso: collegamento dell'app di autenticazione (TOTP), obbligatorio per il pannello. */
-export default async function Collega() {
-  let enrollment;
-  try {
-    enrollment = await startEnrollment();
-  } catch (e) {
-    if (e instanceof AppError) redirect("/interno/accesso");
-    throw e;
-  }
+/** Primo accesso del team: collegamento dell'app di autenticazione (TOTP), obbligatorio per il pannello. */
+export default async function Collega({ searchParams }: { searchParams: Promise<AccessParams> }) {
+  const carry = carryOf(await searchParams);
+  const enrollment = await loginPage("/accesso/collega", async () => {
+    try {
+      return await startEnrollment();
+    } catch (e) {
+      if (e instanceof AppError) return null;
+      throw e;
+    }
+  });
+  if (!enrollment) redirect(`/accesso${carryQuery(carry)}`);
   return (
     <section className="int-card int-narrow">
       <h1>Collega l&apos;app di autenticazione</h1>
@@ -29,6 +34,7 @@ export default async function Collega() {
         </span>
       </p>
       <ActionForm action={codeAction} submit="Collega ed entra" testId="collega">
+        <CarryFields carry={carry} />
         <input type="hidden" name="factorId" value={enrollment.factorId} />
         <label>
           Codice

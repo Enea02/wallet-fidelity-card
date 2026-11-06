@@ -38,6 +38,23 @@ export const merchantApi = {
   }),
   shops: def({ method: "GET", path: "/shops", summary: "Negozi dell'utente", auth: "user", response: m.ShopsResponse }),
 
+  /* ---------- sessione web: login unico su /accesso, cookie httpOnly ---------- */
+  sessionHandoff: def({
+    method: "POST",
+    path: "/session",
+    summary: "Sessione aperta dal link dell'email passata ai cookie della sessione web",
+    auth: "user",
+    body: m.SessionHandoffBody,
+    response: m.OkResponse,
+  }),
+  logout: def({
+    method: "POST",
+    path: "/logout",
+    summary: "Chiude la sessione web",
+    auth: "user",
+    response: m.OkResponse,
+  }),
+
   lookup: def({
     method: "POST",
     path: "/scan/lookup",

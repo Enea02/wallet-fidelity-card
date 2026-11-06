@@ -493,6 +493,15 @@ input {
   transform: rotate(-8deg);
 }
 
+/* link discreto della home verso il login unico (/accesso) */
+.lw-home-foot {
+  margin-top: auto;
+  font-size: 14px;
+}
+.lw-home-foot a {
+  color: var(--lw-ink-2);
+}
+
 /* ---------- testi lunghi (informativa) ---------- */
 .lw-prose {
   padding: 24px 20px 40px;

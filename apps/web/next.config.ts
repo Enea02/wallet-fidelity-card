@@ -85,6 +85,17 @@ const nextConfig: NextConfig = {
       fallback: [],
     };
   },
+  // login unico: l'accesso del pannello interno è diventato /accesso (stesso modulo per team e staff)
+  async redirects() {
+    return [
+      { source: "/interno/accesso", destination: "/accesso?dest=interno", permanent: false },
+      {
+        source: "/interno/accesso/:passo(codice|collega)",
+        destination: "/accesso/:passo?dest=interno",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       // pagina e service worker sempre ricontrollati (versione nuova subito dopo un deploy); niente indicizzazione
