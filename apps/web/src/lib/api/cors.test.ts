@@ -34,6 +34,20 @@ describe("CORS dell'API esercente", () => {
     );
   });
 
+  it("ammette la stessa origine del server anche se diversa da APP_BASE_URL (es. localhost con il sito su un tunnel)", () => {
+    delete process.env.MERCHANT_APP_ORIGINS;
+    const same = new Request("http://localhost:3000/api/v1/merchant/logout", {
+      method: "POST",
+      headers: { origin: "http://localhost:3000", host: "localhost:3000" },
+    });
+    expect(checkOrigin(same)).toBe("http://localhost:3000");
+    const cross = new Request("http://localhost:3000/api/v1/merchant/logout", {
+      method: "POST",
+      headers: { origin: "http://localhost:3001", host: "localhost:3000" },
+    });
+    expect(() => checkOrigin(cross)).toThrow(expect.objectContaining({ code: "E_CORS_ORIGIN" }));
+  });
+
   it("rifiuta le altre origini con E_CORS_ORIGIN", () => {
     expect(() => checkOrigin(req("https://app.esempio.it.evil.com"))).toThrow(
       expect.objectContaining({ code: "E_CORS_ORIGIN" }),

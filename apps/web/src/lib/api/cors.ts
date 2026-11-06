@@ -7,7 +7,10 @@ import { siteOrigin } from "../merchant-app";
  * sua origine è quella del sito (APP_BASE_URL), sempre ammessa: il browser manda Origin anche nelle
  * POST dalla stessa origine. MERCHANT_APP_ORIGINS (facoltativa, separate da virgola) aggiunge altre
  * origini, es. l'app in sviluppo con ricarica a caldo su http://localhost:8081.
- * Le richieste senza Origin (app iOS/Android, script) passano.
+ * Le richieste dalla stessa origine del server (Origin con lo stesso host della richiesta) passano
+ * sempre: non possono essere CSRF e capitano quando il sito si apre da un indirizzo diverso da
+ * APP_BASE_URL (es. localhost con APP_BASE_URL su un tunnel). Le richieste senza Origin (app
+ * iOS/Android, script) passano.
  */
 const ALLOW_HEADERS = ["authorization", "content-type", ...Object.values(HEADERS)].join(", ");
 const EXPOSE_HEADERS = "x-request-id, retry-after";
@@ -21,6 +24,23 @@ function allowedOrigins(): string[] {
   return site ? [site, ...extra] : extra;
 }
 
+/** Origin con lo stesso host a cui è arrivata la richiesta (il browser non la può falsificare). */
+function isSameOrigin(req: Request, origin: string): boolean {
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    return false;
+  }
+  const host = req.headers.get("host") ?? new URL(req.url).host;
+  return originHost === host;
+}
+
+/** L'origine della richiesta è ammessa (stessa origine, sito o MERCHANT_APP_ORIGINS). */
+function isAllowed(req: Request, origin: string): boolean {
+  return isSameOrigin(req, origin) || allowedOrigins().includes(origin);
+}
+
 /** L'origine è ammessa (sito o MERCHANT_APP_ORIGINS). */
 export function isAllowedOrigin(origin: string): boolean {
   return allowedOrigins().includes(origin);
@@ -30,10 +50,10 @@ export function isAllowedOrigin(origin: string): boolean {
 export function checkOrigin(req: Request): string | null {
   const origin = req.headers.get("origin");
   if (!origin) return null;
-  if (!allowedOrigins().includes(origin)) {
+  if (!isAllowed(req, origin)) {
     throw new AppError(
       "E_CORS_ORIGIN",
-      `origine ${origin} diversa dal sito (APP_BASE_URL) e non presente in MERCHANT_APP_ORIGINS`,
+      `origine ${origin} diversa dal server, dal sito (APP_BASE_URL) e non presente in MERCHANT_APP_ORIGINS`,
       { origin },
     );
   }
@@ -42,7 +62,7 @@ export function checkOrigin(req: Request): string | null {
 
 export function withCorsHeaders(res: Response, req: Request): Response {
   const origin = req.headers.get("origin");
-  if (!origin || !allowedOrigins().includes(origin)) return res;
+  if (!origin || !isAllowed(req, origin)) return res;
   const out = new Response(res.body, res);
   out.headers.set("access-control-allow-origin", origin);
   out.headers.set("access-control-expose-headers", EXPOSE_HEADERS);
@@ -55,7 +75,7 @@ export function withCorsHeaders(res: Response, req: Request): Response {
 /** Risposta alle richieste preflight OPTIONS. */
 export async function preflight(req: Request): Promise<Response> {
   const origin = req.headers.get("origin");
-  if (!origin || !allowedOrigins().includes(origin)) return new Response(null, { status: 403 });
+  if (!origin || !isAllowed(req, origin)) return new Response(null, { status: 403 });
   return new Response(null, {
     status: 204,
     headers: {

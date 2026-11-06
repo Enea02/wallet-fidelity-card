@@ -243,7 +243,7 @@ export const errors = {
     status: 403,
     userMessage: "Accesso non consentito da questo sito.",
     description:
-      "Richiesta dal browser con un'origine diversa dal sito (APP_BASE_URL) e non presente in MERCHANT_APP_ORIGINS.",
+      "Richiesta dal browser con un'origine diversa dal server, dal sito (APP_BASE_URL) e non presente in MERCHANT_APP_ORIGINS.",
     probableCause:
       "APP_BASE_URL diverso dal dominio da cui si apre l'app (es. dominio nuovo o www/senza www), oppure sito di terzi.",
     action:
