@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { networkInterfaces } from "node:os";
 import type { NextConfig } from "next";
 import pkg from "./package.json" with { type: "json" };
@@ -12,6 +13,13 @@ function gitCommit(): string {
   } catch {
     return "sconosciuto";
   }
+}
+
+/** Bundle della web app esercente copiata in public/app (log di avvio): "entry-…" oppure "" se manca. */
+function merchantBundle(): string {
+  const index = "public/app/index.html";
+  if (!existsSync(index)) return "";
+  return readFileSync(index, "utf8").match(/(entry-[0-9a-f]{8})[0-9a-f]*\.js/)?.[1] ?? "";
 }
 
 /** Indirizzi IPv4 del Mac sulla rete locale: pagine aperte dal telefono sulla stessa rete (solo `next dev`). */
@@ -60,7 +68,7 @@ const nextConfig: NextConfig = {
   // solo `next dev`: pagine aperte da un telefono tramite tunnel (prova del cartello, README) o sulla rete locale
   allowedDevOrigins: ["*.trycloudflare.com", ...lanAddresses()],
   // versione e commit finiscono nel log di avvio e (dalla Fase 1) in ogni riga
-  env: { APP_VERSION: pkg.version, APP_COMMIT_SHA: gitCommit() },
+  env: { APP_VERSION: pkg.version, APP_COMMIT_SHA: gitCommit(), MERCHANT_APP_BUNDLE: merchantBundle() },
   // le istruzioni per gli agenti stanno in CLAUDE.md alla radice
   agentRules: false,
   // web app esercente (export di apps/merchant copiato in public/app da scripts/copy-merchant.mjs):

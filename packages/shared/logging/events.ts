@@ -126,6 +126,8 @@ export interface ServerStartupOkFields {
   google_wallet_enabled: boolean;
   apple_wallet_enabled: boolean;
   log_level: LogLevel;
+  /** Web app esercente su /app: "inclusa (entry-…)" nella build, "da Metro …" in sviluppo, "assente". */
+  merchant_app: string;
 }
 
 export interface ServerStartupFailedFields {
@@ -764,6 +766,7 @@ const startupOk: ServerStartupOkFields = {
   google_wallet_enabled: true,
   apple_wallet_enabled: false,
   log_level: "info",
+  merchant_app: "inclusa (entry-074c0574)",
 };
 
 /* ---------- pannello interno e assistenza (Fase 9) ---------- */
@@ -1103,8 +1106,20 @@ export const events = {
     msg: (f) =>
       `Server ${f.app} avviato in ambiente ${f.env}, versione ${f.version} (commit ${f.commit}), Node ${f.node_version}: ` +
       `database Supabase su ${f.supabase_host}, Google Wallet ${onOff(f.google_wallet_enabled)}, ` +
-      `Apple Wallet ${onOff(f.apple_wallet_enabled)}, livello di log ${f.log_level}.`,
-    examples: [startupOk, { ...startupOk, env: "development", google_wallet_enabled: false }],
+      `Apple Wallet ${onOff(f.apple_wallet_enabled)}, livello di log ${f.log_level}, web app esercente su /app ${f.merchant_app}` +
+      (f.merchant_app === "assente"
+        ? ": /app risponde 404, rifare il deploy con `pnpm build` dalla radice (compila anche apps/merchant)."
+        : "."),
+    examples: [
+      startupOk,
+      {
+        ...startupOk,
+        env: "development",
+        google_wallet_enabled: false,
+        merchant_app: "da Metro su http://localhost:8081 (sviluppo)",
+      },
+      { ...startupOk, merchant_app: "assente" },
+    ],
   }),
 
   "server.startup.failed": defineEvent<ServerStartupFailedFields>({

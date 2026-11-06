@@ -534,7 +534,7 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
-| `server.startup.ok` | info | Il server è partito e la configurazione è valida. Riepiloga ambiente, versione e servizi attivi. | Server web avviato in ambiente production, versione 0.1.0 (commit a1b2c3d), Node 24.15.0: database Supabase su abcd.supabase.co, Google Wallet attivo, Apple Wallet disattivato, livello di log info. |
+| `server.startup.ok` | info | Il server è partito e la configurazione è valida. Riepiloga ambiente, versione e servizi attivi. | Server web avviato in ambiente production, versione 0.1.0 (commit a1b2c3d), Node 24.15.0: database Supabase su abcd.supabase.co, Google Wallet attivo, Apple Wallet disattivato, livello di log info, web app esercente su /app inclusa (entry-074c0574). |
 | `server.startup.failed` | error | Il server non è partito perché la configurazione non è valida. Elenca le variabili da correggere. | Avvio del server web (ambiente production, versione 0.1.0) bloccato: configurazione non valida. Variabili mancanti: SUPABASE_SERVICE_ROLE_KEY. Variabili con formato errato: APP_BASE_URL. Azione: impostarle confrontando apps/web/.env.example e riavviare. |
 
 ### Richieste API
