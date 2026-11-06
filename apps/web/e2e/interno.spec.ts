@@ -20,21 +20,27 @@ const creds = () =>
   JSON.parse(readFileSync(SUPPORT_FILE, "utf8")) as { email: string; password: string; secret: string };
 
 let lastCode = "";
-/** Accesso con password e codice dell'app di autenticazione (un codice TOTP vale una volta sola). */
+/** Codice TOTP nuovo (un codice vale una volta sola: se è uguale all'ultimo si aspetta il prossimo). */
+async function freshCode(page: Page, secret: string): Promise<string> {
+  let code = await generate({ secret });
+  while (code === lastCode) {
+    await page.waitForTimeout(1000);
+    code = await generate({ secret });
+  }
+  lastCode = code;
+  return code;
+}
+
+/** Login unico con password e codice dell'app di autenticazione, partendo dal pannello. */
 async function login(page: Page) {
   const c = creds();
-  await page.goto("/interno/accesso");
+  await page.goto("/interno");
+  await expect(page).toHaveURL(/\/accesso\?dest=interno$/);
   await page.getByTestId("accesso-email").fill(c.email);
   await page.getByTestId("accesso-password").fill(c.password);
   await page.getByTestId("accesso-invia").click();
-  await expect(page).toHaveURL(/\/interno\/accesso\/codice$/);
-  let code = await generate({ secret: c.secret });
-  while (code === lastCode) {
-    await page.waitForTimeout(1000);
-    code = await generate({ secret: c.secret });
-  }
-  lastCode = code;
-  await page.getByTestId("codice-valore").fill(code);
+  await expect(page).toHaveURL(/\/accesso\/codice\?dest=interno$/);
+  await page.getByTestId("codice-valore").fill(await freshCode(page, c.secret));
   await page.getByTestId("codice-invia").click();
   await expect(page).toHaveURL(/\/interno$/);
 }
@@ -117,35 +123,56 @@ async function diagnose(page: Page, supportCode: string, errorCode: string, acti
 test.describe.configure({ mode: "serial", timeout: 90_000 });
 
 test.describe("accesso", () => {
-  test("senza sessione si finisce all'accesso", async ({ page }) => {
+  test("senza sessione si finisce al login unico", async ({ page }) => {
     for (const path of ["/interno", "/interno/negozi", "/interno/diagnostica", `/interno/negozi/${SALONE}`]) {
       await page.goto(path);
-      await expect(page, path).toHaveURL(/\/interno\/accesso$/);
+      await expect(page, path).toHaveURL(/\/accesso\?dest=interno$/);
     }
+    // il vecchio indirizzo dell'accesso porta al login unico
+    await page.goto("/interno/accesso");
+    await expect(page).toHaveURL(/\/accesso\?dest=interno$/);
     const res = await page.request.post(`/interno/clienti/${randomUUID()}/esporta`, { data: { reason: "prova" } });
     expect(res.status()).toBe(401);
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe("E_SUPPORT_UNAUTHORIZED");
   });
 
-  test("l'account di un esercente non entra", async ({ page }) => {
-    await page.goto("/interno/accesso");
+  test("l'account di un esercente entra nella sua app, non nel pannello", async ({ page }) => {
+    await page.goto("/interno");
     await page.getByTestId("accesso-email").fill("staff@salone-demo.test");
     await page.getByTestId("accesso-password").fill("password-demo-locale");
     await page.getByTestId("accesso-invia").click();
-    await expect(page.locator(".int-notice-error")).toContainText("non fa parte del team interno");
+    // niente secondo fattore per lo staff: dritto nella web app esercente
+    await expect(page).toHaveURL(/\/app$/);
     await page.goto("/interno");
-    await expect(page).toHaveURL(/\/interno\/accesso$/);
+    await expect(page).toHaveURL(/\/accesso\?errore=team$/);
+    await expect(page.locator(".int-notice-error")).toContainText("non fa parte del team interno");
+  });
+
+  test("un account senza negozi né team non apre nessuna sessione", async ({ page }) => {
+    const email = `nessuno-${Date.now()}@loyaltywallet.test`;
+    const { data } = await admin.auth.admin.createUser({ email, password: "password-di-prova-1", email_confirm: true });
+    try {
+      await page.goto("/accesso");
+      await page.getByTestId("accesso-email").fill(email);
+      await page.getByTestId("accesso-password").fill("password-di-prova-1");
+      await page.getByTestId("accesso-invia").click();
+      await expect(page.locator(".int-notice-error")).toContainText("non è collegato a nessun negozio");
+      await expect(page).toHaveURL(/\/accesso$/);
+      expect((await page.context().cookies()).some((c) => /^sb-.+-auth-token/.test(c.name))).toBe(false);
+    } finally {
+      if (data.user) await admin.auth.admin.deleteUser(data.user.id);
+    }
   });
 
   test("password giusta senza codice: il pannello resta chiuso", async ({ page }) => {
     const c = creds();
-    await page.goto("/interno/accesso");
+    await page.goto("/accesso");
     await page.getByTestId("accesso-email").fill(c.email);
     await page.getByTestId("accesso-password").fill(c.password);
     await page.getByTestId("accesso-invia").click();
-    await expect(page).toHaveURL(/\/interno\/accesso\/codice$/);
+    await expect(page).toHaveURL(/\/accesso\/codice$/);
     await page.goto("/interno/negozi");
-    await expect(page).toHaveURL(/\/interno\/accesso\/codice$/);
+    await expect(page).toHaveURL(/\/accesso\/codice\?dest=interno$/);
     await page.getByTestId("codice-valore").fill("000000");
     await page.getByTestId("codice-invia").click();
     await expect(page.locator(".int-notice-error")).toContainText("non corretti");
@@ -161,9 +188,67 @@ test.describe("accesso", () => {
     await expect(page).toHaveURL(/\/interno\/assistenza\?q=salone-demo$/);
     await expect(page.getByTestId("risultati")).toContainText("Salone Demo");
     await page.getByTestId("esci").click();
-    await expect(page).toHaveURL(/\/interno\/accesso$/);
+    await expect(page).toHaveURL(/\/accesso$/);
     await page.goto("/interno");
-    await expect(page).toHaveURL(/\/interno\/accesso$/);
+    await expect(page).toHaveURL(/\/accesso\?dest=interno$/);
+  });
+
+  test("team e staff di un negozio: dopo il codice si sceglie dove entrare, Esci vale per entrambi", async ({
+    page,
+  }) => {
+    const email = `doppio-${Date.now()}@loyaltywallet.test`;
+    const password = "password-doppio-ruolo";
+    const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    if (error || !data.user) throw error ?? new Error("utente non creato");
+    const userId = data.user.id;
+    try {
+      const add = await admin.rpc("support_member_add", {
+        p_user_id: userId,
+        p_display_name: "Doppio Ruolo",
+        p_email: email,
+        p_meta: { actor_type: "support", actor_id: "e2e", platform: "script" },
+      });
+      if (add.error) throw add.error;
+      const staff = await admin
+        .from("staff")
+        .insert({ user_id: userId, shop_id: SALONE, role: "operator", display_name: "Doppio" });
+      if (staff.error) throw staff.error;
+      // app di autenticazione già collegata, come per il membro del team del setup
+      const sb = createClient(process.env.E2E_SUPABASE_URL!, process.env.E2E_SUPABASE_ANON_KEY!, {
+        auth: { persistSession: false },
+      });
+      await sb.auth.signInWithPassword({ email, password });
+      const enrolled = await sb.auth.mfa.enroll({ factorType: "totp", friendlyName: "e2e" });
+      if (enrolled.error) throw enrolled.error;
+      const secret = enrolled.data.totp.secret;
+      await sb.auth.mfa.challengeAndVerify({ factorId: enrolled.data.id, code: await freshCode(page, secret) });
+
+      await page.goto("/accesso");
+      await page.getByTestId("accesso-email").fill(email);
+      await page.getByTestId("accesso-password").fill(password);
+      await page.getByTestId("accesso-invia").click();
+      await expect(page).toHaveURL(/\/accesso\/codice$/);
+      await page.getByTestId("codice-valore").fill(await freshCode(page, secret));
+      await page.getByTestId("codice-invia").click();
+      await expect(page).toHaveURL(/\/accesso\/scegli$/);
+      await expect(page.getByRole("heading", { name: "Dove vuoi entrare?" })).toBeVisible();
+
+      await page.getByTestId("scegli-app-invia").click();
+      await expect(page).toHaveURL(/\/app$/);
+      // stessa sessione: il pannello si apre senza rifare l'accesso
+      await page.goto("/interno");
+      await expect(page).toHaveURL(/\/interno$/);
+      await expect(page.getByTestId("panoramica-titolo")).toContainText("Doppio Ruolo");
+
+      // Esci dal pannello chiude anche la web app esercente (API con il cookie: 401)
+      await page.getByTestId("esci").click();
+      await expect(page).toHaveURL(/\/accesso$/);
+      const me = await page.request.get("/api/v1/merchant/me");
+      expect(me.status()).toBe(401);
+    } finally {
+      await admin.from("staff").delete().eq("user_id", userId);
+      await admin.auth.admin.deleteUser(userId);
+    }
   });
 });
 

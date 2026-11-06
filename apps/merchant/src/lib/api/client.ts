@@ -56,8 +56,11 @@ export interface ApiDeps {
   getAccessToken: () => Promise<string | null>;
   /** Rinnova la sessione e restituisce il nuovo token, oppure null se non si può. */
   refreshSession: () => Promise<string | null>;
-  /** Rinnovo fallito: l'app chiude la sessione e torna al login. */
-  onSessionExpired: () => void;
+  /**
+   * Rinnovo fallito: l'app chiude la sessione e torna al login. `serverCode` è il codice del server
+   * (E_AUTH_INVALID = c'era una sessione ma non vale più; E_AUTH_REQUIRED = nessuna sessione).
+   */
+  onSessionExpired: (serverCode?: string) => void;
   isOnline: () => boolean;
   /** Web: "include" per mandare il cookie della sessione web (login unico su /accesso). */
   credentials?: RequestCredentials;
@@ -181,7 +184,8 @@ export function createApiClient(deps: ApiDeps) {
       // token scaduto: un solo rinnovo, poi stessa richiesta (stesso request_id: è la stessa operazione)
       const fresh = await deps.refreshSession();
       if (!fresh) {
-        deps.onSessionExpired();
+        const body = ErrorBody.safeParse(await res.json().catch(() => null));
+        deps.onSessionExpired(body.success ? body.data.error.code : undefined);
         return fail("E_SESSION_EXPIRED", 401);
       }
       res = await attempt(fresh);
@@ -191,7 +195,7 @@ export function createApiClient(deps: ApiDeps) {
       const parsed = ErrorBody.safeParse(await res.json().catch(() => null));
       if (!parsed.success) return fail(res.status === 401 ? "E_SESSION_EXPIRED" : "E_BAD_RESPONSE", res.status);
       const { code, message, support_code } = parsed.data.error;
-      if (res.status === 401) deps.onSessionExpired();
+      if (res.status === 401) deps.onSessionExpired(code);
       return fail(code, res.status, message, support_code);
     }
 

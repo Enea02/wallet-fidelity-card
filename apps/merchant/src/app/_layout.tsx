@@ -48,6 +48,9 @@ function Navigator() {
           <Stack.Screen name="index" />
           <Stack.Protected guard={status === "signedOut"}>
             <Stack.Screen name="accedi" />
+          </Stack.Protected>
+          {/* anche durante il caricamento: sul web ci si arriva dal link di /accesso, con l'app appena aperta */}
+          <Stack.Protected guard={status === "signedOut" || status === "loading"}>
             <Stack.Screen name="password-dimenticata" />
           </Stack.Protected>
           <Stack.Protected guard={status === "chooseShop" || status === "ready"}>

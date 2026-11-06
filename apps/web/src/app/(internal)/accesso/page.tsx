@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentAccess, finishLogin } from "@/lib/access";
 import { loginPage } from "@/lib/support/run";
@@ -59,7 +58,8 @@ export default async function Accesso({ searchParams }: { searchParams: Promise<
         </label>
       </ActionForm>
       <p className="int-muted">
-        <Link href="/app/password-dimenticata">Password dimenticata?</Link>
+        {/* <a>, non <Link>: /app è la web app esercente (file statici), non una pagina Next */}
+        <a href="/app/password-dimenticata">Password dimenticata?</a>
       </p>
     </section>
   );

@@ -22,7 +22,7 @@ function localSupabaseEnv(): Record<string, string> {
     // copia dei log in Postgres (vista Assistenza) attiva anche qui: la provano gli smoke della Fase 9
     LOG_DB_SINK: "on",
     MERCHANT_APP_ORIGINS: "http://localhost:8081",
-    MERCHANT_APP_URL: "http://localhost:8081",
+    MERCHANT_APP_URL: "http://localhost:3000/app",
     // i test girano tutti dallo stesso "IP": limiti alti, il test del rate limit usa un IP dedicato
     RATE_LIMIT_USER_PER_MIN: "100000",
     RATE_LIMIT_IP_PER_MIN: "100000",

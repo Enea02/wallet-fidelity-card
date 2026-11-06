@@ -19,11 +19,16 @@ const ANON = status.ANON_KEY ?? "";
 const SERVICE = status.SERVICE_ROLE_KEY ?? "";
 const MAILPIT = (status.MAILPIT_URL ?? status.INBUCKET_URL ?? "http://127.0.0.1:54324").replace(/\/$/, "");
 
-export async function login(page: Page, email: string, password = PASSWORD) {
-  await page.goto("/app");
-  await page.getByTestId("campo-email").fill(email);
-  await page.getByTestId("campo-password").fill(password);
-  await page.getByTestId("pulsante-accedi").click();
+/**
+ * Login unico: aprendo /app senza sessione si finisce su /accesso (stesso server, modulo del
+ * pannello interno); dopo la password si torna nella web app esercente.
+ */
+export async function login(page: Page, email: string, password = PASSWORD, start = "/app") {
+  await page.goto(start);
+  await expect(page).toHaveURL(/\/accesso\?/);
+  await page.getByTestId("accesso-email").fill(email);
+  await page.getByTestId("accesso-password").fill(password);
+  await page.getByTestId("accesso-invia").click();
 }
 
 /** Righe JSON del log del backend (e2e-logs/server.log). */
@@ -74,14 +79,35 @@ export async function emailLink(to: string, subject: RegExp): Promise<string> {
   return link;
 }
 
-/** Modifica la sessione salvata da supabase-js nel browser (per simulare token scaduti). */
-export async function tamperSession(page: Page, change: { access_token?: string; refresh_token?: string }) {
-  await page.evaluate((c) => {
-    const key = Object.keys(localStorage).find((k) => k.startsWith("sb-") && k.endsWith("-auth-token"));
-    if (!key) throw new Error("sessione non trovata nel localStorage");
-    const s = JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, unknown>;
-    localStorage.setItem(key, JSON.stringify({ ...s, ...c }));
-  }, change);
+/**
+ * Modifica la sessione web nei cookie httpOnly (per simulare token scaduti): il cookie di Supabase
+ * è "base64-" + JSON in base64url, spezzato in più parti (.0, .1…) se è lungo.
+ */
+export async function tamperSession(
+  page: Page,
+  change: { access_token?: string; refresh_token?: string; expires_at?: number },
+) {
+  const ctx = page.context();
+  const all = await ctx.cookies();
+  const parts = all
+    .filter((c) => /^sb-.+-auth-token(\.\d+)?$/.test(c.name))
+    .sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }));
+  if (parts.length === 0) throw new Error("cookie della sessione web non trovato");
+  const name = parts[0]!.name.replace(/\.\d+$/, "");
+  const raw = parts.map((c) => c.value).join("");
+  const session = JSON.parse(Buffer.from(raw.replace(/^base64-/, ""), "base64url").toString("utf8")) as Record<
+    string,
+    unknown
+  >;
+  const value = `base64-${Buffer.from(JSON.stringify({ ...session, ...change })).toString("base64url")}`;
+  await ctx.clearCookies({ name: new RegExp(`^${name}(\\.\\d+)?$`) });
+  const base = { domain: parts[0]!.domain, path: "/", httpOnly: true, sameSite: "Lax" as const };
+  const CHUNK = 3180;
+  if (value.length <= CHUNK) await ctx.addCookies([{ ...base, name, value }]);
+  else {
+    const chunks = value.match(new RegExp(`.{1,${CHUNK}}`, "g")) ?? [];
+    await ctx.addCookies(chunks.map((v, i) => ({ ...base, name: `${name}.${i}`, value: v })));
+  }
 }
 
 /* ---------- dati dei test dello scanner (service role: solo nei test) ---------- */

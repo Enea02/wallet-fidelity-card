@@ -8,6 +8,7 @@ import { authFailure, type AuthFailure } from "./auth/errors";
 import { prefs, supabase } from "./auth/supabase";
 import { forgetLocalSession, goToWebLogin } from "./auth/web-login";
 import { log, setLogContext } from "./diagnostics/logger";
+import { stripBase } from "./web-base";
 
 /*
  * Sessione dello staff: utente, negozi (GET me + GET shops), negozio attivo e ruolo.
@@ -17,6 +18,11 @@ import { log, setLogContext } from "./diagnostics/logger";
  */
 
 const WEB = Platform.OS === "web";
+
+/** Schermate che si aprono senza sessione (link delle email): lì un 401 non porta al login. */
+const PUBLIC_SCREENS = ["/invito", "/nuova-password", "/password-dimenticata"];
+const onPublicScreen = () =>
+  typeof window !== "undefined" && PUBLIC_SCREENS.includes(stripBase(window.location.pathname));
 
 export type Shop = z.output<typeof ShopSummary> & { displayName: string };
 
@@ -123,18 +129,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [activate, reset]);
 
   const signOut = useCallback(
-    async (reason: "manuale" | "sessione scaduta" = "manuale") => {
+    async (reason: "manuale" | "sessione scaduta" = "manuale", serverCode?: string) => {
       const hadUser = userRef.current !== null;
       if (WEB) {
-        // web: un 401 senza utente caricato è solo "non ancora entrato", non una sessione scaduta
-        if (hadUser || reason === "manuale") log.event("app.logout", { reason });
+        // web: "scaduta" solo se c'era una sessione (utente caricato, o cookie che il server ha
+        // rifiutato: E_AUTH_INVALID); senza cookie (E_AUTH_REQUIRED) è solo "non ancora entrato"
+        const expired = reason === "sessione scaduta" && (hadUser || serverCode === "E_AUTH_INVALID");
+        if (expired || reason === "manuale") log.event("app.logout", { reason });
         // chiude la sessione web (anche il pannello interno, per chi è nel team)
         if (reason === "manuale") await api.call("logout", {}).catch(() => undefined);
         forgetLocalSession();
         reset();
-        // senza utente caricato si resta sulla pagina (invito, nuova password): dalla schermata
+        // sulle pagine dei link delle email (invito, nuova password) si resta; dalla schermata
         // iniziale ci pensa /accedi a portare al login unico
-        if (hadUser || reason === "manuale") goToWebLogin(reason === "sessione scaduta" ? "sessione" : undefined);
+        if ((expired || reason === "manuale") && !onPublicScreen()) goToWebLogin(expired ? "sessione" : undefined);
         return;
       }
       log.event("app.logout", { reason });
@@ -185,7 +193,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    setSessionExpiredHandler(() => void signOut("sessione scaduta"));
+    setSessionExpiredHandler((serverCode) => void signOut("sessione scaduta", serverCode));
     let alive = true;
     if (WEB) {
       // web: la sessione è il cookie del server, GET me dice se c'è (401 → login unico)

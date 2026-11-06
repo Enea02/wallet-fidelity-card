@@ -46,7 +46,7 @@ const cookieOf = async (key: MerchantEndpoint, who: "G" | "M") =>
       ? GC
       : MC;
 
-const expectAdmitted = (r: { status: number; code?: string | null }) => {
+const expectAdmitted = (r: { status: number; code?: string | undefined }) => {
   expect(NOT_AUTH_ERRORS).not.toContain(r.code);
   expect([401, 403]).not.toContain(r.status);
 };

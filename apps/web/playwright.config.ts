@@ -53,6 +53,8 @@ const serverEnv: Record<string, string> = {
   UNSUBSCRIBE_SECRET: process.env.E2E_UNSUBSCRIBE_SECRET,
   PUBLIC_LINK_SECRET: randomBytes(32).toString("hex"),
   MERCHANT_APP_ORIGINS: "http://localhost:8081",
+  // web app esercente sullo stesso server (/app): fissato qui, altrimenti vale quello di .env.local
+  MERCHANT_APP_URL: `http://localhost:${PORT}/app`,
   OTP_PROVIDER: "test",
   // chiavi di prova pubbliche di Cloudflare Turnstile: il widget passa sempre
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA",

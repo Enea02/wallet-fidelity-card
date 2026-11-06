@@ -143,6 +143,19 @@ describe("client API esercente", () => {
     expect(deps.onSessionExpired).toHaveBeenCalledTimes(1);
   });
 
+  it("web: sessione nel cookie, senza token; all'uscita passa il codice del server (scaduta o mai aperta)", async () => {
+    const { api, calls, deps } = setup([apiError(401, "E_AUTH_REQUIRED", "Devi accedere.")], {
+      platform: "web",
+      credentials: "include",
+      getAccessToken: async () => null,
+      refreshSession: vi.fn(async () => null),
+    });
+    await expect(api.call("me", {})).rejects.toMatchObject({ code: "E_SESSION_EXPIRED" });
+    expect(header(calls[0]!.init, "authorization")).toBeUndefined();
+    expect(calls[0]!.init.credentials).toBe("include");
+    expect(deps.onSessionExpired).toHaveBeenCalledWith("E_AUTH_REQUIRED");
+  });
+
   it("401 anche dopo il rinnovo: esce dalla sessione senza riprovare all'infinito", async () => {
     const { api, calls, deps } = setup([
       apiError(401, "E_AUTH_INVALID", "Sessione scaduta."),
