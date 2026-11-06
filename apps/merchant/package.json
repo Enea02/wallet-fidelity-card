@@ -5,7 +5,8 @@
   "description": "App esercente Expo (iOS, Android, Web) per titolare e staff.",
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "node scripts/copy-zxing.mjs && expo start --web --port 8081",
+    "dev": "node scripts/copy-zxing.mjs && EXPO_WEB_BASE_URL=/app expo start --no-dev --port 8081",
+    "dev:hot": "node scripts/copy-zxing.mjs && expo start --web --port 8081",
     "start": "node scripts/copy-zxing.mjs && expo start",
     "ios": "expo run:ios",
     "android": "expo run:android",

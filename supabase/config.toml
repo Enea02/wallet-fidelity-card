@@ -155,12 +155,15 @@ site_url = "http://127.0.0.1:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-# App esercente: web app in sviluppo (8081) e nei test end-to-end (8090), deep link dell'app nativa
+# App esercente: web app servita dal server del sito su /app (sviluppo su 3000, test end-to-end su 3110),
+# ricarica a caldo con `pnpm dev:merchant` (8081), deep link dell'app nativa
 additional_redirect_urls = [
   "https://127.0.0.1:3000",
+  "http://localhost:3000/app/**",
+  "http://127.0.0.1:3000/app/**",
+  "http://localhost:3110/app/**",
   "http://localhost:8081/**",
   "http://127.0.0.1:8081/**",
-  "http://localhost:8090/**",
   "loyaltywallet://**",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).

@@ -53,16 +53,32 @@ const generated = {
 
 // variabili nuove con un valore fisso per lo sviluppo locale
 const localDefaults = {
+  // l'app esercente sta su http://localhost:3000/app (stesso server); 8081 solo per `pnpm dev:merchant`
   MERCHANT_APP_ORIGINS: () => "http://localhost:8081",
-  MERCHANT_APP_URL: () => "http://localhost:8081",
+  MERCHANT_APP_URL: () => "http://localhost:3000/app",
+  MERCHANT_DEV_URL: () => "http://localhost:8081",
   // chiavi di prova pubbliche di Cloudflare Turnstile (passano sempre): https://developers.cloudflare.com/turnstile/troubleshooting/testing/
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: () => "1x00000000000000000000AA",
   TURNSTILE_SECRET_KEY: () => "1x0000000000000000000000000000000AA",
   OTP_PROVIDER: () => "test",
 };
 
+// valori di sviluppo cambiati nel tempo: un .env.local con il vecchio valore predefinito viene aggiornato
+const outdatedDefaults = {
+  // server unico: l'app esercente non sta più su :8081 ma su :3000/app
+  MERCHANT_APP_URL: { from: "http://localhost:8081", to: "http://localhost:3000/app" },
+};
+
 if (existsSync(envLocal)) {
-  const current = readFileSync(envLocal, "utf8");
+  let current = readFileSync(envLocal, "utf8");
+  const lines = current.split("\n");
+  const updated = Object.entries(outdatedDefaults).filter(([k, { from }]) => lines.includes(`${k}=${from}`));
+  const replace = new Map(updated.map(([k, { from, to }]) => [`${k}=${from}`, `${k}=${to}`]));
+  current = lines.map((l) => replace.get(l) ?? l).join("\n");
+  if (updated.length > 0) {
+    writeFileSync(envLocal, current, { mode: 0o600 });
+    console.log(`✔ Aggiornate in apps/web/.env.local: ${updated.map(([k]) => k).join(", ")}.`);
+  }
   const fillable = { ...generated, ...localDefaults };
   const missing = Object.keys(fillable).filter((k) => !new RegExp(`^${k}=.+`, "m").test(current));
   if (missing.length > 0) {
@@ -98,7 +114,8 @@ const merchantValues = {
   EXPO_PUBLIC_API_URL: "http://localhost:3000",
   EXPO_PUBLIC_SUPABASE_URL: s.API_URL,
   EXPO_PUBLIC_SUPABASE_ANON_KEY: s.ANON_KEY,
-  EXPO_PUBLIC_WEB_URL: "http://localhost:8081",
+  // web app esercente servita dal server del sito (pnpm dev: http://localhost:3000/app)
+  EXPO_PUBLIC_WEB_URL: "http://localhost:3000/app",
   EXPO_PUBLIC_APP_ENV: "development",
 };
 const merchantKeep = existsSync(merchantEnv)
