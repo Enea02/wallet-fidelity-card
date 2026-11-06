@@ -19,6 +19,11 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "@loyalty/web#build": {
+      "dependsOn": ["^build", "@loyalty/merchant#build"],
+      "outputs": [".next/**", "!.next/cache/**", "public/app/**"],
+      "env": ["NEXT_PUBLIC_*", "APP_*", "EXPO_PUBLIC_*"]
     }
   }
 }

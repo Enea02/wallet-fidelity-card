@@ -23,7 +23,7 @@ const before = html;
 html = html
   .replace('href="/manifest.webmanifest"', `href="${base}/manifest.webmanifest"`)
   .replaceAll('href="/icons/', `href="${base}/icons/`)
-  .replace('register("/sw.js")', `register("${base}/sw.js", { scope: "${base}/" })`);
+  .replace('register("/sw.js")', `register("${base}/sw.js", { scope: "${base}" })`);
 if (html === before || html.includes('register("/sw.js")')) {
   console.error("✖ index.html: percorsi del manifest o del service worker non trovati, controllare public/index.html");
   process.exit(1);
@@ -32,9 +32,10 @@ writeFileSync(htmlPath, html);
 
 const manifestPath = join(dist, "manifest.webmanifest");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-manifest.id = `${base}/`;
-manifest.start_url = `${base}/`;
-manifest.scope = `${base}/`;
+// senza "/" finale: Next reindirizza "/app/" su "/app" (il SW ha scope "/app", vedi Service-Worker-Allowed)
+manifest.id = base;
+manifest.start_url = base;
+manifest.scope = base;
 manifest.icons = manifest.icons.map((i) => ({ ...i, src: `${base}${i.src}` }));
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 

@@ -4,10 +4,13 @@
 // L'app è servita sotto un prefisso (/app/) dallo stesso server del sito e del pannello interno:
 // il SW lavora solo dentro il suo scope e non tocca le pagine del sito, del pannello o le API.
 const CACHE = "esercente-v2";
-const BASE = new URL(self.registration.scope).pathname; // es. "/app/"
-const SHELL = BASE; // la pagina dell'app (index.html), servita per ogni percorso sotto BASE
+// scope "/app" (non "/app/": Next reindirizza "/app/" su "/app"); in sviluppo l'app sta alla radice
+const BASE = new URL(self.registration.scope).pathname.replace(/\/+$/, ""); // es. "/app", "" alla radice
+const SHELL = BASE || "/"; // la pagina dell'app (index.html), servita per ogni percorso sotto BASE
 // BASE contiene solo lettere, cifre, "-" e "/" (lo controlla scripts/apply-web-base.mjs): niente da escapare
-const STATIC = new RegExp(`^${BASE}(_expo|assets|icons|zxing)/`);
+const STATIC = new RegExp(`^${BASE}/(_expo|assets|icons|zxing)/`);
+/** Solo i percorsi dell'app: "/app" e "/app/…", non "/apple-bar" (pagina di un negozio). */
+const inApp = (path) => !BASE || path === BASE || path.startsWith(`${BASE}/`);
 
 self.addEventListener("install", () => self.skipWaiting());
 
@@ -23,7 +26,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
-  if (req.method !== "GET" || url.origin !== self.location.origin || !url.pathname.startsWith(BASE)) return;
+  if (req.method !== "GET" || url.origin !== self.location.origin || !inApp(url.pathname)) return;
 
   // pagine: prima la rete (versione nuova dopo un deploy), la copia in cache solo se offline
   if (req.mode === "navigate") {

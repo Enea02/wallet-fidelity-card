@@ -31,6 +31,9 @@ supabase/.temp/
 *.key
 service-account*.json
 
+# web app esercente copiata nel server del sito al momento della build (apps/web/scripts/copy-merchant.mjs)
+apps/web/public/app/
+
 # Playwright
 apps/web/test-results/
 apps/web/playwright-report/
