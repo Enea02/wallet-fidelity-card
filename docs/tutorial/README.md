@@ -369,15 +369,12 @@ dispositivo e gli eventi dell'app, con la spiegazione degli errori.
 
 ## Come rigenerare gli screenshot
 
-Servono Supabase locale, il web su `:3000` e l'app esercente su `:8081`. Il web va avviato con il **codice SMS di
-prova**, altrimenti lo script si ferma (con Twilio vero partirebbero SMS a numeri inventati):
+Servono Supabase locale e il server unico su `:3000` (sito, login unico su `/accesso`, app esercente su `/app`).
+Va avviato con il **codice SMS di prova**, altrimenti lo script si ferma (con Twilio vero partirebbero SMS a numeri
+inventati):
 
 ```bash
-OTP_PROVIDER=test OTP_LIMIT_PER_IP_HOUR=100000 APP_BASE_URL=http://localhost:3000 pnpm --filter @loyalty/web dev
-```
-
-```bash
-pnpm --filter @loyalty/merchant dev
+OTP_PROVIDER=test OTP_LIMIT_PER_IP_HOUR=100000 APP_BASE_URL=http://localhost:3000 pnpm dev
 ```
 
 ```bash

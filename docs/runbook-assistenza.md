@@ -10,7 +10,8 @@ terminale di `pnpm dev`. Gli orari nei campi `ts` sono UTC; nel pannello e nei `
 
 ## Panoramica: cosa guardare ogni mattina
 
-Pannello interno su `/interno` (solo il team, email + password + codice dell'app di autenticazione). La prima pagina è
+Pannello interno su `/interno` (solo il team: login unico su `/accesso` con email, password e codice dell'app di
+autenticazione). La prima pagina è
 la **Panoramica** della rete (periodo Oggi / 7 / 30 giorni):
 
 - **Indicatori**: negozi attivi e sospesi, clienti iscritti, timbri/punti/scali dati, iscrizioni completate (OTP),
@@ -77,8 +78,25 @@ raggiunto il server (rete assente, `E_NETWORK`), il codice esiste solo sul telef
 
 1. Cercare `server.startup.failed`: il `msg` elenca le variabili mancanti o malformate.
 2. Correggerle nel progetto Vercel confrontandole con `apps/web/.env.example` e rifare il deploy.
-3. Verificare che compaia `server.startup.ok`: riepiloga ambiente, versione, commit e servizi attivi. Se un wallet
-   risulta "disattivato" in produzione mancano le sue variabili.
+3. Verificare che compaia `server.startup.ok`: riepiloga ambiente, versione, commit, servizi attivi e web app
+   esercente. Se un wallet risulta "disattivato" in produzione mancano le sue variabili.
+
+## La web app esercente non si carica (`/app`)
+
+Sito, login unico, pannello interno, web app esercente e API sono **lo stesso server** (un solo progetto Vercel): la
+web app è l'export di `apps/merchant` copiato in `public/app` durante la build.
+
+1. `server.startup.ok` dice "web app esercente su /app **assente**": la build non l'ha inclusa e `/app` risponde 404.
+   Il build command deve essere quello di `apps/web/vercel.json` (`turbo run build --filter=@loyalty/web`, compila
+   prima l'app); rifare il deploy.
+2. Pagina bianca su `/app`: quasi sempre mancano le variabili `EXPO_PUBLIC_*` nel progetto Vercel (finiscono nel
+   bundle al momento della build): controllarle con `apps/merchant/.env.example` e rifare il deploy. Nella console
+   del browser l'errore dice quale manca.
+3. Un esercente vede ancora la versione vecchia: la pagina e il service worker non vanno in cache (`no-cache`); basta
+   ricaricare. Se apre il **vecchio indirizzo** della web app (prima del server unico) viene portato su `/app` e il
+   vecchio service worker si disinstalla da solo (`deploy/redirect-app-esercente`).
+4. Lo scanner web non legge (Safari, Firefox): il motore ZXing è servito su `/app/zxing/zxing_reader.wasm`, vedi
+   "Lo scanner non legge".
 
 ## Errore imprevisto (`E_INTERNAL`, `E_DB`)
 
@@ -216,8 +234,23 @@ reiscriversi con lo stesso numero e riceve una carta nuova. Da Fase 4 la carta G
 
 ## App esercente: "non riesco ad accedere"
 
-L'app (iOS, Android, web) registra i propri eventi `app.*` in un buffer sul dispositivo e in Sentry, non nei log del
-backend: per vederli serve il pacchetto "Invia diagnostica" (vedi sotto) o Sentry.
+**Sul web** non c'è una schermata di accesso nell'app: aprendo `/app` senza sessione si va al **login unico**
+(`/accesso`, lo stesso del pannello interno) e poi si torna alla pagina dell'app da cui si era partiti. La sessione è
+un cookie httpOnly (nessun token leggibile dalla pagina). Il login unico scrive nel log del backend:
+
+- `auth.login.ok`: password giusta, con il numero di negozi e il passo successivo (lo staff entra subito nell'app);
+- `auth.login.failed` "email o password non corrette" (`E_LOGIN_FAILED`): far usare "Password dimenticata?" (link
+  sotto il modulo di `/accesso`); "nessun accesso" (`E_LOGIN_NO_ACCESS`): l'account non è nello staff di nessun negozio
+  (rimosso dal titolare o invitato con un'altra email) → il titolare lo invita con l'email giusta; "troppi tentativi":
+  Supabase blocca per qualche minuto;
+- `auth.login.destination`: dove è entrato (app o pannello) e perché;
+- `auth.token.invalid` con "sessione web scaduta o chiusa": il cookie non vale più (uscito da un'altra scheda,
+  password cambiata, staff rimosso) → la pagina torna a `/accesso` con "La sessione è scaduta".
+- "Esci" (nell'app o nel pannello) chiude la sessione web per entrambi (`auth.logout`).
+
+**Nelle app iOS e Android** il login resta nell'app, con Supabase Auth e il token. L'app registra i propri eventi
+`app.*` in un buffer sul dispositivo e in Sentry, non nei log del backend: per vederli serve il pacchetto "Invia
+diagnostica" (vedi sotto) o Sentry.
 
 - **Email o password non corrette** (`app.login.failed` con `E_LOGIN_FAILED`): far usare "Password dimenticata?".
   Se l'utente non ha mai accettato l'invito non ha una password: il titolare lo reinvita dalla sezione Staff.
@@ -233,8 +266,10 @@ backend: per vederli serve il pacchetto "Invia diagnostica" (vedi sotto) o Sentr
 
 ## App esercente: invito e nuova password
 
-- L'email d'invito (template `supabase/templates/invito.html`) porta a `MERCHANT_APP_URL/invito`: la web app legge
-  il link, chiede la password e apre l'app. Il link vale 24 ore e si usa una volta: se è scaduto la pagina lo dice e
+- L'email d'invito (template `supabase/templates/invito.html`) porta a `MERCHANT_APP_URL/invito` (per default
+  `APP_BASE_URL/app/invito`): la web app legge il link, chiede la password e apre l'app; sul web la sessione del link
+  passa ai cookie del server (`auth.session.handoff`), così da lì vale il login unico. Se il passaggio non riesce
+  la pagina dice di entrare da `/accesso` con la password appena scelta (che è già salvata). Il link vale 24 ore e si usa una volta: se è scaduto la pagina lo dice e
   il titolare reinvia l'invito. Senza dominio i link aprono la web app anche dal telefono; dalla Fase 13 (dominio e
   Universal/App Links) apriranno direttamente l'app installata.
 - "Password dimenticata?" manda un'email (template `recupero.html`) con un link a `/nuova-password`, valido un'ora.
@@ -292,7 +327,7 @@ carta: se il server è veloce, il problema è la rete del negozio.
   quasi tutti). Il campo del lettore nell'app deve essere a fuoco ("Pronto: scansiona con il lettore"): se è stato
   toccato altro, l'app lo rimette a fuoco da sola.
 - **Web su Safari, Firefox o Chrome per Windows**: la decodifica usa il motore ZXing servito dalla web app
-  (`/zxing/zxing_reader.wasm`). Se manca (deploy incompleto) la webcam si vede ma non legge nulla: usare lettore o
+  (`/app/zxing/zxing_reader.wasm`). Se manca (deploy incompleto) la webcam si vede ma non legge nulla: usare lettore o
   codice breve e verificare il deploy.
 - In ogni caso il **codice breve** stampato sotto il QR funziona sempre (modalità "Codice").
 
@@ -334,8 +369,12 @@ diagnostica dall'app. I contatori sono nella tabella `rate_limit_counters` (fine
 
 ## La web app esercente non riesce a chiamare le API (`E_CORS_ORIGIN`)
 
-Il dominio da cui è aperta la web app non è in `MERCHANT_APP_ORIGINS`. Se è un nostro dominio nuovo, aggiungerlo
-alla variabile nel progetto Vercel (separato da virgola, senza `/` finale) e rifare il deploy.
+La web app sta sullo stesso server (`APP_BASE_URL/app`): la sua origine è sempre ammessa. `E_CORS_ORIGIN` vuol dire
+che la pagina è aperta da un'origine diversa da `APP_BASE_URL` (dominio nuovo, `www.` sì/no, http invece di https):
+correggere `APP_BASE_URL` nel progetto Vercel. Un'origine in più (es. `http://localhost:8081` per la ricarica a caldo
+in sviluppo) va in `MERCHANT_APP_ORIGINS` (separate da virgola, senza `/` finale). Con il cookie della sessione web
+anche una richiesta che cambia dati **senza** `Origin` è rifiutata così: non viene da una nostra pagina (protezione
+dalle richieste false di altri siti).
 
 ## L'email d'invito dello staff non arriva
 
@@ -481,11 +520,14 @@ nello storico restano `prepaid_activate` e `prepaid_recharge`.
 
 ## Pannello interno: accesso
 
-- Solo chi è in `support_members` (`pnpm support:add <email> --name <nome> --by <chi>`), con password e **codice
-  dell'app di autenticazione** (TOTP). Al primo accesso il pannello mostra il QR da inquadrare.
-- La sessione dura 12 ore dall'ultimo codice, poi si rientra.
-- "Questo account non fa parte del team" (`E_SUPPORT_FORBIDDEN`, `support.access.denied` con "non nel team"): account
-  di un esercente o membro disattivato.
+- Login unico su `/accesso` (lo stesso dello staff; `/interno/accesso` porta lì). Solo chi è in `support_members`
+  (`pnpm support:add <email> --name <nome> --by <chi>`) entra nel pannello, sempre con il **codice dell'app di
+  autenticazione** (TOTP). Al primo accesso compare il QR da inquadrare.
+- Chi è nel team e anche nello staff di un negozio, dopo il codice sceglie dove entrare (`/accesso/scegli`); la
+  sessione è una sola, quindi passa dall'uno all'altra senza rifare l'accesso e "Esci" chiude entrambi.
+- La sessione del pannello dura 12 ore dall'ultimo codice, poi si chiede solo il codice (non la password).
+- "Questo account non fa parte del team" (`/accesso?errore=team`, `support.access.denied` con "non nel team"):
+  account di un esercente (entra nella sua web app) o membro disattivato.
 - Codice rifiutato (`E_SUPPORT_LOGIN_FAILED` al passo "codice"): codice scaduto (30 s) o ora del telefono sbagliata.
 - Telefono con l'app perso: in Supabase (Authentication → utente → MFA) eliminare il fattore; al prossimo accesso si
   ricollega con un nuovo QR.

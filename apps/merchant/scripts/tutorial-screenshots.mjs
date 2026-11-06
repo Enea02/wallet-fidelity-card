@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
  * Screenshot del tutorial (docs/tutorial/): percorre l'app vera in locale e salva le immagini in
- * docs/tutorial/img/. Serve tutto avviato: Supabase locale, web su :3000 e app esercente su :8081
+ * docs/tutorial/img/. Serve tutto avviato: Supabase locale e `pnpm dev` (sito, login unico e app esercente su :3000/app)
  * (`pnpm dev:merchant`). Prepara da sé alcuni clienti e tessere di esempio con le funzioni Postgres
  * (service role, solo in locale) e li rimuove al giro successivo.
  *
@@ -29,7 +29,8 @@ mkdirSync(SCRATCH, { recursive: true });
 const { generate } = createRequire(join(root, "apps/web/package.json"))("otplib");
 
 const WEB = "http://localhost:3000";
-const APP = "http://localhost:8081";
+// web app esercente sullo stesso server del sito; sul web si entra dal login unico (/accesso)
+const APP = "http://localhost:3000/app";
 const PASSWORD = "password-demo-locale";
 const GIULIA = { email: "staff@salone-demo.test", id: "22222222-2222-4222-8222-222222222222" };
 const MARCO = { email: "operatore@salone-demo.test", id: "55555555-5555-4555-8555-555555555555" };
@@ -230,10 +231,11 @@ async function shot(page, name, opts = {}) {
 }
 
 async function appLogin(page, user) {
-  await page.goto(`${APP}/`);
-  await page.getByTestId("campo-email").fill(user.email);
-  await page.getByTestId("campo-password").fill(PASSWORD);
-  return page.getByTestId("pulsante-accedi");
+  await page.goto(APP);
+  await page.getByTestId("accesso-email").waitFor();
+  await page.getByTestId("accesso-email").fill(user.email);
+  await page.getByTestId("accesso-password").fill(PASSWORD);
+  return page.getByTestId("accesso-invia");
 }
 
 async function readerScan(page, code) {
@@ -376,12 +378,12 @@ const sections = {
   async accesso(browser) {
     const ctx = await browser.newContext(phoneDevice);
     const page = await ctx.newPage();
-    await page.goto(`${APP}/`);
-    await page.getByTestId("campo-email").waitFor();
+    await page.goto(APP);
+    await page.getByTestId("accesso-email").waitFor();
     await shot(page, "app-01-accesso");
-    await page.getByTestId("campo-email").fill(MARCO.email);
-    await page.getByTestId("campo-password").fill("password-sbagliata");
-    await page.getByTestId("pulsante-accedi").click();
+    await page.getByTestId("accesso-email").fill(MARCO.email);
+    await page.getByTestId("accesso-password").fill("password-sbagliata");
+    await page.getByTestId("accesso-invia").click();
     await page.getByText("Email o password non corrette.").waitFor();
     await shot(page, "app-02-credenziali-errate");
     await page.getByText("Password dimenticata?").click();
@@ -687,12 +689,12 @@ const sections = {
 
       const ctx = await browser.newContext(desktop);
       const page = await ctx.newPage();
-      await page.goto(`${WEB}/interno/accesso`);
+      await page.goto(`${WEB}/interno`);
       await page.getByTestId("accesso-email").fill(email);
       await page.getByTestId("accesso-password").fill(password);
       await shot(page, "interno-01-accesso");
       await page.getByTestId("accesso-invia").click();
-      await page.waitForURL(/\/interno\/accesso\/codice$/);
+      await page.waitForURL(/\/accesso\/codice\?dest=interno$/);
       await shot(page, "interno-02-codice");
       await page.getByTestId("codice-valore").fill(await generate({ secret }));
       await page.getByTestId("codice-invia").click();
@@ -749,7 +751,7 @@ for (const path of [
   "/bar-punti-demo",
   "/negozio-sospeso",
   `/salone-demo/t/${data.carnet.code}`,
-  "/interno/accesso",
+  "/accesso",
   "/u/x.y",
 ])
   await fetch(`${WEB}${path}`).catch(() => undefined);
