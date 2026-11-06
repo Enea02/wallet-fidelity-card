@@ -17,7 +17,7 @@
     "cron:configure": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/cron-configure.ts",
     "support:add": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/support-add.ts",
     "support:phone-hash": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/phone-hash-backfill.ts",
-    "e2e": "next build && playwright test",
+    "e2e": "turbo run build --filter=@loyalty/web && playwright test",
     "e2e:only": "playwright test"
   },
   "dependencies": {

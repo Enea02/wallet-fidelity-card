@@ -20,7 +20,7 @@ const SERVICE = status.SERVICE_ROLE_KEY ?? "";
 const MAILPIT = (status.MAILPIT_URL ?? status.INBUCKET_URL ?? "http://127.0.0.1:54324").replace(/\/$/, "");
 
 export async function login(page: Page, email: string, password = PASSWORD) {
-  await page.goto("/");
+  await page.goto("/app");
   await page.getByTestId("campo-email").fill(email);
   await page.getByTestId("campo-password").fill(password);
   await page.getByTestId("pulsante-accedi").click();

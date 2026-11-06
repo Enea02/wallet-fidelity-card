@@ -12,9 +12,20 @@ const env = { ...process.env, EXPO_WEB_BASE_URL: process.env.EXPO_WEB_BASE_URL ?
 
 function run(cmd, args) {
   const r = spawnSync(cmd, args, { cwd: here, env, stdio: "inherit" });
+  if (r.error) console.error(`✖ ${cmd} non avviato: ${r.error.message}`);
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 
 run("node", ["scripts/copy-zxing.mjs"]);
-run("expo", ["export", "--platform", "web", "--output-dir", outDir, ...process.argv.slice(2)]);
+// --clear: la cache di Metro non tiene conto dei valori EXPO_PUBLIC_* inclusi nel bundle; senza, un
+// export con variabili diverse (produzione, test end-to-end) può riusare quelle della build precedente
+run(join(here, "node_modules", ".bin", "expo"), [
+  "export",
+  "--platform",
+  "web",
+  "--output-dir",
+  outDir,
+  "--clear",
+  ...process.argv.slice(2),
+]);
 run("node", ["scripts/apply-web-base.mjs", outDir]);

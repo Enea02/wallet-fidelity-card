@@ -3,10 +3,10 @@
 // radice, comodi in sviluppo. Qui li si porta sotto il prefisso della web app (EXPO_WEB_BASE_URL,
 // es. /app), lo stesso passato a experiments.baseUrl: l'app è servita dal server del sito.
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const dist = join(dirname(fileURLToPath(import.meta.url)), "..", process.argv[2] ?? "dist");
+const dist = resolve(dirname(fileURLToPath(import.meta.url)), "..", process.argv[2] ?? "dist");
 const base = (process.env.EXPO_WEB_BASE_URL ?? "").replace(/\/+$/, "");
 if (!base) {
   console.log("ℹ EXPO_WEB_BASE_URL vuota: web app servita alla radice, percorsi invariati.");

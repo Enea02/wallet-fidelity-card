@@ -27,7 +27,7 @@ test("operatore: scelta del negozio, solo scanner e profilo, cambio negozio rico
   await expect(page.getByTestId("tab-clienti")).toHaveCount(0);
 
   // le sezioni del titolare non si aprono nemmeno scrivendo l'indirizzo
-  await page.goto("/clienti");
+  await page.goto("/app/clienti");
   await expect(page).toHaveURL(/\/scanner$/);
 
   await page.getByTestId("tab-profilo").click();
@@ -39,7 +39,7 @@ test("operatore: scelta del negozio, solo scanner e profilo, cambio negozio rico
   await expect(page.getByTestId("profilo-negozio")).toHaveText("Barbiere Demo");
 
   // riaprendo l'app il negozio è quello dell'ultima volta
-  await page.goto("/");
+  await page.goto("/app");
   await expect(page).toHaveURL(/\/scanner$/);
   await page.getByTestId("tab-profilo").click();
   await expect(page.getByTestId("profilo-negozio")).toHaveText("Barbiere Demo");

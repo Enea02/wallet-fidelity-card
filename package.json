@@ -29,7 +29,7 @@
     "support:add": "pnpm --filter @loyalty/web support:add",
     "support:phone-hash": "pnpm --filter @loyalty/web support:phone-hash",
     "lighthouse": "node scripts/lighthouse.mjs",
-    "e2e": "pnpm --filter @loyalty/web e2e && pnpm --filter @loyalty/merchant e2e",
+    "e2e": "turbo run build --filter=@loyalty/web && pnpm --filter @loyalty/web e2e:only && pnpm --filter @loyalty/merchant e2e",
     "video": "pnpm --filter @loyalty/video studio",
     "video:render": "pnpm --filter @loyalty/video render",
     "dev:merchant": "pnpm db:start && turbo run dev:hot --filter=@loyalty/web --filter=@loyalty/merchant"
