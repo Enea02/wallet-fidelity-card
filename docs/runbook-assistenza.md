@@ -624,6 +624,11 @@ Ogni riga di log ha un campo `event` (uno di questi) e un `msg` da leggere.
 | Evento | Livello | Quando compare | Esempio di `msg` |
 | --- | --- | --- | --- |
 | `auth.token.invalid` | warn | Richiesta all'API esercente con un token di accesso scaduto o non valido: l'app deve far rifare il login. | Accesso rifiutato a /api/v1/merchant/stamp: token scaduto. L'utente deve rifare il login. |
+| `auth.login.ok` | info | Password corretta nel login unico (/accesso). Dice se la persona è nel team e in quanti negozi lavora, e il passo successivo. | Password corretta su /accesso per gi***@salone-mario.it (non nel team, 1 negozio): entra nella web app esercente. |
+| `auth.login.failed` | warn | Login unico (/accesso) rifiutato al passo della password. | Accesso rifiutato su /accesso per gi***@salone-mario.it: email o password non corrette. Se la persona è sicura dei dati, farle usare «Password dimenticata?» nell'app. |
+| `auth.login.destination` | info | Fine del login unico: dove entra la persona (pannello interno o web app esercente) e perché. | L'utente a1b2c3d4-0000-4000-8000-000000000001 entra nella web app esercente (è l'unico a cui ha diritto). |
+| `auth.logout` | info | Uscita dalla sessione web: vale sia per il pannello interno sia per la web app esercente. | L'utente a1b2c3d4-0000-4000-8000-000000000001 è uscito dalla sessione web dalla web app esercente: la sessione è chiusa per entrambi. |
+| `auth.session.handoff` | info | La web app esercente ha passato al server la sessione aperta dal link dell'email (invito o nuova password): da qui vale il cookie. | Sessione dell'utente a1b2c3d4-0000-4000-8000-000000000001 aperta dal link dell'email (invito) e passata ai cookie della sessione web. |
 | `auth.forbidden.shop` | warn | Un utente autenticato ha chiesto dati o operazioni di un negozio a cui non appartiene. | Accesso a /api/v1/merchant/customers negato: l'utente 55555555-5555-4555-8555-555555555555 non fa parte dello staff del negozio 99999999-9999-4999-8999-999999999999. |
 | `auth.forbidden.role` | warn | Un operatore ha chiesto una funzione riservata al titolare. | Giulia (operatore, iOS 1.4.0) ha chiesto /api/v1/merchant/stats del negozio Salone Mario, riservata al titolare: negato. |
 
@@ -1180,8 +1185,8 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 ### `E_LOGIN_FAILED` (HTTP 401)
 
 - **L'utente vede**: Email o password non corrette.
-- **Cosa è successo**: Il login dello staff è stato rifiutato da Supabase Auth.
-- **Causa probabile**: Password sbagliata, email diversa da quella dell'invito, oppure invito mai accettato.
+- **Cosa è successo**: Login rifiutato da Supabase Auth: sul web dal login unico (/accesso, evento auth.login.failed), nelle app iOS/Android dalla schermata di accesso.
+- **Causa probabile**: Password sbagliata, email diversa da quella dell'invito, invito mai accettato; dopo molti tentativi Supabase blocca per qualche minuto.
 - **Cosa fare**: Far usare "Password dimenticata?". Se l'invito non è mai stato accettato, il titolare può reinviarlo dalla sezione Staff.
 
 ### `E_SESSION_EXPIRED` (HTTP 401)
@@ -1217,7 +1222,14 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 - **L'utente vede**: Accedi al pannello interno per continuare.
 - **Cosa è successo**: Richiesta al pannello interno senza una sessione valida (mai entrati, sessione scaduta o uscita).
 - **Causa probabile**: Sessione di 12 ore scaduta, cookie cancellati o link del pannello aperto da un altro browser.
-- **Cosa fare**: Rientrare da /interno/accesso. Se succede subito dopo l'accesso, controllare che il browser accetti i cookie.
+- **Cosa fare**: Rientrare da /accesso. Se succede subito dopo l'accesso, controllare che il browser accetti i cookie.
+
+### `E_LOGIN_NO_ACCESS` (HTTP 403)
+
+- **L'utente vede**: Questo account non è collegato a nessun negozio. Chiedi al titolare di invitarti con questa email.
+- **Cosa è successo**: Password corretta su /accesso, ma l'account non è nello staff di nessun negozio né nel team interno: nessuna sessione aperta.
+- **Causa probabile**: Staff rimosso dal titolare, invito fatto a un'altra email, oppure account di prova.
+- **Cosa fare**: Controllare nella vista Assistenza (ricerca per email staff) se è nello staff di un negozio; altrimenti va invitato dal titolare.
 
 ### `E_SUPPORT_FORBIDDEN` (HTTP 403)
 
