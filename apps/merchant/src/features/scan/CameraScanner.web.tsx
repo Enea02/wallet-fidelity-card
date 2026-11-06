@@ -28,7 +28,8 @@ async function makeDetector(): Promise<Detector> {
   const { BarcodeDetector, prepareZXingModule } = await import("barcode-detector/ponyfill");
   prepareZXingModule({
     overrides: {
-      locateFile: (path: string, prefix: string) => (path.endsWith(".wasm") ? withBase(`/zxing/${path}`) : prefix + path),
+      locateFile: (path: string, prefix: string) =>
+        path.endsWith(".wasm") ? withBase(`/zxing/${path}`) : prefix + path,
     },
   });
   return new BarcodeDetector({ formats: ["qr_code"] });
