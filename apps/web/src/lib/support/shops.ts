@@ -9,6 +9,7 @@ import { log } from "../observability/logger";
 import { supabaseAdmin } from "../supabase";
 import type { Shop } from "../types";
 import type { SupportUser } from "./session";
+import { merchantAppUrl } from "../merchant-app";
 
 /*
  * Negozi dal pannello interno: elenco, creazione con invito del titolare, sospensione e
@@ -99,9 +100,8 @@ export async function createShop(input: z.output<typeof NewShopInput>, user: Sup
   if (error) throw error;
   let ownerId = existingId as string | null;
   if (!ownerId) {
-    const base = process.env.MERCHANT_APP_URL ?? process.env.APP_BASE_URL ?? "";
     const { data, error: inviteError } = await db.auth.admin.inviteUserByEmail(input.ownerEmail, {
-      redirectTo: `${base.replace(/\/$/, "")}/invito`,
+      redirectTo: `${merchantAppUrl()}/invito`,
       data: { name: input.ownerName, shop_name: input.name },
     });
     if (inviteError || !data.user) {

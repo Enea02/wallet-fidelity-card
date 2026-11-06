@@ -8,6 +8,7 @@ import { log } from "../observability/logger";
 import { supabaseAdmin } from "../supabase";
 import type { Shop } from "../types";
 import { callDomain, staffMeta } from "./domain-call";
+import { merchantAppUrl } from "../merchant-app";
 
 type Member = z.input<typeof StaffMember>;
 
@@ -65,9 +66,8 @@ export async function inviteStaff(
 
   let memberId = existingId as string | null;
   if (!memberId) {
-    const base = process.env.MERCHANT_APP_URL ?? process.env.APP_BASE_URL ?? "";
     const { data, error: inviteError } = await db.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${base.replace(/\/$/, "")}/invito`,
+      redirectTo: `${merchantAppUrl()}/invito`,
       data: { name: input.displayName, shop_name: shop.name },
     });
     if (inviteError || !data.user) {
@@ -142,9 +142,8 @@ export async function resendInvite(shop: Shop, memberId: string, actor: ActorFie
       { userMessage: `${member.displayName} ha già accettato l'invito e può accedere con la sua password.` },
     );
   }
-  const base = process.env.MERCHANT_APP_URL ?? process.env.APP_BASE_URL ?? "";
   const { error } = await supabaseAdmin().auth.admin.inviteUserByEmail(member.email, {
-    redirectTo: `${base.replace(/\/$/, "")}/invito`,
+    redirectTo: `${merchantAppUrl()}/invito`,
     data: { name: member.displayName, shop_name: shop.name },
   });
   if (error) {

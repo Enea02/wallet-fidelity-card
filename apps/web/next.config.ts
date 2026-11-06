@@ -27,6 +27,27 @@ const MERCHANT_BASE = "/app";
 /** Schermate dell'app: tutto tranne le cartelle dei file statici e i percorsi con un'estensione (file mancanti → 404). */
 const MERCHANT_SCREEN = "(?!_expo/|assets/|icons/|zxing/)(?!.*\\.[a-z0-9]+$).*";
 
+/**
+ * Solo `pnpm dev`: l'app esercente non è compilata ma servita da Metro (MERCHANT_DEV_URL, es.
+ * http://localhost:8081, avviato con baseUrl /app e --no-dev perché expo-router applica il prefisso
+ * solo fuori dalla modalità dev). Next inoltra a Metro le schermate e i percorsi da cui Metro serve
+ * bundle e asset, così in sviluppo c'è un solo indirizzo (http://localhost:3000) come in produzione.
+ */
+function merchantDevProxy() {
+  const target = process.env.MERCHANT_DEV_URL?.replace(/\/$/, "");
+  if (!target || process.env.NODE_ENV === "production") return [];
+  return [
+    { source: MERCHANT_BASE, destination: `${target}${MERCHANT_BASE}` },
+    { source: `${MERCHANT_BASE}/:path*`, destination: `${target}${MERCHANT_BASE}/:path*` },
+    // bundle, asset e sorgenti per gli stack trace: Metro li serve dalla radice del monorepo
+    ...["apps", "node_modules", "packages", "assets", "_expo", "symbolicate"].map((dir) => ({
+      source: `/${dir}/:path*`,
+      destination: `${target}/${dir}/:path*`,
+    })),
+    { source: "/assets", destination: `${target}/assets` },
+  ];
+}
+
 const nextConfig: NextConfig = {
   // google-auth-library usa moduli Node: resta lato server
   serverExternalPackages: ["jsonwebtoken", "@react-pdf/renderer"],
@@ -48,7 +69,7 @@ const nextConfig: NextConfig = {
   // quindi /app non finisce mai in [shop] (e "app" è anche uno slug riservato).
   async rewrites() {
     return {
-      beforeFiles: [],
+      beforeFiles: merchantDevProxy(),
       afterFiles: [
         { source: MERCHANT_BASE, destination: `${MERCHANT_BASE}/index.html` },
         { source: `${MERCHANT_BASE}/:path(${MERCHANT_SCREEN})`, destination: `${MERCHANT_BASE}/index.html` },

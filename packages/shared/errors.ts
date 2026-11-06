@@ -242,9 +242,12 @@ export const errors = {
   E_CORS_ORIGIN: {
     status: 403,
     userMessage: "Accesso non consentito da questo sito.",
-    description: "Richiesta dal browser con un'origine non presente in MERCHANT_APP_ORIGINS.",
-    probableCause: "Web app esercente pubblicata su un dominio nuovo non ancora configurato, oppure sito di terzi.",
-    action: "Se il dominio è nostro, aggiungerlo a MERCHANT_APP_ORIGINS e rifare il deploy.",
+    description:
+      "Richiesta dal browser con un'origine diversa dal sito (APP_BASE_URL) e non presente in MERCHANT_APP_ORIGINS.",
+    probableCause:
+      "APP_BASE_URL diverso dal dominio da cui si apre l'app (es. dominio nuovo o www/senza www), oppure sito di terzi.",
+    action:
+      "La web app esercente sta su APP_BASE_URL/app: correggere APP_BASE_URL nel progetto Vercel; per un'origine in più (es. sviluppo) aggiungerla a MERCHANT_APP_ORIGINS. Poi rifare il deploy.",
   },
   E_GOOGLE_AUTH: {
     status: 502,

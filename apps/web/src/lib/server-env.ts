@@ -48,14 +48,22 @@ export const serverEnvSchema = z
     MERCHANT_APP_ORIGINS: z
       .string()
       .refine((v) => v.split(",").every((o) => URL.canParse(o.trim()) && !o.trim().endsWith("/")), {
-        message:
-          "elenco di origini separate da virgola, es. https://app.esempio.it,http://localhost:8081 (senza / finale)",
+        message: "elenco di origini separate da virgola, es. http://localhost:8081 (senza / finale)",
       })
-      .describe("origini della web app esercente ammesse da CORS, separate da virgola"),
+      .optional()
+      .describe(
+        "altre origini ammesse da CORS oltre al sito (la web app esercente è su APP_BASE_URL/app), separate da virgola",
+      ),
     MERCHANT_APP_URL: z
       .url()
       .optional()
-      .describe("URL della web app esercente per i link d'invito (default APP_BASE_URL)"),
+      .describe("URL della web app esercente per i link d'invito (default APP_BASE_URL/app)"),
+    MERCHANT_DEV_URL: z
+      .url()
+      .optional()
+      .describe(
+        "solo sviluppo: server Metro dell'app esercente a cui `next dev` inoltra /app (es. http://localhost:8081)",
+      ),
     RATE_LIMIT_USER_PER_MIN: z.coerce.number().int().positive().default(120).describe("richieste al minuto per utente"),
     RATE_LIMIT_IP_PER_MIN: z.coerce.number().int().positive().default(300).describe("richieste al minuto per IP"),
     CRON_SECRET: z

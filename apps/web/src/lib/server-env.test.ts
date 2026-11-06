@@ -36,6 +36,11 @@ describe("configurazione del server web", () => {
     expect(env.GOOGLE_WALLET_ISSUER_ID).toBeUndefined();
   });
 
+  it("MERCHANT_APP_ORIGINS è facoltativa: la web app esercente sta sulla stessa origine del sito", () => {
+    const { MERCHANT_APP_ORIGINS: _, ...rest } = base;
+    expect(() => loadServerEnv(rest)).not.toThrow();
+  });
+
   it("accetta Google Wallet completo", () => {
     expect(() =>
       loadServerEnv({ ...base, GOOGLE_WALLET_ISSUER_ID: "3388000000022", GOOGLE_WALLET_SA_KEY_B64: saKey }),

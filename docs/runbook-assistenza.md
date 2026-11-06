@@ -1040,9 +1040,9 @@ Il codice (`error_code` nei log, `error.code` nelle risposte API) indica cosa è
 ### `E_CORS_ORIGIN` (HTTP 403)
 
 - **L'utente vede**: Accesso non consentito da questo sito.
-- **Cosa è successo**: Richiesta dal browser con un'origine non presente in MERCHANT_APP_ORIGINS.
-- **Causa probabile**: Web app esercente pubblicata su un dominio nuovo non ancora configurato, oppure sito di terzi.
-- **Cosa fare**: Se il dominio è nostro, aggiungerlo a MERCHANT_APP_ORIGINS e rifare il deploy.
+- **Cosa è successo**: Richiesta dal browser con un'origine diversa dal sito (APP_BASE_URL) e non presente in MERCHANT_APP_ORIGINS.
+- **Causa probabile**: APP_BASE_URL diverso dal dominio da cui si apre l'app (es. dominio nuovo o www/senza www), oppure sito di terzi.
+- **Cosa fare**: La web app esercente sta su APP_BASE_URL/app: correggere APP_BASE_URL nel progetto Vercel; per un'origine in più (es. sviluppo) aggiungerla a MERCHANT_APP_ORIGINS. Poi rifare il deploy.
 
 ### `E_GOOGLE_AUTH` (HTTP 502)
 
