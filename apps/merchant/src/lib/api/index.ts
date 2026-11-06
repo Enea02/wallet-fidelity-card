@@ -18,7 +18,10 @@ export const api = createApiClient({
   platform: app.platform,
   appVersion: app.version,
   build: app.build,
+  // app native: token della sessione Supabase. Web: di solito nessun token (vale il cookie httpOnly
+  // della sessione web); c'è solo per un attimo dopo il link dell'email, finché non passa al server
   getAccessToken: async () => (await supabase.auth.getSession()).data.session?.access_token ?? null,
+  ...(app.platform === "web" && { credentials: "include" as const }),
   refreshSession: async () => {
     const { data, error } = await supabase.auth.refreshSession();
     return error ? null : (data.session?.access_token ?? null);

@@ -6,7 +6,7 @@ import type { z } from "zod";
 
 /*
  * Client unico delle API esercente. Per ogni chiamata:
- * token, X-Request-Id (generato qui: lo stesso id finisce nel log del backend), piattaforma,
+ * token (app native; sul web il cookie della sessione), X-Request-Id (generato qui: lo stesso id finisce nel log del backend), piattaforma,
  * versione e build, X-Shop-Id; validazione della risposta con lo schema zod del registro;
  * errori convertiti in ApiError con il messaggio del catalogo e il codice assistenza.
  * Senza dipendenze da React Native: le dipendenze arrivano da createApiClient (testabile).
@@ -59,6 +59,8 @@ export interface ApiDeps {
   /** Rinnovo fallito: l'app chiude la sessione e torna al login. */
   onSessionExpired: () => void;
   isOnline: () => boolean;
+  /** Web: "include" per mandare il cookie della sessione web (login unico su /accesso). */
+  credentials?: RequestCredentials;
   /** Registra app.api.error (buffer e Sentry). */
   logError: (fields: AppApiErrorFields) => void;
   timeoutMs?: number;
@@ -111,7 +113,12 @@ export function createApiClient(deps: ApiDeps) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      return await deps.fetch(url, { ...init, headers, signal: controller.signal });
+      return await deps.fetch(url, {
+        ...init,
+        headers,
+        signal: controller.signal,
+        ...(deps.credentials && { credentials: deps.credentials }),
+      });
     } finally {
       clearTimeout(timer);
     }

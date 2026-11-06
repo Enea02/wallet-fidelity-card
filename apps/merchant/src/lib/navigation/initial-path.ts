@@ -12,6 +12,11 @@ let initial: string | null =
     ? `${stripBase(window.location.pathname)}${window.location.search}`
     : null;
 
+/** L'indirizzo iniziale senza consumarlo (per tornarci dopo il login sul web), null se è la radice. */
+export function peekInitialPath(): string | null {
+  return initial && initial !== "/" ? initial : null;
+}
+
 /** L'indirizzo iniziale, una volta sola, se è una sezione che il ruolo può vedere. */
 export function takeInitialPath(role: Role): string | null {
   const path = initial;
