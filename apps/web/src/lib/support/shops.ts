@@ -68,35 +68,6 @@ export function parseForm<S extends z.ZodType>(schema: S, value: unknown): z.out
   );
 }
 
-export interface ShopRow {
-  id: string;
-  slug: string;
-  name: string;
-  status: "active" | "suspended";
-  created_at: string;
-  customers: number;
-  staff: number;
-}
-
-export async function listShops(query?: string): Promise<ShopRow[]> {
-  const db = supabaseAdmin();
-  let q = db.from("shops").select("id, slug, name, status, created_at").order("name");
-  if (query) q = q.or(`slug.ilike.%${query.replace(/[%,()]/g, "")}%,name.ilike.%${query.replace(/[%,()]/g, "")}%`);
-  const { data, error } = await q.limit(200);
-  if (error) throw error;
-  const shops = (data ?? []) as Array<Omit<ShopRow, "customers" | "staff">>;
-  const counts = await Promise.all(
-    shops.map(async (s) => {
-      const [c, st] = await Promise.all([
-        db.from("customers").select("id", { count: "exact", head: true }).eq("shop_id", s.id).is("deleted_at", null),
-        db.from("staff").select("user_id", { count: "exact", head: true }).eq("shop_id", s.id),
-      ]);
-      return { customers: c.count ?? 0, staff: st.count ?? 0 };
-    }),
-  );
-  return shops.map((s, i) => ({ ...s, ...counts[i]! }));
-}
-
 export interface StaffRow {
   user_id: string;
   display_name: string;

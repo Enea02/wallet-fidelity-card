@@ -46,7 +46,7 @@ export default async function Richiesta({ params }: { params: Promise<{ requestI
             {card && (
               <>
                 {" · "}
-                <Link href={`/interno?q=${card}`}>carta {card}</Link>
+                <Link href={`/interno/assistenza?q=${card}`}>carta {card}</Link>
               </>
             )}
           </p>

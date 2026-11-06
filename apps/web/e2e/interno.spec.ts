@@ -105,7 +105,7 @@ async function waitForLog(requestId: string, event: string) {
 /** Dalla ricerca del codice alla spiegazione dell'errore: controlla codice, azione e tempo. */
 async function diagnose(page: Page, supportCode: string, errorCode: string, action: RegExp) {
   const started = Date.now();
-  await page.goto("/interno");
+  await page.goto("/interno/assistenza");
   await page.getByTestId("cerca").fill(supportCode);
   await page.getByTestId("cerca-invia").click();
   const explanation = page.getByTestId("errore-catalogo").filter({ hasText: errorCode }).first();
@@ -153,7 +153,13 @@ test.describe("accesso", () => {
 
   test("con password e codice si entra; Esci chiude la sessione", async ({ page }) => {
     await login(page);
-    await expect(page.getByRole("heading", { name: "Assistenza" })).toBeVisible();
+    // si arriva sulla Panoramica; la ricerca in alto porta alla vista Assistenza
+    await expect(page.getByTestId("panoramica-titolo")).toContainText("Assistenza E2E");
+    await expect(page.getByTestId("panoramica-indicatori")).toContainText("Negozi attivi");
+    await page.getByTestId("cerca-globale").fill("salone-demo");
+    await page.getByTestId("cerca-globale").press("Enter");
+    await expect(page).toHaveURL(/\/interno\/assistenza\?q=salone-demo$/);
+    await expect(page.getByTestId("risultati")).toContainText("Salone Demo");
     await page.getByTestId("esci").click();
     await expect(page).toHaveURL(/\/interno\/accesso$/);
     await page.goto("/interno");
@@ -285,6 +291,14 @@ test.describe("pannello con un accesso solo (un codice TOTP vale una volta)", ()
     await expect(page.getByTestId("negozio-stato")).toHaveText("sospeso");
     const res = await page.request.get(`/${slug}`);
     expect(await res.text()).toContain("sospes");
+
+    // nell'elenco a card: tra i sospesi, con la data e il motivo della sospensione
+    await page.goto(`/interno/negozi?stato=sospesi&q=${slug}`);
+    const card = page.getByTestId(`negozio-${slug}`);
+    await expect(card).toContainText("sospeso");
+    await expect(card).toContainText("prova di sospensione");
+    await page.goto(`/interno/negozi?stato=attivi&q=${slug}`);
+    await expect(page.getByTestId(`negozio-${slug}`)).toHaveCount(0);
 
     const { data: shop } = await admin.from("shops").select("id").eq("slug", slug).single();
     const { data: owner } = await admin.from("staff").select("user_id").eq("shop_id", shop!.id).single();

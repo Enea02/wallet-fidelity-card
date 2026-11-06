@@ -221,8 +221,10 @@ la carta nel wallet riceve una notifica. Nella sezione **Tessere** si possono cr
 
 ## Pannello interno e vista Assistenza
 
-Su `/interno` (stessa app web, non indicizzato): negozi (creazione con invito del titolare, sospensione, dati per
-l'informativa), vista Assistenza (ricerca per codice `ERR-…`, ticket `DIAG-…`, codice errore, carta, telefono, email
+Su `/interno` (stessa app web, non indicizzato), con barra laterale: Panoramica della rete (indicatori, cose da
+guardare, servizi esterni, attività di 30 giorni, ultime modifiche), negozi a card o in tabella con filtri e scheda
+negozio (stato di salute, carta, staff, ultimi clienti; creazione con invito del titolare, sospensione, dati per
+l'informativa), vista Assistenza su `/interno/assistenza` (ricerca per codice `ERR-…`, ticket `DIAG-…`, codice errore, carta, telefono, email
 staff, negozio; timeline unificata; stato della carta su Google con "Risincronizza"; GDPR), modalità diagnostica e
 pacchetti "Invia diagnostica". Guida d'uso in [`docs/runbook-assistenza.md`](docs/runbook-assistenza.md).
 
@@ -235,7 +237,9 @@ pnpm dev                                                               # poi htt
 
 Al primo accesso il pannello mostra il QR da inquadrare con Google Authenticator, 1Password o simili.
 I log del server sono copiati anche in Postgres (`log_events`, 30 giorni) per la timeline: `LOG_DB_SINK=off` li
-spegne. Codice: pagine in `apps/web/src/app/(internal)/interno/`, logica in `apps/web/src/lib/support/`.
+spegne. Codice: pagine in `apps/web/src/app/(internal)/interno/`, logica in `apps/web/src/lib/support/`; i numeri di
+Panoramica, card e scheda negozio vengono dalle funzioni Postgres di sola lettura `support_*_overview`
+(`supabase/migrations/*_panoramica_pannello_interno.sql`).
 
 ## Struttura
 

@@ -4,13 +4,33 @@ Come ricostruire cosa è successo partendo da una segnalazione, senza chiedere a
 Le sezioni **Eventi di log** ed **Errori** in fondo sono generate dai cataloghi del codice (`pnpm runbook`): non
 modificarle a mano. Il resto è scritto a mano e va aggiornato a ogni fase.
 
-Dove sono i log: nella **vista Assistenza** del pannello interno (`/interno`, ultimi 30 giorni: copia in Postgres,
+Dove sono i log: nella **vista Assistenza** del pannello interno (`/interno/assistenza`, ultimi 30 giorni: copia in Postgres,
 tabella `log_events`), e in produzione anche su **Axiom** (Vercel Log Drain), dataset del progetto web. In locale nel
 terminale di `pnpm dev`. Gli orari nei campi `ts` sono UTC; nel pannello e nei `msg` le date sono in ora italiana.
 
+## Panoramica: cosa guardare ogni mattina
+
+Pannello interno su `/interno` (solo il team, email + password + codice dell'app di autenticazione). La prima pagina è
+la **Panoramica** della rete (periodo Oggi / 7 / 30 giorni):
+
+- **Indicatori**: negozi attivi e sospesi, clienti iscritti, timbri/punti/scali dati, iscrizioni completate (OTP),
+  errori delle ultime 24 ore (rosso se ce ne sono) e carte non sincronizzate con Google (giallo se ce ne sono).
+- **Da guardare adesso**: un negozio per riga, con la cosa più grave. In ordine: carte o template non sincronizzati con
+  Google (`errore`), pacchetto "Invia diagnostica" arrivato nelle ultime 24 ore (`ticket`), titolare che non ha mai
+  fatto l'accesso (`invito`), negozio attivo da più di 14 giorni senza iscrizioni né attività (`inattivo`), modalità
+  diagnostica aperta (`diagnostica`). "Apri" porta alla scheda del negozio (o al ticket).
+- **Servizi esterni**: errori di Google Wallet ed SMS nelle ultime 24 ore, numeri bloccati, coda dei ritentativi.
+- Grafico dell'attività di 30 giorni (timbri, iscrizioni o errori), negozi più attivi, ultime modifiche dallo storico.
+
+Il numero rosso accanto a **Negozi** nella barra laterale conta i negozi con Google in errore o un ticket appena
+arrivato; quello accanto a **Diagnostica** i pacchetti arrivati nelle ultime 24 ore. In **Negozi** le card mostrano in
+alto la stessa cosa da guardare, con filtri per stato (con problemi, inviti in attesa, inattivi, sospesi) e programma;
+la **scheda negozio** riassume indicatori, attività giorno per giorno, carta, stato di salute (Google, iscrizioni,
+staff, dati per l'informativa, diagnostica), staff, ultimi clienti ed eventi, con le azioni in fondo.
+
 ## Vista Assistenza: da dove partire
 
-Pannello interno su `/interno` (solo il team, email + password + codice dell'app di autenticazione). Un solo campo di
+Vista **Assistenza** su `/interno/assistenza` (anche dal campo di ricerca in alto nella Panoramica). Un solo campo di
 ricerca riconosce da solo cosa si è scritto:
 
 | Si scrive | Si apre |
