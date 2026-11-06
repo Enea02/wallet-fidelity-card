@@ -9,13 +9,13 @@
     "start": "node scripts/copy-zxing.mjs && expo start",
     "ios": "expo run:ios",
     "android": "expo run:android",
-    "build": "node scripts/copy-zxing.mjs && expo export --platform web --output-dir dist",
+    "build": "node scripts/build-web.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run && jest",
     "e2e": "playwright test",
     "icons": "node scripts/gen-icons.mjs",
-    "sourcemaps:web": "node scripts/copy-zxing.mjs && expo export --platform web --output-dir dist --source-maps && sentry-cli sourcemaps upload dist"
+    "sourcemaps:web": "node scripts/build-web.mjs --source-maps && sentry-cli sourcemaps upload dist"
   },
   "dependencies": {
     "@expo-google-fonts/bricolage-grotesque": "^0.4.1",

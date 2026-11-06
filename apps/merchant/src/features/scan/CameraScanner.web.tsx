@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { log } from "@/lib/diagnostics/logger";
+import { withBase } from "@/lib/web-base";
 import { Icon } from "@/ui/Icon";
 import { T } from "@/ui/Text";
 import { space, useTheme } from "@/ui/theme";
@@ -27,7 +28,7 @@ async function makeDetector(): Promise<Detector> {
   const { BarcodeDetector, prepareZXingModule } = await import("barcode-detector/ponyfill");
   prepareZXingModule({
     overrides: {
-      locateFile: (path: string, prefix: string) => (path.endsWith(".wasm") ? `/zxing/${path}` : prefix + path),
+      locateFile: (path: string, prefix: string) => (path.endsWith(".wasm") ? withBase(`/zxing/${path}`) : prefix + path),
     },
   });
   return new BarcodeDetector({ formats: ["qr_code"] });

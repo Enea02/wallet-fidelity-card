@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import type { Role } from "@loyalty/shared/api";
+import { stripBase } from "../web-base";
 import { canSee, sectionOf } from "./sections";
 
 /*
@@ -8,7 +9,7 @@ import { canSee, sectionOf } from "./sections";
  */
 let initial: string | null =
   Platform.OS === "web" && typeof window !== "undefined"
-    ? `${window.location.pathname}${window.location.search}`
+    ? `${stripBase(window.location.pathname)}${window.location.search}`
     : null;
 
 /** L'indirizzo iniziale, una volta sola, se è una sezione che il ruolo può vedere. */

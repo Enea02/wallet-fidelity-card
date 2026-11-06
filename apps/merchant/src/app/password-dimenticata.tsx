@@ -12,10 +12,13 @@ import { Screen } from "@/ui/Screen";
 import { T } from "@/ui/Text";
 import { TextField } from "@/ui/TextField";
 import { isEmail } from "@/lib/validation";
+import { withBase } from "@/lib/web-base";
 
 /** Il link porta alla web app (funziona su qualsiasi dispositivo); con il dominio aprirà anche l'app. */
 const resetUrl = () =>
-  `${Platform.OS === "web" && typeof window !== "undefined" ? window.location.origin : config.webUrl}/nuova-password`;
+  Platform.OS === "web" && typeof window !== "undefined"
+    ? `${window.location.origin}${withBase("/nuova-password")}`
+    : `${config.webUrl}/nuova-password`;
 
 export default function PasswordDimenticata() {
   const params = useLocalSearchParams<{ email?: string }>();
