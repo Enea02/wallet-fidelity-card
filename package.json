@@ -32,6 +32,8 @@
     "e2e": "turbo run build --filter=@loyalty/web && pnpm --filter @loyalty/web e2e:only && pnpm --filter @loyalty/merchant e2e",
     "video": "pnpm --filter @loyalty/video studio",
     "video:render": "pnpm --filter @loyalty/video render",
+    "motion": "pnpm --filter @loyalty/motion dev",
+    "motion:render": "pnpm --filter @loyalty/motion render",
     "dev:merchant": "pnpm db:start && turbo run dev:hot --filter=@loyalty/web --filter=@loyalty/merchant"
   },
   "devDependencies": {

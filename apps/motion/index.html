@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="data:," />
+    <title>Loyalty Wallet — motion</title>
+    <link rel="stylesheet" href="/vendor/font/index.css" />
+    <link rel="stylesheet" href="/src/brand.css" />
+    <script src="/vendor/gsap.min.js"></script>
+  </head>
+  <body>
+    <div id="viewport"><div id="stage"></div></div>
+    <div id="controls">
+      <button id="play" title="Play/pausa (spazio)">▶</button>
+      <input id="scrub" type="range" min="0" max="1" step="0.001" value="0" />
+      <span id="clock">0.00 s</span>
+      <select id="scene"></select>
+      <label><input id="loop" type="checkbox" /> ripeti scena</label>
+      <span id="subtitle"></span>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "@loyalty/motion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Promo in motion graphics (HTML + GSAP, render deterministico con Playwright + ffmpeg), tagli sulla musica.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "render": "node scripts/render.mjs",
+    "sheet": "node scripts/render.mjs --sheet",
+    "still": "node scripts/render.mjs --still",
+    "markers": "node scripts/markers.mjs",
+    "beats": "python3 scripts/beats.py",
+    "voce": "node scripts/voce.mjs",
+    "audio": "node scripts/audio.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "gsap": "^3.15.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "~1.64.0"
+  },
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
