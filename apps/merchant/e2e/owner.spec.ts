@@ -32,7 +32,7 @@ test("operatore: nessuna schermata del titolare, nemmeno dall'indirizzo", async 
   }
   // anche ricaricando direttamente un indirizzo del titolare si finisce sullo scanner
   for (const path of [...OWNER_PATHS, `/clienti/${c.id}`]) {
-    await page.goto(path);
+    await page.goto(`/app${path}`);
     await expect(page, `${path} non deve aprirsi per l'operatore`).toHaveURL(/\/scanner$/);
   }
   await expect(page.getByText("Zeno Nascosto")).toHaveCount(0);

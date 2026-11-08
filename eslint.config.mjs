@@ -16,6 +16,7 @@ export default tseslint.config(
       "docs/design/**",
       "apps/merchant/.expo/**",
       "apps/merchant/dist-e2e/**",
+      "apps/web/public/app/**",
       "apps/merchant/build-iphone/**",
       "apps/merchant/playwright-report/**",
       "apps/merchant/test-results/**",

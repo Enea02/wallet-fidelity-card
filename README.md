@@ -22,8 +22,10 @@ pnpm dev
 ```
 
 `pnpm dev` avvia Supabase in locale (migrazioni e dati di prova inclusi), crea `apps/web/.env.local` al primo avvio
-e lancia il web su <http://localhost:3000>. All'avvio il server scrive una riga che riepiloga ambiente, versione e
-servizi attivi (`server.startup.ok`); se manca una variabile il server non parte e dice quale.
+e lancia **un solo indirizzo**, <http://localhost:3000>, con tutto dentro: sito pubblico, login unico su `/accesso`,
+pannello interno su `/interno`, web app esercente su `/app` e API. All'avvio il server scrive una riga che riepiloga
+ambiente, versione, servizi attivi e stato della web app esercente (`server.startup.ok`); se manca una variabile il
+server non parte e dice quale.
 
 Dati di prova (`supabase/seed.sql`, **solo locale**):
 
@@ -44,8 +46,10 @@ funzionano lo stesso, senza il pulsante "Aggiungi a Google Wallet".
 
 | Comando                           | Cosa fa                                                                                   |
 | --------------------------------- | ----------------------------------------------------------------------------------------- |
-| `pnpm dev`                        | Supabase locale + web in sviluppo                                                         |
-| `pnpm build`                      | build di produzione di tutte le app                                                       |
+| `pnpm dev`                        | Supabase locale + tutto su <http://localhost:3000> (app esercente su `/app`)              |
+| `pnpm dev:web`                    | solo il server Next (su `/app` l'ultima build dell'app esercente, se c'è)                 |
+| `pnpm dev:merchant`               | server Next + app esercente con ricarica a caldo su <http://localhost:8081>               |
+| `pnpm build`                      | build di produzione (l'app esercente viene compilata e inclusa nel server su `/app`)      |
 | `pnpm typecheck`                  | TypeScript strict su tutto il monorepo                                                    |
 | `pnpm lint`                       | ESLint                                                                                    |
 | `pnpm format` / `format:check`    | Prettier (scrive / verifica)                                                              |
@@ -89,12 +93,15 @@ Finché mancano, l'informativa mostra "[… da completare]" evidenziato e in pro
 ## API dell'app esercente
 
 - Tutte sotto `/api/v1/merchant/*`, con contratti zod condivisi in `packages/shared/api/` (registro `merchantApi`).
-- Autenticazione: bearer token di Supabase Auth; il negozio su cui si opera va nell'header `X-Shop-Id`.
+- Autenticazione: bearer token di Supabase Auth (app iOS/Android) oppure il cookie httpOnly della sessione web (web app
+  su `/app`, login unico su `/accesso`); il negozio su cui si opera va nell'header `X-Shop-Id`.
   Operatore: scansione, timbri, riscatti, diagnostica. Titolare: anche statistiche, clienti, impostazioni, staff,
   promozioni, cartello PDF.
 - Documentazione navigabile (solo in sviluppo): <http://localhost:3000/api/v1/docs>.
 - Raccolta di richieste di esempio in [`bruno/`](bruno/README.md): `pnpm api:try` la esegue tutta con il server avviato.
-- Rate limit in Postgres (120/min per utente, 300/min per IP), CORS solo per `MERCHANT_APP_ORIGINS`.
+- Rate limit in Postgres (120/min per utente, 300/min per IP). CORS: l'origine del sito (`APP_BASE_URL`) è sempre
+  ammessa, altre origini solo da `MERCHANT_APP_ORIGINS` (es. `http://localhost:8081` per la ricarica a caldo). Con il
+  cookie, le richieste che cambiano dati devono avere un'`Origin` ammessa (protezione CSRF, insieme a `SameSite=Lax`).
 
 ## App esercente (iOS, Android, Web)
 
@@ -102,11 +109,18 @@ Expo SDK 57 + Expo Router in `apps/merchant`, una sola codebase per le tre piatt
 `staff@salone-demo.test` (titolare) e `operatore@salone-demo.test` (operatore di due negozi), password
 `password-demo-locale`.
 
-| Dove              | Comando                                                                         |
-| ----------------- | ------------------------------------------------------------------------------- |
-| Browser           | `pnpm dev:merchant` → <http://localhost:8081> (avvia anche il backend su :3000) |
-| Simulatore iOS    | con il backend avviato (`pnpm dev`): `pnpm --filter @loyalty/merchant ios`      |
-| Emulatore Android | con il backend avviato (`pnpm dev`): `pnpm --filter @loyalty/merchant android`  |
+| Dove                      | Comando                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| Browser                   | `pnpm dev` → <http://localhost:3000/app> (stesso server del sito, come in produzione) |
+| Browser, ricarica a caldo | `pnpm dev:merchant` → <http://localhost:8081> (backend su :3000)                      |
+| Simulatore iOS            | con il backend avviato (`pnpm dev`): `pnpm --filter @loyalty/merchant ios`            |
+| Emulatore Android         | con il backend avviato (`pnpm dev`): `pnpm --filter @loyalty/merchant android`        |
+
+- Con `pnpm dev` Next inoltra `/app` al server Metro dell'app, avviato con il prefisso `/app` e `--no-dev` (expo-router
+  applica il prefisso solo fuori dalla modalità dev): niente ricarica a caldo, dopo una modifica si ricarica la pagina.
+  Per lavorare sulla UI con la ricarica a caldo c'è `pnpm dev:merchant` (app alla radice di :8081).
+- Sul web non c'è una schermata di accesso nell'app: aprendo `/app` senza sessione si va al **login unico** su
+  `/accesso` e poi si torna alla pagina di partenza. Le app iOS e Android hanno la loro schermata di accesso.
 
 - La prima build nativa genera `ios/` e `android/` (non versionate, si configurano da `app.config.ts`) e richiede
   Xcode / Android Studio; le successive aprono solo l'app. Sull'emulatore Android `localhost` diventa `10.0.2.2`.
@@ -115,8 +129,11 @@ Expo SDK 57 + Expo Router in `apps/merchant`, una sola codebase per le tre piatt
 - Struttura: `src/app/` rotte (Expo Router), `src/lib/api/client.ts` client unico delle API,
   `src/lib/session.tsx` sessione e negozio attivo, `src/lib/diagnostics/` logger, buffer, Sentry e "Invia
   diagnostica", `src/ui/` componenti del design system.
-- Web app installabile (PWA): `public/manifest.webmanifest` e `public/sw.js` (in cache solo i file dell'app, mai
-  i dati). `pnpm --filter @loyalty/merchant build` esporta in `apps/merchant/dist`.
+- Web app installabile (PWA): `public/manifest.webmanifest` e `public/sw.js` (scope `/app`: non tocca le pagine del
+  sito né del pannello; in cache solo i file dell'app, mai i dati). `pnpm --filter @loyalty/merchant build`
+  (`scripts/build-web.mjs`) esporta in `apps/merchant/dist` con il prefisso `/app`, sempre con la cache di Metro
+  pulita (non tiene conto dei valori `EXPO_PUBLIC_*`); `pnpm build` dalla radice la copia poi in
+  `apps/web/public/app` (`apps/web/scripts/copy-merchant.mjs`).
 - Test: `pnpm --filter @loyalty/merchant test` (unitari), `pnpm e2e` (web pubblico + web app esercente;
   serve `pnpm db:start`).
 
@@ -219,6 +236,30 @@ la carta nel wallet riceve una notifica. Nella sezione **Tessere** si possono cr
 `/customers/{id}/points`, `apps/merchant/src/features/points/`, schermata `/punti/[id]`; funzioni Postgres
 `points_action`, `adjust_points`, `update_points_settings`. Negozio demo: `bar-punti-demo`.
 
+## Server unico e deploy
+
+Sito pubblico, login unico, pannello interno, web app esercente e API stanno sullo **stesso server Next**, con una
+sola build e un solo deploy:
+
+| Percorso     | Cosa                                                                                                     |
+| ------------ | -------------------------------------------------------------------------------------------------------- |
+| `/<negozio>` | iscrizione dei clienti                                                                                   |
+| `/accesso`   | login unico: staff dei negozi (→ `/app`) e team interno (codice dell'app di autenticazione → `/interno`) |
+| `/interno`   | pannello interno                                                                                         |
+| `/app`       | web app esercente (export statico di `apps/merchant`, ogni percorso sotto `/app` riceve `index.html`)    |
+| `/api/…`     | API (le app iOS/Android le chiamano con il token Bearer)                                                 |
+
+- Vercel: **un solo progetto**, Root Directory `apps/web`; `apps/web/vercel.json` lancia
+  `turbo run build --filter=@loyalty/web`, che compila prima `apps/merchant` e lo copia in `public/app`. Nel progetto
+  servono anche le variabili `EXPO_PUBLIC_*` dell'app (vedi `apps/merchant/.env.example`), con
+  `EXPO_PUBLIC_API_URL=https://<dominio>` e `EXPO_PUBLIC_WEB_URL=https://<dominio>/app`.
+- Supabase (Auth → URL Configuration): tra i redirect consentiti `https://<dominio>/app/**`.
+- Il vecchio progetto Vercel della sola web app esercente va puntato su `deploy/redirect-app-esercente` (porta i
+  vecchi indirizzi, link d'invito compresi, su `/app` e disinstalla il vecchio service worker): istruzioni nel
+  [README della cartella](deploy/redirect-app-esercente/README.md).
+- Nel log di avvio (`server.startup.ok`) "web app esercente su /app inclusa (entry-…)"; "assente" vuol dire che la
+  build non l'ha copiata e `/app` risponde 404.
+
 ## Pannello interno e vista Assistenza
 
 Su `/interno` (stessa app web, non indicizzato), con barra laterale: Panoramica della rete (indicatori, cose da
@@ -228,16 +269,21 @@ l'informativa), vista Assistenza su `/interno/assistenza` (ricerca per codice `E
 staff, negozio; timeline unificata; stato della carta su Google con "Risincronizza"; GDPR), modalità diagnostica e
 pacchetti "Invia diagnostica". Guida d'uso in [`docs/runbook-assistenza.md`](docs/runbook-assistenza.md).
 
-Accesso solo al team, con password e codice dell'app di autenticazione (TOTP, attivo anche nel Supabase locale):
+Accesso dal **login unico** su `/accesso` (lo stesso dello staff dei negozi), solo per il team e sempre con il
+codice dell'app di autenticazione (TOTP, attivo anche nel Supabase locale). Chi è nel team e anche nello staff di un
+negozio, dopo il codice sceglie tra pannello e web app esercente; la sessione è una sola (cookie httpOnly), quindi
+"Esci" da una parte chiude anche l'altra.
 
 ```bash
 pnpm support:add tu@esempio.it --name "Il tuo nome" --by "setup"   # chiede la password (min 12 caratteri)
-pnpm dev                                                               # poi http://localhost:3000/interno
+pnpm dev                                                               # poi http://localhost:3000/accesso
 ```
 
 Al primo accesso il pannello mostra il QR da inquadrare con Google Authenticator, 1Password o simili.
 I log del server sono copiati anche in Postgres (`log_events`, 30 giorni) per la timeline: `LOG_DB_SINK=off` li
-spegne. Codice: pagine in `apps/web/src/app/(internal)/interno/`, logica in `apps/web/src/lib/support/`; i numeri di
+spegne. Codice: pagine in `apps/web/src/app/(internal)/interno/`, login unico in `apps/web/src/app/(internal)/accesso/`
+e `apps/web/src/lib/access.ts` (regole in `access-rules.ts`, sessione in `web-session.ts`), logica in
+`apps/web/src/lib/support/`; i numeri di
 Panoramica, card e scheda negozio vengono dalle funzioni Postgres di sola lettura `support_*_overview`
 (`supabase/migrations/*_panoramica_pannello_interno.sql`).
 
@@ -245,7 +291,8 @@ Panoramica, card e scheda negozio vengono dalle funzioni Postgres di sola lettur
 
 ```
 apps/
-  web/            Next.js 16: API, pagine pubbliche di iscrizione, pannello interno (/interno)
+  web/            Next.js 16: API, pagine pubbliche, login unico (/accesso), pannello interno (/interno);
+                  serve anche la web app esercente su /app (copiata in public/app al momento della build)
   merchant/       app esercente Expo (iOS, Android, Web)
 packages/
   shared/         codice condiviso: catalogo eventi di log, catalogo errori, logger e redazione, request_id, env

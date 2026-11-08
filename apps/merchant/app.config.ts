@@ -69,7 +69,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // carica source map e simboli nelle build di release solo se SENTRY_AUTH_TOKEN è presente (EAS/CI)
     ["@sentry/react-native/expo", { url: "https://sentry.io/", organization: SENTRY_ORG, project: SENTRY_PROJECT }],
   ],
-  experiments: { typedRoutes: true },
+  // web: l'app è servita dal server del sito sotto /app (scripts/build-web.mjs imposta EXPO_WEB_BASE_URL);
+  // le build native e `expo start` per lo sviluppo restano alla radice
+  experiments: { typedRoutes: true, ...(process.env.EXPO_WEB_BASE_URL && { baseUrl: process.env.EXPO_WEB_BASE_URL }) },
   extra: {
     build: process.env.APP_BUILD ?? "dev",
     eas: process.env.EAS_PROJECT_ID ? { projectId: process.env.EAS_PROJECT_ID } : undefined,

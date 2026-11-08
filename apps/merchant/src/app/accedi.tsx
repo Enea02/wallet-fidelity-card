@@ -1,7 +1,8 @@
 import { Link } from "expo-router";
-import { useRef, useState } from "react";
-import { View, type TextInput } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Platform, View, type TextInput } from "react-native";
 import type { AuthFailure } from "@/lib/auth/errors";
+import { goToWebLogin } from "@/lib/auth/web-login";
 import { isEmail } from "@/lib/validation";
 import { useOnline } from "@/lib/network";
 import { useSession } from "@/lib/session";
@@ -12,8 +13,29 @@ import { StampHero } from "@/ui/StampHero";
 import { T } from "@/ui/Text";
 import { TextField } from "@/ui/TextField";
 
-/** S1 · Accesso staff (email e password; il link via email resta per invito e recupero). */
+/** S1 · Accesso staff. Web: login unico su /accesso (stesso server); app native: email e password qui. */
 export default function Accedi() {
+  return Platform.OS === "web" ? <WebAccedi /> : <NativeAccedi />;
+}
+
+/** Web: si entra dal login unico, che dopo riporta qui nella pagina da cui si era partiti. */
+function WebAccedi() {
+  useEffect(() => goToWebLogin(), []);
+  return (
+    <Screen fill>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 16 }}>
+        <ActivityIndicator size="large" accessibilityLabel="Apertura della pagina di accesso" />
+        <T tone="ink2" center>
+          Apertura della pagina di accesso…
+        </T>
+        <Button label="Vai all'accesso" variant="secondary" onPress={() => goToWebLogin()} testID="vai-accesso" />
+      </View>
+    </Screen>
+  );
+}
+
+/** Email e password (il link via email resta per invito e recupero). */
+function NativeAccedi() {
   const { signIn, notice } = useSession();
   const online = useOnline();
   const [email, setEmail] = useState("");

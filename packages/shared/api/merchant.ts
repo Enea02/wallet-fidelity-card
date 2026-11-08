@@ -33,6 +33,21 @@ export const MeResponse = z.object({
   memberships: z.array(Membership),
 });
 
+/* ---------- sessione web (login unico su /accesso) ---------- */
+
+/**
+ * Passaggio al server della sessione aperta nell'app dal link dell'email (invito, nuova password):
+ * il token di accesso va nell'header Authorization, qui il token di rinnovo. Il server la scrive nei
+ * cookie httpOnly della sessione web; l'app poi dimentica la sua copia.
+ */
+export const HandoffReason = z.enum(["invito", "nuova password"]);
+export type HandoffReason = z.infer<typeof HandoffReason>;
+export const SessionHandoffBody = z.object({
+  refreshToken: z.string().min(10),
+  reason: HandoffReason,
+});
+export const OkResponse = z.object({ ok: z.literal(true) });
+
 export const ShopSummary = z.object({
   id: z.uuid(),
   name: z.string(),

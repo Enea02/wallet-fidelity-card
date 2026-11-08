@@ -5,17 +5,18 @@
   "description": "App esercente Expo (iOS, Android, Web) per titolare e staff.",
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "node scripts/copy-zxing.mjs && expo start --web --port 8081",
+    "dev": "node scripts/copy-zxing.mjs && EXPO_WEB_BASE_URL=/app expo start --no-dev --port 8081",
+    "dev:hot": "node scripts/copy-zxing.mjs && expo start --web --port 8081",
     "start": "node scripts/copy-zxing.mjs && expo start",
     "ios": "expo run:ios",
     "android": "expo run:android",
-    "build": "node scripts/copy-zxing.mjs && expo export --platform web --output-dir dist",
+    "build": "node scripts/build-web.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run && jest",
     "e2e": "playwright test",
     "icons": "node scripts/gen-icons.mjs",
-    "sourcemaps:web": "node scripts/copy-zxing.mjs && expo export --platform web --output-dir dist --source-maps && sentry-cli sourcemaps upload dist"
+    "sourcemaps:web": "node scripts/build-web.mjs --source-maps && sentry-cli sourcemaps upload dist"
   },
   "dependencies": {
     "@expo-google-fonts/bricolage-grotesque": "^0.4.1",

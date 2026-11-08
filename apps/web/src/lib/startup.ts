@@ -7,6 +7,13 @@ import { loadServerEnv } from "./server-env";
  * Valida la configurazione e scrive la riga di riepilogo `server.startup.ok`;
  * se la configurazione non è valida scrive `server.startup.failed` e blocca l'avvio.
  */
+/** Web app esercente: bundle copiato in public/app al momento della build (MERCHANT_APP_BUNDLE, next.config.ts). */
+function merchantAppStatus(devUrl: string | undefined): string {
+  if (devUrl && process.env.NODE_ENV !== "production") return `da Metro su ${devUrl} (sviluppo)`;
+  const bundle = process.env.MERCHANT_APP_BUNDLE;
+  return bundle ? `inclusa (${bundle})` : "assente";
+}
+
 export function runStartupChecks(): void {
   const version = process.env.APP_VERSION ?? "sconosciuta";
   try {
@@ -21,6 +28,7 @@ export function runStartupChecks(): void {
       google_wallet_enabled: Boolean(env.GOOGLE_WALLET_ISSUER_ID && env.GOOGLE_WALLET_SA_KEY_B64),
       apple_wallet_enabled: Boolean(env.APPLE_PASS_TYPE_ID && env.APPLE_TEAM_ID),
       log_level: env.LOG_LEVEL,
+      merchant_app: merchantAppStatus(env.MERCHANT_DEV_URL),
     });
   } catch (e) {
     if (!(e instanceof AppError) || e.code !== "E_CONFIG_INVALID") throw e;

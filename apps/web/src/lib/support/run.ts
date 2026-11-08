@@ -38,10 +38,11 @@ function flushAfter() {
   }
 }
 
+/** Login unico: senza sessione, fuori dal team o senza codice recente si va su /accesso. */
 const LOGIN_FOR: Partial<Record<ErrorCode, string>> = {
-  E_SUPPORT_UNAUTHORIZED: "/interno/accesso",
-  E_SUPPORT_FORBIDDEN: "/interno/accesso?errore=team",
-  E_SUPPORT_MFA_REQUIRED: "/interno/accesso/codice",
+  E_SUPPORT_UNAUTHORIZED: "/accesso?dest=interno",
+  E_SUPPORT_FORBIDDEN: "/accesso?errore=team",
+  E_SUPPORT_MFA_REQUIRED: "/accesso/codice?dest=interno",
 };
 
 /** Pagina del pannello: senza sessione valida rimanda all'accesso. */
@@ -56,6 +57,19 @@ export async function supportPage<T>(route: string, render: (user: SupportUser) 
       const target = e instanceof AppError ? LOGIN_FOR[e.code] : undefined;
       if (target) redirect(target);
       throw e;
+    } finally {
+      flushAfter();
+    }
+  });
+}
+
+/** Pagina del login unico (/accesso): stessa cornice di log, senza sessione richiesta. */
+export async function loginPage<T>(route: string, render: () => Promise<T>): Promise<T> {
+  const ctx = await requestContext(route);
+  return runWithContext(ctx, async () => {
+    try {
+      await refreshDiagnosticModes();
+      return await render();
     } finally {
       flushAfter();
     }
@@ -78,17 +92,18 @@ export async function supportAction<T>(
   return actionRun(name, (route) => requireSupport(route).then(run), opts);
 }
 
-/** Passi dell'accesso (password, codice): stessa cornice, senza sessione richiesta. */
+/** Passi del login unico (/accesso: password, codice, scelta): stessa cornice, senza sessione richiesta. */
 export async function loginAction<T>(name: string, run: () => Promise<T>): Promise<ActionResult<T>> {
-  return actionRun(name, () => run(), {});
+  return actionRun(name, () => run(), {}, "/accesso/azioni");
 }
 
 async function actionRun<T>(
   name: string,
   run: (route: string) => Promise<T>,
   opts: { message?: (data: T) => string },
+  prefix = "/interno/azioni",
 ): Promise<ActionResult<T>> {
-  const route = `/interno/azioni/${name}`;
+  const route = `${prefix}/${name}`;
   const ctx = { ...(await requestContext(route)), method: "POST" };
   const support_code = supportCodeFromRequestId(ctx.request_id);
   const started = performance.now();

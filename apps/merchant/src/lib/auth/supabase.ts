@@ -7,7 +7,8 @@ import { chunkedStorage, type KeyValueStore } from "./chunked-storage";
 
 /*
  * Client Supabase usato SOLO per l'autenticazione (login, rinnovo token, password, invito).
- * I dati passano tutti dalle API esercente. Sessione: SecureStore su mobile, localStorage sul web.
+ * I dati passano tutti dalle API esercente. Sessione: SecureStore su mobile; sul web la sessione è
+ * nei cookie httpOnly del server (login unico su /accesso), in localStorage solo di passaggio.
  * Flusso "implicit": i link di invito e di recupero portano i token nel frammento (#…) e
  * funzionano anche se aperti su un dispositivo diverso da quello che li ha chiesti.
  */
@@ -24,8 +25,16 @@ const webStorage: KeyValueStore = {
   removeItem: async (k) => localStorage.removeItem(k),
 };
 
+/**
+ * Web: la sessione vive nei cookie httpOnly del server (login unico su /accesso). In locale resta
+ * solo per un attimo quella aperta dal link dell'email (invito, nuova password), poi passa al server
+ * e si dimentica (web-login.ts). Chiave fissa, così si può cancellare senza chiudere la sessione.
+ */
+export const WEB_AUTH_KEY = "lw-auth-web";
+
 export const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey, {
   auth: {
+    ...(Platform.OS === "web" && { storageKey: WEB_AUTH_KEY }),
     storage: Platform.OS === "web" ? webStorage : chunkedStorage(secureStore),
     autoRefreshToken: true,
     persistSession: true,

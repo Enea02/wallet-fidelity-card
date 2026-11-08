@@ -9,6 +9,7 @@ CLAUDE.md
 # app esercente: export web, cartelle native generate, risultati dei test
 apps/merchant/dist/
 apps/merchant/dist-e2e/
+apps/web/public/app/
 apps/merchant/.expo/
 apps/merchant/ios/
 apps/merchant/android/

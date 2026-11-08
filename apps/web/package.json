@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "dev:hot": "MERCHANT_DEV_URL= next dev",
+    "build": "node scripts/copy-merchant.mjs && next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
@@ -16,7 +17,7 @@
     "cron:configure": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/cron-configure.ts",
     "support:add": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/support-add.ts",
     "support:phone-hash": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/phone-hash-backfill.ts",
-    "e2e": "next build && playwright test",
+    "e2e": "turbo run build --filter=@loyalty/web && playwright test",
     "e2e:only": "playwright test"
   },
   "dependencies": {
@@ -25,7 +26,7 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.3",
     "jsonwebtoken": "^9.0.3",
-    "next": "^16.4.0",
+    "next": "^16.4.5",
     "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

@@ -1236,3 +1236,12 @@
 .int-scroll td {
   overflow-wrap: normal;
 }
+
+/* login unico: schermata di scelta tra pannello interno e web app esercente */
+.int-choice {
+  display: grid;
+  gap: 14px;
+}
+.int-choice .int-card h2 {
+  margin-bottom: 4px;
+}

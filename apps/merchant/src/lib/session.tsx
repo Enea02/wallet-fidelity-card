@@ -2,15 +2,27 @@ import type { Role, ShopSummary } from "@loyalty/shared/api";
 import { errors } from "@loyalty/shared/errors";
 import type { z } from "zod";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Platform } from "react-native";
 import { api, ApiError, setSessionExpiredHandler } from "./api";
 import { authFailure, type AuthFailure } from "./auth/errors";
 import { prefs, supabase } from "./auth/supabase";
+import { forgetLocalSession, goToWebLogin } from "./auth/web-login";
 import { log, setLogContext } from "./diagnostics/logger";
+import { stripBase } from "./web-base";
 
 /*
  * Sessione dello staff: utente, negozi (GET me + GET shops), negozio attivo e ruolo.
  * Il ruolo decide le sezioni visibili; il negozio attivo va in X-Shop-Id e nei log.
+ * Web: la sessione è il cookie httpOnly del login unico (/accesso); all'avvio si chiede direttamente
+ * GET me, senza sessione si torna al login. App native: sessione Supabase con il token.
  */
+
+const WEB = Platform.OS === "web";
+
+/** Schermate che si aprono senza sessione (link delle email): lì un 401 non porta al login. */
+const PUBLIC_SCREENS = ["/invito", "/nuova-password", "/password-dimenticata"];
+const onPublicScreen = () =>
+  typeof window !== "undefined" && PUBLIC_SCREENS.includes(stripBase(window.location.pathname));
 
 export type Shop = z.output<typeof ShopSummary> & { displayName: string };
 
@@ -47,6 +59,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<ApiError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const loading = useRef(false);
+  /** Utente caricato (per sapere, sul web, se un 401 è una sessione scaduta o mai aperta). */
+  const userRef = useRef<SessionValue["user"]>(null);
 
   const activate = useCallback((s: Shop, userId: string, how: "unico negozio" | "scelta" | "cambio" | "ricordato") => {
     setShop(s);
@@ -57,6 +71,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const reset = useCallback(() => {
+    userRef.current = null;
     setUser(null);
     setShops([]);
     setShop(null);
@@ -75,6 +90,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const names = new Map(me.memberships.map((m) => [m.shopId, m.displayName]));
       const all: Shop[] = list.shops.map((s) => ({ ...s, displayName: names.get(s.id) ?? "" }));
       setUser(me.user);
+      userRef.current = me.user;
       setShops(all);
       setError(null);
       setLogContext({ user_id: me.user.id });
@@ -113,7 +129,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [activate, reset]);
 
   const signOut = useCallback(
-    async (reason: "manuale" | "sessione scaduta" = "manuale") => {
+    async (reason: "manuale" | "sessione scaduta" = "manuale", serverCode?: string) => {
+      const hadUser = userRef.current !== null;
+      if (WEB) {
+        // web: "scaduta" solo se c'era una sessione (utente caricato, o cookie che il server ha
+        // rifiutato: E_AUTH_INVALID); senza cookie (E_AUTH_REQUIRED) è solo "non ancora entrato"
+        const expired = reason === "sessione scaduta" && (hadUser || serverCode === "E_AUTH_INVALID");
+        if (expired || reason === "manuale") log.event("app.logout", { reason });
+        // chiude la sessione web (anche il pannello interno, per chi è nel team)
+        if (reason === "manuale") await api.call("logout", {}).catch(() => undefined);
+        forgetLocalSession();
+        reset();
+        // sulle pagine dei link delle email (invito, nuova password) si resta; dalla schermata
+        // iniziale ci pensa /accedi a portare al login unico
+        if ((expired || reason === "manuale") && !onPublicScreen()) goToWebLogin(expired ? "sessione" : undefined);
+        return;
+      }
       log.event("app.logout", { reason });
       await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
       setNotice(reason === "sessione scaduta" ? "La sessione è scaduta. Accedi di nuovo." : null);
@@ -162,8 +193,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    setSessionExpiredHandler(() => void signOut("sessione scaduta"));
+    setSessionExpiredHandler((serverCode) => void signOut("sessione scaduta", serverCode));
     let alive = true;
+    if (WEB) {
+      // web: la sessione è il cookie del server, GET me dice se c'è (401 → login unico)
+      void reload();
+      return () => {
+        alive = false;
+      };
+    }
     void supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;
       if (data.session) void reload();

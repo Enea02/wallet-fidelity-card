@@ -1,11 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { sessionCookieOptions } from "./lib/session-cookie-options";
 
 /**
- * Solo per il pannello interno (/interno): rinnova i cookie della sessione Supabase prima della
- * pagina, perché i Server Component non possono scriverli. Il controllo dei permessi resta nelle
- * pagine e nelle azioni (supportPage / supportAction); qui nessuna decisione di accesso.
- * Le pagine del pannello non vanno indicizzate.
+ * Pannello interno (/interno) e login unico (/accesso): rinnova i cookie della sessione web prima
+ * della pagina, perché i Server Component non possono scriverli (le API esercente li rinnovano da
+ * sé, vedi merchantRoute). Il controllo dei permessi resta nelle pagine e nelle azioni
+ * (supportPage / supportAction / lib/access.ts); qui nessuna decisione di accesso.
+ * Queste pagine non vanno indicizzate.
  */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -18,8 +20,7 @@ export async function proxy(request: NextRequest) {
         setAll: (list) => {
           for (const c of list) request.cookies.set(c.name, c.value);
           response = NextResponse.next({ request });
-          for (const c of list)
-            response.cookies.set(c.name, c.value, { ...c.options, httpOnly: true, sameSite: "lax" });
+          for (const c of list) response.cookies.set(c.name, c.value, { ...c.options, ...sessionCookieOptions() });
         },
       },
     });
@@ -29,4 +30,4 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
-export const config = { matcher: ["/interno", "/interno/:path*"] };
+export const config = { matcher: ["/interno", "/interno/:path*", "/accesso", "/accesso/:path*"] };

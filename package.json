@@ -6,7 +6,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "pnpm db:start && turbo run dev --filter=@loyalty/web",
+    "dev": "pnpm db:start && turbo run dev --filter=@loyalty/web --filter=@loyalty/merchant",
+    "dev:web": "pnpm db:start && pnpm --filter @loyalty/web dev:hot",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
@@ -28,14 +29,14 @@
     "support:add": "pnpm --filter @loyalty/web support:add",
     "support:phone-hash": "pnpm --filter @loyalty/web support:phone-hash",
     "lighthouse": "node scripts/lighthouse.mjs",
-    "e2e": "pnpm --filter @loyalty/web e2e && pnpm --filter @loyalty/merchant e2e",
+    "e2e": "turbo run build --filter=@loyalty/web && pnpm --filter @loyalty/web e2e:only && pnpm --filter @loyalty/merchant e2e",
     "video": "pnpm --filter @loyalty/video studio",
     "video:render": "pnpm --filter @loyalty/video render",
-    "dev:merchant": "pnpm db:start && turbo run dev --filter=@loyalty/web --filter=@loyalty/merchant"
+    "dev:merchant": "pnpm db:start && turbo run dev:hot --filter=@loyalty/web --filter=@loyalty/merchant"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@next/eslint-plugin-next": "16.4.0",
+    "@next/eslint-plugin-next": "16.4.5",
     "@usebruno/cli": "^4.2.1",
     "eslint": "^10.0.0",
     "eslint-plugin-react-hooks": "^7.0.0",

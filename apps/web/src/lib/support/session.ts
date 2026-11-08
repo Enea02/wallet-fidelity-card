@@ -1,18 +1,16 @@
 import "server-only";
-import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { AppError } from "@loyalty/shared/errors";
 import type { SupportDeniedReason } from "@loyalty/shared/logging/events";
 import { maskEmail } from "@loyalty/shared/logger";
-import { cookies } from "next/headers";
-import { requireEnv } from "../env";
 import { setContext } from "../observability/context";
 import { log } from "../observability/logger";
 import { supabaseAdmin } from "../supabase";
+import { cookieSessionClient } from "../web-session";
 
 /**
- * Sessione del pannello interno: Supabase Auth con cookie httpOnly (@supabase/ssr), solo per il
- * nostro team (support_members) e solo con il secondo fattore verificato (aal2, codice TOTP).
+ * Sessione del pannello interno: la sessione web del login unico (/accesso, cookie httpOnly), solo per
+ * il nostro team (support_members) e solo con il secondo fattore verificato (aal2, codice TOTP).
  * La sessione vale 12 ore dall'ultimo accesso con codice, poi si rientra.
  */
 
@@ -24,22 +22,11 @@ export interface SupportUser {
   name: string;
 }
 
-/** Client Supabase con la sessione nei cookie. Nei Server Component i cookie non si scrivono: li aggiorna proxy.ts. */
-export async function supportAuthClient(): Promise<SupabaseClient> {
-  const store = await cookies();
-  return createServerClient(requireEnv("NEXT_PUBLIC_SUPABASE_URL"), requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"), {
-    cookies: {
-      getAll: () => store.getAll(),
-      setAll: (list) => {
-        try {
-          for (const c of list) store.set(c.name, c.value, { ...c.options, httpOnly: true, sameSite: "lax" });
-        } catch {
-          // Server Component: i cookie li rinnova proxy.ts alla richiesta successiva
-        }
-      },
-    },
-  });
-}
+/**
+ * Client Supabase con la sessione web nei cookie: la stessa del login unico (/accesso) e della
+ * web app esercente (vedi web-session.ts).
+ */
+export const supportAuthClient = (): Promise<SupabaseClient> => cookieSessionClient();
 
 export async function memberOf(userId: string): Promise<{ name: string } | null> {
   const { data, error } = await supabaseAdmin()

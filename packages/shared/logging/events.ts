@@ -126,6 +126,8 @@ export interface ServerStartupOkFields {
   google_wallet_enabled: boolean;
   apple_wallet_enabled: boolean;
   log_level: LogLevel;
+  /** Web app esercente su /app: "inclusa (entry-…)" nella build, "da Metro …" in sviluppo, "assente". */
+  merchant_app: string;
 }
 
 export interface ServerStartupFailedFields {
@@ -345,6 +347,47 @@ export interface AuthTokenInvalidFields {
   route: string;
   /** "scaduto" | "non valido" | "utente inesistente" */
   reason: string;
+}
+
+/* ---------- login unico su /accesso (pannello interno e web app esercente) ---------- */
+
+/** Passo successivo dopo la password: secondo fattore (team) o destinazione. */
+export type AuthLoginNext = "codice" | "collega" | "app" | "interno" | "scegli";
+export interface AuthLoginOkFields {
+  /** Email mascherata. */
+  email: string;
+  /** È nel team interno (gli serve il codice dell'app di autenticazione). */
+  team: boolean;
+  /** Negozi in cui è nello staff. */
+  shops_count: number;
+  next: AuthLoginNext;
+}
+
+export type AuthLoginFailReason =
+  "email o password non corrette" | "nessun accesso: né nel team né nello staff di un negozio" | "troppi tentativi";
+export interface AuthLoginFailedFields {
+  /** Email mascherata. */
+  email: string;
+  reason: AuthLoginFailReason;
+}
+
+export type AuthDestination = "interno" | "app";
+export interface AuthLoginDestinationFields {
+  user_id: string;
+  destination: AuthDestination;
+  /** "unico accesso" (ha solo quello), "scelta" (schermata di scelta), "pagina richiesta" (era diretto lì). */
+  how: "unico accesso" | "scelta" | "pagina richiesta";
+}
+
+export interface AuthLogoutFields {
+  user_id: string;
+  /** Da dove: pannello interno o web app esercente. */
+  from: "interno" | "app";
+}
+
+export interface AuthSessionHandoffFields {
+  user_id: string;
+  reason: "invito" | "nuova password";
 }
 
 export interface AuthForbiddenShopFields {
@@ -764,6 +807,7 @@ const startupOk: ServerStartupOkFields = {
   google_wallet_enabled: true,
   apple_wallet_enabled: false,
   log_level: "info",
+  merchant_app: "inclusa (entry-074c0574)",
 };
 
 /* ---------- pannello interno e assistenza (Fase 9) ---------- */
@@ -1103,8 +1147,20 @@ export const events = {
     msg: (f) =>
       `Server ${f.app} avviato in ambiente ${f.env}, versione ${f.version} (commit ${f.commit}), Node ${f.node_version}: ` +
       `database Supabase su ${f.supabase_host}, Google Wallet ${onOff(f.google_wallet_enabled)}, ` +
-      `Apple Wallet ${onOff(f.apple_wallet_enabled)}, livello di log ${f.log_level}.`,
-    examples: [startupOk, { ...startupOk, env: "development", google_wallet_enabled: false }],
+      `Apple Wallet ${onOff(f.apple_wallet_enabled)}, livello di log ${f.log_level}, web app esercente su /app ${f.merchant_app}` +
+      (f.merchant_app === "assente"
+        ? ": /app risponde 404, rifare il deploy con `pnpm build` dalla radice (compila anche apps/merchant)."
+        : "."),
+    examples: [
+      startupOk,
+      {
+        ...startupOk,
+        env: "development",
+        google_wallet_enabled: false,
+        merchant_app: "da Metro su http://localhost:8081 (sviluppo)",
+      },
+      { ...startupOk, merchant_app: "assente" },
+    ],
   }),
 
   "server.startup.failed": defineEvent<ServerStartupFailedFields>({
@@ -1590,6 +1646,81 @@ export const events = {
       "Richiesta all'API esercente con un token di accesso scaduto o non valido: l'app deve far rifare il login.",
     msg: (f) => `Accesso rifiutato a ${f.route}: token ${f.reason}. L'utente deve rifare il login.`,
     examples: [{ route: "/api/v1/merchant/stamp", reason: "scaduto" }],
+  }),
+
+  "auth.login.ok": defineEvent<AuthLoginOkFields>({
+    level: "info",
+    description:
+      "Password corretta nel login unico (/accesso). Dice se la persona è nel team e in quanti negozi lavora, e il passo successivo.",
+    msg: (f) =>
+      `Password corretta su /accesso per ${f.email} (${f.team ? "team interno" : "non nel team"}, ` +
+      `${f.shops_count === 1 ? "1 negozio" : `${f.shops_count} negozi`}): ` +
+      (
+        {
+          codice: "ora deve scrivere il codice dell'app di autenticazione.",
+          collega: "primo accesso del team, ora deve collegare l'app di autenticazione.",
+          app: "entra nella web app esercente.",
+          interno: "entra nel pannello interno.",
+          scegli: "sceglie tra pannello interno e web app esercente.",
+        } satisfies Record<AuthLoginNext, string>
+      )[f.next],
+    examples: [
+      { email: "gi***@salone-mario.it", team: false, shops_count: 1, next: "app" },
+      { email: "en***@loyaltywallet.it", team: true, shops_count: 0, next: "codice" },
+      { email: "en***@loyaltywallet.it", team: true, shops_count: 2, next: "collega" },
+    ],
+  }),
+
+  "auth.login.failed": defineEvent<AuthLoginFailedFields>({
+    level: "warn",
+    description: "Login unico (/accesso) rifiutato al passo della password.",
+    msg: (f) =>
+      `Accesso rifiutato su /accesso per ${f.email}: ${f.reason}. ` +
+      (f.reason === "email o password non corrette"
+        ? "Se la persona è sicura dei dati, farle usare «Password dimenticata?» nell'app."
+        : f.reason === "troppi tentativi"
+          ? "Supabase blocca per qualche minuto: far riprovare più tardi."
+          : "Per uno staff: chiedere al titolare di invitarlo con questa email; per il team: aggiungerlo con pnpm support:add."),
+    examples: [
+      { email: "gi***@salone-mario.it", reason: "email o password non corrette" },
+      { email: "ma***@gmail.com", reason: "nessun accesso: né nel team né nello staff di un negozio" },
+    ],
+  }),
+
+  "auth.login.destination": defineEvent<AuthLoginDestinationFields>({
+    level: "info",
+    description: "Fine del login unico: dove entra la persona (pannello interno o web app esercente) e perché.",
+    msg: (f) =>
+      `L'utente ${f.user_id} entra ${f.destination === "interno" ? "nel pannello interno" : "nella web app esercente"} ` +
+      (
+        {
+          "unico accesso": "(è l'unico a cui ha diritto).",
+          scelta: "(scelto dalla schermata di scelta).",
+          "pagina richiesta": "(stava aprendo quella pagina).",
+        } as const
+      )[f.how],
+    examples: [
+      { user_id: "a1b2c3d4-0000-4000-8000-000000000001", destination: "app", how: "unico accesso" },
+      { user_id: "a1b2c3d4-0000-4000-8000-000000000002", destination: "interno", how: "scelta" },
+    ],
+  }),
+
+  "auth.logout": defineEvent<AuthLogoutFields>({
+    level: "info",
+    description: "Uscita dalla sessione web: vale sia per il pannello interno sia per la web app esercente.",
+    msg: (f) =>
+      `L'utente ${f.user_id} è uscito dalla sessione web ${f.from === "interno" ? "dal pannello interno" : "dalla web app esercente"}: ` +
+      "la sessione è chiusa per entrambi.",
+    examples: [{ user_id: "a1b2c3d4-0000-4000-8000-000000000001", from: "app" }],
+  }),
+
+  "auth.session.handoff": defineEvent<AuthSessionHandoffFields>({
+    level: "info",
+    description:
+      "La web app esercente ha passato al server la sessione aperta dal link dell'email (invito o nuova password): da qui vale il cookie.",
+    msg: (f) =>
+      `Sessione dell'utente ${f.user_id} aperta dal link dell'email (${f.reason}) e passata ai cookie della sessione web.`,
+    examples: [{ user_id: "a1b2c3d4-0000-4000-8000-000000000001", reason: "invito" }],
   }),
 
   "auth.forbidden.shop": defineEvent<AuthForbiddenShopFields>({

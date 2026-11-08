@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>L'app esercente ha un nuovo indirizzo</title>
+    <script>
+      // stesso percorso, query e frammento (i token dei link d'invito stanno nel frammento) sul nuovo indirizzo
+      location.replace("__NUOVO_URL_APP__" + location.pathname.replace(/^\/$/, "") + location.search + location.hash);
+    </script>
+  </head>
+  <body style="font-family: system-ui, sans-serif; padding: 2rem; background: #f7f2eb; color: #2a211c">
+    <p>
+      L'app esercente si è spostata. Se non si apre da sola, vai su <a href="__NUOVO_URL_APP__">__NUOVO_URL_APP__</a>.
+    </p>
+  </body>
+</html>

@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import type { Role } from "@loyalty/shared/api";
+import { stripBase } from "../web-base";
 import { canSee, sectionOf } from "./sections";
 
 /*
@@ -8,8 +9,13 @@ import { canSee, sectionOf } from "./sections";
  */
 let initial: string | null =
   Platform.OS === "web" && typeof window !== "undefined"
-    ? `${window.location.pathname}${window.location.search}`
+    ? `${stripBase(window.location.pathname)}${window.location.search}`
     : null;
+
+/** L'indirizzo iniziale senza consumarlo (per tornarci dopo il login sul web), null se è la radice. */
+export function peekInitialPath(): string | null {
+  return initial && initial !== "/" ? initial : null;
+}
 
 /** L'indirizzo iniziale, una volta sola, se è una sezione che il ruolo può vedere. */
 export function takeInitialPath(role: Role): string | null {

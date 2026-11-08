@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, View, type TextInput } from "react-native";
 import { authFailure } from "@/lib/auth/errors";
 import { authParamsFromUrl, supabase } from "@/lib/auth/supabase";
+import { handoffLocalSession } from "@/lib/auth/web-login";
 import { log } from "@/lib/diagnostics/logger";
 import { useOnline } from "@/lib/network";
 import { useSession } from "@/lib/session";
@@ -95,6 +96,14 @@ export function SetPassword({ kind }: { kind: Kind }) {
       return;
     }
     log.event("app.password.changed", { via: kind });
+    // web: la sessione del link passa ai cookie del server (login unico), la copia locale si dimentica
+    if (Platform.OS === "web" && !(await handoffLocalSession(kind === "invito" ? "invito" : "nuova password"))) {
+      setBusy(false);
+      setFailure(
+        "Password salvata, ma non riesco ad aprire la sessione. Vai all'accesso ed entra con la nuova password.",
+      );
+      return;
+    }
     await reload();
     setBusy(false);
     router.replace("/");

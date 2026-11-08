@@ -246,9 +246,8 @@ html { scroll-behavior: smooth; }
 <div class="shots wide"><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-10-diagnostica.png" aria-label="Ingrandisci: Diagnostica"><img src="img/interno-10-diagnostica.png" alt="Diagnostica" loading="lazy"></button><figcaption>Diagnostica</figcaption></figure><figure class="shot desk"><button type="button" class="zoom" data-src="img/interno-11-pacchetto-diagnostica.png" aria-label="Ingrandisci: Pacchetto di diagnostica"><img src="img/interno-11-pacchetto-diagnostica.png" alt="Pacchetto di diagnostica" loading="lazy"></button><figcaption>Pacchetto di diagnostica</figcaption></figure></div>
 </section>
 <section class="chapter" id="come-rigenerare-gli-screenshot"><h2>Come rigenerare gli screenshot</h2>
-<p>Servono Supabase locale, il web su <code>:3000</code> e l'app esercente su <code>:8081</code>. Il web va avviato con il <strong>codice SMS di prova</strong>, altrimenti lo script si ferma (con Twilio vero partirebbero SMS a numeri inventati):</p>
-<pre><code>OTP_PROVIDER=test OTP_LIMIT_PER_IP_HOUR=100000 APP_BASE_URL=http://localhost:3000 pnpm --filter @loyalty/web dev</code></pre>
-<pre><code>pnpm --filter @loyalty/merchant dev</code></pre>
+<p>Servono Supabase locale e il server unico su <code>:3000</code> (sito, login unico su <code>/accesso</code>, app esercente su <code>/app</code>). Il web va avviato con il <strong>codice SMS di prova</strong>, altrimenti lo script si ferma (con Twilio vero partirebbero SMS a numeri inventati):</p>
+<pre><code>OTP_PROVIDER=test OTP_LIMIT_PER_IP_HOUR=100000 APP_BASE_URL=http://localhost:3000 pnpm dev</code></pre>
 <pre><code>TUTORIAL_OTP_TEST=1 node apps/merchant/scripts/tutorial-screenshots.mjs</code></pre>
 <p>Un argomento facoltativo esegue solo una sezione (<code>cliente</code>, <code>accesso</code>, <code>cassa</code>, <code>fotocamera</code>, <code>titolare</code>, <code>tessere</code>, <code>punti</code>, <code>interno</code>). Lo script crea i propri clienti e tessere di esempio con le funzioni Postgres e li cancella al giro successivo; per il pannello interno crea un membro del team con 2FA e lo elimina alla fine. Le immagini finiscono in <code>docs/tutorial/img/</code>; gli errori della console delle pagine in <code>apps/merchant/e2e-logs/tutorial-console.log</code>.</p>
 </section>

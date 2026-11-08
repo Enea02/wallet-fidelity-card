@@ -2,12 +2,19 @@ import { HEADERS, merchantApi, type EndpointDef, type MerchantEndpoint } from "@
 import { AppError } from "@loyalty/shared/errors";
 import type { ActorFields } from "@loyalty/shared/logging/events";
 import type { z } from "zod";
-import { authenticateUser, loadMembership, type AuthUser, type Membership } from "../auth";
+import { authenticateUser, bearerToken, loadMembership, type AuthUser, type Membership } from "../auth";
 import { getShopById } from "../loyalty";
 import { getContext, setContext } from "../observability/context";
 import { log } from "../observability/logger";
 import { withApi } from "../observability/with-api";
 import type { Shop } from "../types";
+import {
+  hasSessionCookie,
+  requestSessionClient,
+  withSessionCookies,
+  type CookieToSet,
+  type RequestSession,
+} from "../web-session";
 import { checkOrigin, preflight, withCorsHeaders } from "./cors";
 import { enforceRateLimit } from "./rate-limit";
 
@@ -30,6 +37,10 @@ export interface MerchantContext<K extends MerchantEndpoint> {
   body: Parsed<Def<K> extends { body: infer B } ? B : undefined>;
   /** Chiave di idempotenza (header Idempotency-Key) delle azioni sul saldo, altrimenti null. */
   idempotencyKey: Def<K> extends { idempotent: true } ? string : null;
+  /** Sessione web nei cookie (web app su /app), null con il token Bearer delle app native. */
+  session: RequestSession | null;
+  /** Cookie di sessione da scrivere nella risposta (passaggio della sessione al server). */
+  setCookies: (list: CookieToSet[]) => void;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -145,9 +156,28 @@ async function resolveShop(req: Request, user: AuthUser, def: EndpointDef): Prom
 }
 
 /**
+ * Con la sessione web (cookie) le richieste che cambiano dati devono arrivare da un'origine ammessa:
+ * il browser manda sempre Origin nelle POST/PUT/PATCH/DELETE, quindi una richiesta senza Origin che
+ * porta il cookie non viene da una nostra pagina. Insieme a SameSite=Lax protegge dalle richieste
+ * false fatte da altri siti (CSRF). Le GET non cambiano dati.
+ */
+function requireOriginForCookie(req: Request, origin: string | null): void {
+  if (origin || req.method === "GET" || req.method === "HEAD") return;
+  throw new AppError("E_CORS_ORIGIN", `${req.method} con il cookie di sessione ma senza header Origin`, {
+    origin: null,
+  });
+}
+
+/** Sessione web della richiesta: solo se manca il token Bearer e c'è un cookie di sessione. */
+function webSessionOf(req: Request): RequestSession | null {
+  return !bearerToken(req) && hasSessionCookie(req) ? requestSessionClient(req) : null;
+}
+
+/**
  * Route dell'app esercente definita dal registro dei contratti (packages/shared/api/registry.ts):
- * request_id e log (withApi), CORS, rate limit per IP e per utente, autenticazione,
- * negozio e ruolo, validazione di params, query e body; in sviluppo e test anche della risposta.
+ * request_id e log (withApi), CORS, rate limit per IP e per utente, autenticazione (token Bearer
+ * delle app native o cookie della sessione web), negozio e ruolo, validazione di params, query e
+ * body; in sviluppo e test anche della risposta.
  */
 export function merchantRoute<K extends MerchantEndpoint>(
   key: K,
@@ -155,11 +185,16 @@ export function merchantRoute<K extends MerchantEndpoint>(
 ) {
   const def: EndpointDef = merchantApi[key];
 
+  const perRequest = new WeakMap<Request, { session: RequestSession | null; cookies: CookieToSet[] }>();
+
   const run = withApi(async (req: Request, next?: { params?: Promise<Record<string, string>> }) => {
-    checkOrigin(req);
+    const origin = checkOrigin(req);
+    const state = perRequest.get(req) ?? { session: null, cookies: [] };
+    const session = state.session;
+    if (session) requireOriginForCookie(req, origin);
     const ipHash = getContext()?.ip_hash ?? "sconosciuto";
     await enforceRateLimit("IP", ipHash, def.path);
-    const user = await authenticateUser(req, def.path);
+    const user = await authenticateUser(req, def.path, session);
     await enforceRateLimit("utente", user.id, def.path);
 
     const { staff, shop } = def.auth === "user" ? { staff: null, shop: null } : await resolveShop(req, user, def);
@@ -179,6 +214,10 @@ export function merchantRoute<K extends MerchantEndpoint>(
       query,
       body,
       idempotencyKey,
+      session,
+      setCookies: (list: CookieToSet[]) => {
+        state.cookies.push(...list);
+      },
     } as MerchantContext<K>);
     if (out instanceof Response) return out;
     if (def.response !== "pdf" && process.env.NODE_ENV !== "production") {
@@ -189,6 +228,11 @@ export function merchantRoute<K extends MerchantEndpoint>(
     return Response.json(out);
   });
 
-  return async (req: Request, next?: { params?: Promise<Record<string, string>> }) =>
-    withCorsHeaders(await run(req, next), req);
+  return async (req: Request, next?: { params?: Promise<Record<string, string>> }) => {
+    const state = { session: webSessionOf(req), cookies: [] as CookieToSet[] };
+    perRequest.set(req, state);
+    const res = await run(req, next);
+    // sessione rinnovata, aperta o chiusa durante la richiesta: i cookie nuovi vanno al browser
+    return withCorsHeaders(withSessionCookies(res, [...(state.session?.pending ?? []), ...state.cookies]), req);
+  };
 }

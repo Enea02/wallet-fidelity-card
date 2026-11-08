@@ -4,6 +4,7 @@
  */
 import { createHmac, randomInt, randomUUID } from "node:crypto";
 import { HEADERS, merchantApi, type MerchantEndpoint } from "@loyalty/shared/api";
+import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import * as customer from "@/app/api/v1/merchant/customers/[id]/route";
 import * as adjust from "@/app/api/v1/merchant/customers/[id]/adjust/route";
@@ -12,6 +13,8 @@ import * as customers from "@/app/api/v1/merchant/customers/route";
 import * as counterQr from "@/app/api/v1/merchant/counter-qr.pdf/route";
 import * as diagnostics from "@/app/api/v1/merchant/diagnostics/route";
 import * as me from "@/app/api/v1/merchant/me/route";
+import * as logout from "@/app/api/v1/merchant/logout/route";
+import * as sessionHandoff from "@/app/api/v1/merchant/session/route";
 import * as promotions from "@/app/api/v1/merchant/promotions/route";
 import * as redeem from "@/app/api/v1/merchant/redeem/route";
 import * as lookup from "@/app/api/v1/merchant/scan/lookup/route";
@@ -42,6 +45,8 @@ type Handler = (req: Request, ctx: { params: Promise<Record<string, string>> }) 
 export const ROUTES: Record<MerchantEndpoint, Handler> = {
   me: me.GET,
   shops: shops.GET,
+  sessionHandoff: sessionHandoff.POST,
+  logout: logout.POST,
   lookup: lookup.POST,
   stamp: stamp.POST,
   undo: undo.POST,
@@ -100,6 +105,36 @@ export async function tokenFor(email: string, password = "password-demo-locale")
   return data.session.access_token;
 }
 
+/**
+ * Header Cookie della sessione web (login unico) per l'utente, come lo scriverebbe /accesso.
+ * `fresh`: una sessione nuova (per i test che la chiudono), altrimenti riusata.
+ */
+const cookieJars = new Map<string, string>();
+export async function cookieFor(email: string, fresh = false, password = "password-demo-locale"): Promise<string> {
+  const cached = cookieJars.get(email);
+  if (cached && !fresh) return cached;
+  const jar = new Map<string, string>();
+  const sb = createServerClient(env("NEXT_PUBLIC_SUPABASE_URL"), env("NEXT_PUBLIC_SUPABASE_ANON_KEY"), {
+    cookies: {
+      getAll: () => [...jar].map(([name, value]) => ({ name, value })),
+      setAll: (list) => {
+        for (const c of list) {
+          if (c.value) jar.set(c.name, c.value);
+          else jar.delete(c.name);
+        }
+      },
+    },
+  });
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(`login web di ${email} fallito: ${error.message}`);
+  const header = [...jar].map(([name, value]) => `${name}=${encodeURIComponent(value)}`).join("; ");
+  if (!fresh) cookieJars.set(email, header);
+  return header;
+}
+
+/** Origine del sito negli smoke test (APP_BASE_URL): quella della web app esercente su /app. */
+export const SITE_ORIGIN = "http://localhost:3000";
+
 export const giulia = () => tokenFor("staff@salone-demo.test");
 export const marco = () => tokenFor("operatore@salone-demo.test");
 
@@ -115,6 +150,10 @@ export function expiredToken(): string {
 
 export interface CallOptions {
   token?: string | undefined;
+  /** Header Cookie della sessione web (cookieFor). */
+  cookie?: string | undefined;
+  /** Header Origin (le richieste del browser che cambiano dati lo hanno sempre). */
+  origin?: string | undefined;
   shopId?: string | undefined;
   body?: unknown;
   rawBody?: string;
@@ -132,6 +171,8 @@ export async function call(key: MerchantEndpoint, o: CallOptions = {}) {
 
   const headers: Record<string, string> = { ...o.headers };
   if (o.token) headers.authorization = `Bearer ${o.token}`;
+  if (o.cookie) headers.cookie = o.cookie;
+  if (o.origin) headers.origin = o.origin;
   if (o.shopId) headers[HEADERS.shopId] = o.shopId;
   // azioni sul saldo: una chiave nuova per chiamata, come un tocco nell'app (i test la passano per i doppioni)
   if ("idempotent" in def && def.idempotent && !(HEADERS.idempotencyKey in headers)) {
