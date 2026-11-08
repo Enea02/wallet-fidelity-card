@@ -187,6 +187,19 @@ importers:
         specifier: ^5.0.4
         version: 5.0.4(@types/node@24.19.2)(jsdom@20.0.3)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
+  apps/motion:
+    dependencies:
+      '@fontsource-variable/bricolage-grotesque':
+        specifier: ^5.3.0
+        version: 5.3.0
+      gsap:
+        specifier: ^3.15.1
+        version: 3.15.1
+    devDependencies:
+      '@playwright/test':
+        specifier: ~1.64.0
+        version: 1.64.0
+
   apps/video:
     dependencies:
       '@remotion/cli':
@@ -1545,6 +1558,9 @@ packages:
   '@faker-js/faker@9.9.0':
     resolution: {integrity: sha512-OEl393iCOoo/z8bMezRlJu+GlRGlsKbUAN7jKB6LhnKoqKve5DXRpalbItIIcwnCjs1k/FOPjFzcA6Qn+H+YbA==}
     engines: {node: '>=18.0.0', npm: '>=9.0.0'}
+
+  '@fontsource-variable/bricolage-grotesque@5.3.0':
+    resolution: {integrity: sha512-TLi9Q4hJjS2UvoTMRSS2nHu6c4R56lAw60NR9QYtVRCHn0XtsFpiEhNffZ8Glsoxu6wEEwLKBP8lb94J52PNBA==}
 
   '@google-cloud/secret-manager@6.3.0':
     resolution: {integrity: sha512-TUuzu8CchbCd2cXd0pYJSXvDBsEVX3wpZu4iOpdLrXLbYbvCDKhdjDyOyC7vo14qQRE9J6Z0AL2hfX08H+fh3A==}
@@ -5269,6 +5285,9 @@ packages:
     resolution: {integrity: sha512-CiV1t/LBinovD56UA3SFnogW8Dur+SslSeR9eBH2BV7O5daJp8GPyv65djXpk9i8tkBbYlMV455ZeyMvds1BOg==}
     peerDependencies:
       '@grpc/grpc-js': ^1.14.4
+
+  gsap@3.15.1:
+    resolution: {integrity: sha512-63yjWRFWj3QRP1UOuD8kcidCcy3nxb1mMRpwHr/xJRvPfm9GtWOXFAYUiL0ro1fgPq2nY53LR+98pAgy9BumBg==}
 
   gtoken@8.0.0:
     resolution: {integrity: sha512-+CqsMbHPiSTdtSO14O51eMNlrp9N79gmeqmXeouJOhfucAedHw9noVe/n5uJk3tbKE6a+6ZCQg3RPhVhHByAIw==}
@@ -9849,6 +9868,8 @@ snapshots:
 
   '@faker-js/faker@9.9.0': {}
 
+  '@fontsource-variable/bricolage-grotesque@5.3.0': {}
+
   '@google-cloud/secret-manager@6.3.0':
     dependencies:
       google-gax: 5.0.8
@@ -14200,6 +14221,8 @@ snapshots:
       google-protobuf: 4.0.3
       lodash: 4.18.1
       protobufjs: 8.8.1
+
+  gsap@3.15.1: {}
 
   gtoken@8.0.0:
     dependencies:

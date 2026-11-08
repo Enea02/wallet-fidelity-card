@@ -1,0 +1,10 @@
+# render, contact sheet e marker
+out/
+# brani e video di riferimento: spesso con licenze che non permettono di ridistribuirli
+music/*
+!music/README.md
+refs/*
+!refs/README.md
+# voce generata o registrata (si rigenera con `voce gen`; le registrazioni tienile anche altrove)
+voce/*
+!voce/README.md

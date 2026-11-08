@@ -1,0 +1,253 @@
+/* Token di brand: gli stessi di apps/video/src/ui/theme.ts e di packages/shared/theme.ts (vedi brand.md). */
+:root {
+  --bg: #f6f2ec;
+  --surface: #fffdfa;
+  --ink: #2a211c;
+  --ink2: #6b5e55;
+  --line: #ddd4cb;
+  --wine: #5b1f2e;
+  --wine-soft: #f1e3e5;
+  --shop: #7c3aed;
+  --ok: #1f7a4d;
+  --font: "Bricolage Grotesque Variable", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #0d0b0a;
+  overflow: hidden;
+}
+
+/* ---------- palco 1920×1080 ---------- */
+#viewport {
+  position: absolute;
+  inset: 0 0 56px 0;
+}
+#stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-optical-sizing: auto;
+}
+body.render #viewport {
+  inset: 0;
+}
+body.render #controls {
+  display: none;
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+.full {
+  position: absolute;
+  inset: 0;
+}
+.center {
+  display: grid;
+  place-items: center;
+}
+.abs {
+  position: absolute;
+}
+
+/* testo cinetico */
+.k {
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+  margin: 0;
+}
+.w {
+  display: inline-block;
+  will-change: transform;
+}
+.mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding: 0 0.04em 0.08em;
+  margin: 0 -0.04em -0.08em;
+}
+
+/* ---------- controlli dell'anteprima (nascosti nel render) ---------- */
+#controls {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+  background: #1a1513;
+  color: #e9e2da;
+  font:
+    14px/1 system-ui,
+    sans-serif;
+}
+#controls #scrub {
+  flex: 1;
+}
+#controls #subtitle {
+  flex: 0 1 420px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #f2c9d1;
+}
+#controls #clock {
+  width: 300px;
+  font-variant-numeric: tabular-nums;
+}
+#controls button,
+#controls select {
+  background: #2c2420;
+  color: inherit;
+  border: 1px solid #44372f;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font: inherit;
+}
+
+/* ---------- telefono e finestra del browser con le schermate reali ---------- */
+.phone {
+  position: absolute;
+  padding: 12px;
+  border-radius: 58px;
+  background: #16110e;
+  box-shadow:
+    0 60px 90px -40px rgba(40, 20, 30, 0.55),
+    0 0 0 2px rgba(255, 255, 255, 0.06) inset;
+}
+.phone .screen {
+  position: relative;
+  border-radius: 46px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.phone .screen img {
+  display: block;
+  width: 100%;
+}
+.browser {
+  position: absolute;
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 70px 120px -50px rgba(40, 20, 30, 0.5);
+  border: 1px solid var(--line);
+}
+.browser .bar {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 18px;
+  background: #efe9e1;
+  border-bottom: 1px solid var(--line);
+}
+.browser .bar i {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.browser .view {
+  position: relative;
+  overflow: hidden;
+}
+.browser .view img {
+  display: block;
+  width: 100%;
+}
+
+/* ---------- carta a timbri (come sul web pubblico) ---------- */
+.card {
+  position: absolute;
+  border-radius: calc(var(--w) * 0.06);
+  padding: calc(var(--w) * 0.065);
+  background: var(--c);
+  color: #fff;
+  width: var(--w);
+  box-shadow: 0 50px 90px -40px rgba(50, 20, 80, 0.6);
+}
+.card .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: calc(var(--w) * 0.06);
+  font-weight: 700;
+  font-size: calc(var(--w) * 0.05);
+}
+.card .logo {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--w) * 0.03);
+}
+.card .logo b {
+  width: calc(var(--w) * 0.1);
+  height: calc(var(--w) * 0.1);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--c);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+}
+.card .count {
+  font-variant-numeric: tabular-nums;
+}
+.card .grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  row-gap: calc(var(--w) * 0.035);
+  justify-items: center;
+}
+.card .cell {
+  position: relative;
+  width: calc(var(--w) * 0.12);
+  height: calc(var(--w) * 0.12);
+  border-radius: 50%;
+  border: 2px dashed rgba(255, 255, 255, 0.65);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: calc(var(--w) * 0.043);
+  color: rgba(255, 255, 255, 0.8);
+}
+.card .cell > * {
+  grid-area: 1 / 1;
+}
+.card .fill {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #fff;
+}
+.card .on {
+  display: grid;
+  place-items: center;
+}
+.card .ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 4px solid #fff;
+}
